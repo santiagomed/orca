@@ -99,7 +99,7 @@ impl<'a> PromptTemplate<'a> {
     /// Initialize a prompt template
     /// # Example
     /// ```rust
-    /// use orca::prompt::PromptTemplate;
+    /// use orca::prompt::prompt::PromptTemplate;
     ///
     /// let mut prompt_template = PromptTemplate::new();
     /// ```
@@ -118,9 +118,9 @@ impl<'a> PromptTemplate<'a> {
     /// If chat format is desired, use from_chat instead
     /// # Example
     /// ```rust
-    /// use orca::prompt::PromptTemplate;
+    /// use orca::prompt::prompt::PromptTemplate;
     ///
-    /// let mut prompt_template = PromptTemplate::new().from_prompt("prompt", "What is the capital of {{country}}").unwrap();
+    /// let mut prompt_template = PromptTemplate::new().from_prompt("prompt", "What is the capital of {{country}}");
     /// ```
     pub fn from_prompt(mut self, name: &str, template: &str) -> PromptTemplate<'a> {
         self.templates
@@ -132,13 +132,13 @@ impl<'a> PromptTemplate<'a> {
     /// If single format is desired, use from_prompt instead
     /// # Example
     /// ```rust
-    /// use orca::prompt::PromptTemplate;
+    /// use orca::prompt::prompt::PromptTemplate;
     ///
     /// let mut prompt_template = PromptTemplate::new().from_chat("prompt", vec![
     ///    ("system", "You are NOT a master at {{subject}}. You know nothing about it."),
     ///    ("user", "What is your favorite aspect of {{subject}}?"),
     ///    ("ai", "I don't know anything about {{subject}}."),
-    /// ]).unwrap();
+    /// ]);
     /// ```
     pub fn from_chat(mut self, name: &str, templates: Vec<(&str, &str)>) -> PromptTemplate<'a> {
         self.templates
@@ -149,13 +149,13 @@ impl<'a> PromptTemplate<'a> {
     /// Render a prompt template
     /// # Example
     /// ```rust
-    /// use orca::prompt::{PromptTemplate, Context};
+    /// use orca::prompt::{prompt::{Prompt, PromptTemplate}, context::Context};
     ///
-    /// let mut prompt_template = PromptTemplate::new().from_prompt("prompt", "Your name is {{name}}").unwrap();
-    /// let context = Context::new();
+    /// let mut prompt_template = PromptTemplate::new().from_prompt("prompt", "Your name is {{name}}");
+    /// let mut context = Context::new();
     /// context.set("name", "gpt");
     /// let prompt = prompt_template.render("prompt", &context).unwrap();
-    /// assert_eq!(prompt, "Your name is gpt");
+    /// assert_eq!(prompt, Prompt::Single("Your name is gpt".to_string()));
     /// ```
     pub fn render(&self, name: &str, context: &Context) -> Result<Prompt, handlebars::RenderError> {
         let template = self.templates.get(name).unwrap();
