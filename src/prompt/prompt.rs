@@ -99,7 +99,7 @@ impl<'a> PromptTemplate<'a> {
     /// Initialize a prompt template
     /// # Example
     /// ```rust
-    /// use orca::prompt::prompt::PromptTemplate;
+    /// use orcha::prompt::prompt::PromptTemplate;
     ///
     /// let mut prompt_template = PromptTemplate::new();
     /// ```
@@ -118,7 +118,7 @@ impl<'a> PromptTemplate<'a> {
     /// If chat format is desired, use from_chat instead
     /// # Example
     /// ```rust
-    /// use orca::prompt::prompt::PromptTemplate;
+    /// use orcha::prompt::prompt::PromptTemplate;
     ///
     /// let mut prompt_template = PromptTemplate::new().from_prompt("prompt", "What is the capital of {{country}}");
     /// ```
@@ -132,7 +132,7 @@ impl<'a> PromptTemplate<'a> {
     /// If single format is desired, use from_prompt instead
     /// # Example
     /// ```rust
-    /// use orca::prompt::prompt::PromptTemplate;
+    /// use orcha::prompt::prompt::PromptTemplate;
     ///
     /// let mut prompt_template = PromptTemplate::new().from_chat("prompt", vec![
     ///    ("system", "You are NOT a master at {{subject}}. You know nothing about it."),
@@ -149,7 +149,7 @@ impl<'a> PromptTemplate<'a> {
     /// Render a prompt template
     /// # Example
     /// ```rust
-    /// use orca::prompt::{prompt::{Prompt, PromptTemplate}, context::Context};
+    /// use orcha::prompt::{prompt::{Prompt, PromptTemplate}, context::Context};
     ///
     /// let mut prompt_template = PromptTemplate::new().from_prompt("prompt", "Your name is {{name}}");
     /// let mut context = Context::new();
