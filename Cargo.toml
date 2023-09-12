@@ -1,0 +1,12 @@
+[package]
+name = "orchestrate"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+handlebars = "4.4.0"
+serde = { version = "1.0.130", features = ["derive"] }
+async-openai = "0.14.1"
+serde_json = "1.0.106"
