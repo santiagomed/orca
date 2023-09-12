@@ -1,78 +1,51 @@
 use std::collections::HashMap;
 
-use super::context::Context;
+use super::{context::Context, error::PromptTemplateError};
 use handlebars::Handlebars;
+use serde::Serialize;
 
-#[derive(PartialEq, Debug)]
-pub enum Prompt {
-    /// A single prompt string
-    /// # Example
-    /// ```text
-    /// "What is your name?"
-    /// ```
-    Single(String),
+#[derive(Serialize, PartialEq, Debug, Clone)]
+pub struct Message {
+    /// The message role (system, user, ai)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub role: Option<Role>,
 
-    /// A multiple prompt strings
-    /// # Example
-    /// ```text
-    /// (System, "You are NOT a master at math. You know nothing about it.")
-    /// (User, "What is your favorite aspect of math?")
-    /// (Ai, "I don't know anything about math.")
-    /// ```
-    Chat(Vec<(Role, String)>),
+    /// The message text
+    pub message: String,
 }
 
-#[derive(Debug, Clone)]
-enum Template {
-    /// A single template string
-    /// # Example
-    /// ```text
-    /// "How do you learn {{subject}}?"
-    /// ```
-    Single(String),
-
-    /// A multiple template strings
-    /// # Example
-    /// ```text
-    /// (System, "You are NOT a master at {{subject}}.")
-    /// (User, "What is your favorite aspect of {{subject}}?")
-    /// (Ai, "I don't know anything about {{subject}}.")
-    /// ```
-    Chat(Vec<(Role, String)>),
-}
-
-impl From<Vec<(&str, &str)>> for Template {
-    fn from(v: Vec<(&str, &str)>) -> Template {
-        let mut templates = Vec::new();
-        for (role, template) in v {
-            let role = Role::from(role);
-            templates.push((role, template.to_string()));
+impl Message {
+    pub fn single(message: &str) -> Message {
+        Message {
+            role: None,
+            message: message.to_string(),
         }
-        Template::Chat(templates)
+    }
+
+    pub fn chat(role: Role, message: &str) -> Message {
+        Message {
+            role: Some(role),
+            message: message.to_string(),
+        }
+    }
+
+    pub fn into_vec(v: Vec<(&str, &str)>) -> Vec<Message> {
+        let mut messages = Vec::new();
+        for (role, message) in v {
+            messages.push(Message::chat(role.into(), message));
+        }
+        messages
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Serialize, Clone, Default, PartialEq)]
+#[serde(rename_all = "lowercase")]
 pub enum Role {
-    /// The system role
     System,
-
-    /// The user role
+    #[default]
     User,
-
-    /// The AI role
     Ai,
-}
-
-/// Trait for converting a role to a string
-impl ToString for Role {
-    fn to_string(&self) -> String {
-        match self {
-            Role::System => "system".to_string(),
-            Role::User => "user".to_string(),
-            Role::Ai => "ai".to_string(),
-        }
-    }
+    Function,
 }
 
 /// Trait for converting a string to a role
@@ -89,7 +62,7 @@ impl From<&str> for Role {
 
 pub struct PromptTemplate<'a> {
     /// A map of template names to template strings
-    templates: HashMap<String, Template>,
+    templates: HashMap<String, Vec<Message>>,
 
     /// The handlebars template engine
     handlebars: Handlebars<'a>,
@@ -124,7 +97,7 @@ impl<'a> PromptTemplate<'a> {
     /// ```
     pub fn from_prompt(mut self, name: &str, template: &str) -> PromptTemplate<'a> {
         self.templates
-            .insert(name.to_string(), Template::Single(template.to_string()));
+            .insert(name.to_string(), vec![Message::single(template)]);
         self
     }
 
@@ -142,7 +115,7 @@ impl<'a> PromptTemplate<'a> {
     /// ```
     pub fn from_chat(mut self, name: &str, templates: Vec<(&str, &str)>) -> PromptTemplate<'a> {
         self.templates
-            .insert(name.to_string(), Template::from(templates));
+            .insert(name.to_string(), Message::into_vec(templates));
         self
     }
 
@@ -157,26 +130,23 @@ impl<'a> PromptTemplate<'a> {
     /// let prompt = prompt_template.render("prompt", &context).unwrap();
     /// assert_eq!(prompt, Prompt::Single("Your name is gpt".to_string()));
     /// ```
-    pub fn render(&self, name: &str, context: &Context) -> Result<Prompt, handlebars::RenderError> {
+    pub fn render(
+        &self,
+        name: &str,
+        context: &Context,
+    ) -> Result<Vec<Message>, PromptTemplateError> {
         let template = self.templates.get(name).unwrap();
-        match template {
-            Template::Single(template) => {
-                let prompt = self
-                    .handlebars
-                    .render_template(template, context.variables())?;
-                Ok(Prompt::Single(prompt))
-            }
-            Template::Chat(templates) => {
-                let mut prompts = Vec::new();
-                for (role, template) in templates {
-                    let prompt = self
-                        .handlebars
-                        .render_template(template, context.variables())?;
-                    prompts.push((role.clone(), prompt));
-                }
-                Ok(Prompt::Chat(prompts))
-            }
+        let mut messages = Vec::new();
+        for message in template {
+            let rendered = self
+                .handlebars
+                .render_template(&message.message, context.variables())?;
+            messages.push(Message {
+                role: message.role.clone(),
+                message: rendered,
+            });
         }
+        Ok(messages)
     }
 }
 
@@ -193,7 +163,7 @@ mod test {
         let prompt = prompt_template.render("prompt", &context).unwrap();
         assert_eq!(
             prompt,
-            Prompt::Single("What is the capital of France".to_string())
+            vec![Message::single("What is the capital of France")]
         );
     }
 
@@ -215,17 +185,14 @@ mod test {
         let prompt = prompt_template.render("prompt", &context).unwrap();
         assert_eq!(
             prompt,
-            Prompt::Chat(vec![
-                (
+            vec![
+                Message::chat(
                     Role::System,
-                    "You are NOT a master at math. You know nothing about it.".to_string()
+                    "You are NOT a master at math. You know nothing about it."
                 ),
-                (
-                    Role::User,
-                    "What is your favorite aspect of math?".to_string()
-                ),
-                (Role::Ai, "I don't know anything about math.".to_string()),
-            ])
+                Message::chat(Role::User, "What is your favorite aspect of math?"),
+                Message::chat(Role::Ai, "I don't know anything about math."),
+            ]
         );
     }
 }
