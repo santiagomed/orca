@@ -9,10 +9,17 @@ use super::request::RequestMessages;
 
 #[async_trait::async_trait]
 pub trait Generate {
-    async fn generate<T: Serialize + std::marker::Sync + std::fmt::Display>(
+    async fn generate_with_context<T: Serialize + std::marker::Sync + std::fmt::Display>(
         &self,
         name: &str,
         context: &Context<T>,
+        template: &PromptTemplate,
+    ) -> Result<String, ModelError>;
+
+    async fn generate_with_data<K: Serialize + std::marker::Send + std::fmt::Display>(
+        &self,
+        name: &str,
+        data: K,
         template: &PromptTemplate,
     ) -> Result<String, ModelError>;
 }
@@ -99,13 +106,32 @@ impl OpenAIClient<config::OpenAIConfig> {
 
 #[async_trait::async_trait]
 impl Generate for OpenAIClient<config::OpenAIConfig> {
-    async fn generate<T: Serialize + std::marker::Sync + std::fmt::Display>(
+    async fn generate_with_context<T: Serialize + std::marker::Sync + std::fmt::Display>(
         &self,
         name: &str,
         context: &Context<T>,
         template: &PromptTemplate,
     ) -> Result<String, ModelError> {
-        let prompt = template.render(name, context)?;
+        let prompt = template.render_context(name, context)?;
+
+        let request = CreateChatCompletionRequestArgs::default()
+            .model(self.model.clone())
+            .messages(RequestMessages::from(prompt))
+            .build()?;
+
+        match self.client.chat().create(request).await {
+            Ok(response) => Ok(response.choices[0].to_owned().message.content.unwrap()),
+            Err(err) => Err(ModelError::OpenAIError(err)),
+        }
+    }
+
+    async fn generate_with_data<K: Serialize + std::marker::Send + std::fmt::Display>(
+        &self,
+        name: &str,
+        data: K,
+        template: &PromptTemplate,
+    ) -> Result<String, ModelError> {
+        let prompt = template.render_data(name, data)?;
 
         let request = CreateChatCompletionRequestArgs::default()
             .model(self.model.clone())
@@ -137,7 +163,10 @@ mod test {
                 ("user", "What is the capital of {{country2}}"),
             ],
         );
-        let response = client.generate("chat", &context, &template).await.unwrap();
+        let response = client
+            .generate_with_context("chat", &context, &template)
+            .await
+            .unwrap();
         // contains "Paris" or "paris"
         assert!(response.to_lowercase().contains("berlin"));
     }

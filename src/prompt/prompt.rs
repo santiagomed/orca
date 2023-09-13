@@ -130,7 +130,7 @@ impl<'a> PromptTemplate<'a> {
     /// let prompt = prompt_template.render("prompt", &context).unwrap();
     /// assert_eq!(prompt, vec![Message::single("Your name is gpt")]);
     /// ```
-    pub fn render<T: Serialize + std::fmt::Display>(
+    pub fn render_context<T: Serialize + std::fmt::Display>(
         &self,
         name: &str,
         context: &Context<T>,
@@ -141,6 +141,22 @@ impl<'a> PromptTemplate<'a> {
             let rendered = self
                 .handlebars
                 .render_template(&message.message, &context.get_variables())?;
+            messages.push(Message {
+                role: message.role.clone(),
+                message: rendered,
+            });
+        }
+        Ok(messages)
+    }
+
+    pub fn render_data<K>(&self, name: &str, data: K) -> Result<Vec<Message>, PromptTemplateError>
+    where
+        K: Serialize,
+    {
+        let template = self.templates.get(name).unwrap();
+        let mut messages = Vec::new();
+        for message in template {
+            let rendered = self.handlebars.render_template(&message.message, &data)?;
             messages.push(Message {
                 role: message.role.clone(),
                 message: rendered,
@@ -160,7 +176,7 @@ mod test {
             PromptTemplate::new().from_prompt("prompt", "What is the capital of {{country}}");
         let mut context = Context::new();
         context.set("country", "France");
-        let prompt = prompt_template.render("prompt", &context).unwrap();
+        let prompt = prompt_template.render_context("prompt", &context).unwrap();
         assert_eq!(
             prompt,
             vec![Message::single("What is the capital of France")]
@@ -182,7 +198,7 @@ mod test {
         );
         let mut context = Context::new();
         context.set("subject", "math");
-        let prompt = prompt_template.render("prompt", &context).unwrap();
+        let prompt = prompt_template.render_context("prompt", &context).unwrap();
         assert_eq!(
             prompt,
             vec![
@@ -197,18 +213,49 @@ mod test {
     }
 
     #[test]
-    fn test_serialize() {
+    fn test_context() {
         let prompt_template = PromptTemplate::new()
             .from_chat("prompt", vec![("system", "This is my data: {{data}}.")]);
 
         let mut context = Context::new();
         context.set("data", serde_json::json!({"name": "gpt"}));
-        let prompt = prompt_template.render("prompt", &context).unwrap();
+        let prompt = prompt_template.render_context("prompt", &context).unwrap();
         assert_eq!(
             prompt,
             vec![Message::chat(
                 Role::System,
                 "This is my data: {\"name\":\"gpt\"}."
+            )]
+        );
+    }
+
+    #[test]
+    fn test_data() {
+        #[derive(Serialize)]
+        struct Data {
+            name: String,
+            age: u8,
+        }
+
+        let prompt_template = PromptTemplate::new().from_chat(
+            "prompt",
+            vec![(
+                "ai",
+                "My name is {{name}} and I am {{#if (eq age 1)}}1 year{{else}}{{age}} years{{/if}} old.",
+            )],
+        );
+
+        let data = Data {
+            name: "gpt".to_string(),
+            age: 5,
+        };
+
+        let prompt = prompt_template.render_data("prompt", data).unwrap();
+        assert_eq!(
+            prompt,
+            vec![Message::chat(
+                Role::Ai,
+                "My name is gpt and I am 5 years old."
             )]
         );
     }
