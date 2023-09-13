@@ -1,5 +1,6 @@
 use async_openai::config;
 use async_openai::types::CreateChatCompletionRequestArgs;
+use serde::Serialize;
 
 use crate::models::openai::error::ModelError;
 use crate::prompt::{context::Context, prompt::PromptTemplate};
@@ -8,10 +9,10 @@ use super::request::RequestMessages;
 
 #[async_trait::async_trait]
 pub trait Generate {
-    async fn generate(
+    async fn generate<T: Serialize + std::marker::Sync + std::fmt::Display>(
         &self,
         name: &str,
-        context: &Context,
+        context: &Context<T>,
         template: &PromptTemplate,
     ) -> Result<String, ModelError>;
 }
@@ -98,10 +99,10 @@ impl OpenAIClient<config::OpenAIConfig> {
 
 #[async_trait::async_trait]
 impl Generate for OpenAIClient<config::OpenAIConfig> {
-    async fn generate(
+    async fn generate<T: Serialize + std::marker::Sync + std::fmt::Display>(
         &self,
         name: &str,
-        context: &Context,
+        context: &Context<T>,
         template: &PromptTemplate,
     ) -> Result<String, ModelError> {
         let prompt = template.render(name, context)?;
