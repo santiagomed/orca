@@ -127,7 +127,7 @@ impl<'a> PromptTemplate<'a> {
     /// let mut prompt_template = PromptTemplate::new().from_prompt("prompt", "Your name is {{name}}");
     /// let mut context = Context::new();
     /// context.set("name", "gpt");
-    /// let prompt = prompt_template.render("prompt", &context).unwrap();
+    /// let prompt = prompt_template.render_context("prompt", &context).unwrap();
     /// assert_eq!(prompt, vec![Message::single("Your name is gpt")]);
     /// ```
     pub fn render_context<T: Serialize + std::fmt::Display>(
@@ -149,6 +149,30 @@ impl<'a> PromptTemplate<'a> {
         Ok(messages)
     }
 
+    /// Render a prompt template with data
+    /// # Example
+    /// ```rust
+    /// use orcha::prompt::{prompt::{Message, PromptTemplate, Role}, context::Context};
+    /// use serde::Serialize;
+    ///
+    /// #[derive(Serialize)]
+    /// struct Data {
+    ///    name: String,
+    ///    age: u8,
+    /// }
+    ///
+    /// let mut prompt_template = PromptTemplate::new().from_chat("prompt", vec![
+    ///   ("ai", "My name is {{name}} and I am {{#if (eq age 1)}}1 year{{else}}{{age}} years{{/if}} old."),
+    /// ]);
+    ///
+    /// let data = Data {
+    ///   name: "gpt".to_string(),
+    ///   age: 5,
+    /// };
+    ///
+    /// let prompt = prompt_template.render_data("prompt", data).unwrap();
+    /// assert_eq!(prompt, vec![Message::chat(Role::Ai, "My name is gpt and I am 5 years old.")]);
+    /// ```
     pub fn render_data<K>(&self, name: &str, data: K) -> Result<Vec<Message>, PromptTemplateError>
     where
         K: Serialize,
