@@ -1,30 +1,17 @@
-use async_openai::config;
-use async_openai::types::CreateChatCompletionRequestArgs;
+use async_openai::types::{CreateChatCompletionRequest, CreateChatCompletionRequestArgs};
 use serde::Serialize;
 
-use crate::models::openai::error::ModelError;
+use crate::llm::error::LLMError;
+use crate::llm::llm::{GenerateWithContext, GenerateWithData, LLM};
+use crate::prompt::prompt::Message;
 use crate::prompt::{context::Context, prompt::PromptTemplate};
 
 use super::request::RequestMessages;
 
-#[async_trait::async_trait]
-pub trait Generate {
-    async fn generate_with_context<T: Serialize + std::marker::Sync + std::fmt::Display>(
-        &self,
-        name: &str,
-        context: &Context<T>,
-        template: &PromptTemplate,
-    ) -> Result<String, ModelError>;
+// make OpenAIConfig public
+pub use async_openai::config::{Config, OpenAIConfig};
 
-    async fn generate_with_data<K: Serialize + std::marker::Send + std::fmt::Display>(
-        &self,
-        name: &str,
-        data: K,
-        template: &PromptTemplate,
-    ) -> Result<String, ModelError>;
-}
-
-pub struct OpenAIClient<C: config::Config> {
+pub struct OpenAIClient<C: Config> {
     /// Client member for the OpenAI API. This client is a wrapper around the async-openai crate, with additional functionality to
     /// support LLM orchestration.
     client: async_openai::Client<C>,
@@ -57,7 +44,7 @@ pub struct OpenAIClient<C: config::Config> {
     max_tokens: u16,
 }
 
-impl OpenAIClient<config::OpenAIConfig> {
+impl OpenAIClient<OpenAIConfig> {
     /// Create a new OpenAI client
     pub fn new() -> Self {
         Self {
@@ -102,48 +89,49 @@ impl OpenAIClient<config::OpenAIConfig> {
         self.max_tokens = max_tokens;
         self
     }
+
+    pub fn generate_request(&self, messages: Vec<Message>) -> Result<CreateChatCompletionRequest, LLMError> {
+        Ok(CreateChatCompletionRequestArgs::default()
+            .model(self.model.clone())
+            .max_tokens(self.max_tokens)
+            .temperature(self.temperature)
+            .top_p(self.top_p)
+            .stream(self.stream)
+            .messages(RequestMessages::from(messages))
+            .build()?)
+    }
+}
+
+// Now implement these traits for your LLM types
+#[async_trait::async_trait]
+impl<T: Serialize + std::marker::Sync + std::fmt::Display> GenerateWithContext<T> for OpenAIClient<OpenAIConfig> {
+    async fn generate_with_context(&self, name: &str, context: &Context<T>, template: &PromptTemplate) -> Result<String, LLMError> {
+        let prompt = template.render_context(name, context)?;
+
+        let request = self.generate_request(prompt)?;
+
+        match self.client.chat().create(request).await {
+            Ok(response) => Ok(response.choices[0].to_owned().message.content.unwrap()),
+            Err(err) => Err(LLMError::OpenAIError(err)),
+        }
+    }
 }
 
 #[async_trait::async_trait]
-impl Generate for OpenAIClient<config::OpenAIConfig> {
-    async fn generate_with_context<T: Serialize + std::marker::Sync + std::fmt::Display>(
-        &self,
-        name: &str,
-        context: &Context<T>,
-        template: &PromptTemplate,
-    ) -> Result<String, ModelError> {
-        let prompt = template.render_context(name, context)?;
-
-        let request = CreateChatCompletionRequestArgs::default()
-            .model(self.model.clone())
-            .messages(RequestMessages::from(prompt))
-            .build()?;
-
-        match self.client.chat().create(request).await {
-            Ok(response) => Ok(response.choices[0].to_owned().message.content.unwrap()),
-            Err(err) => Err(ModelError::OpenAIError(err)),
-        }
-    }
-
-    async fn generate_with_data<K: Serialize + std::marker::Send + std::fmt::Display>(
-        &self,
-        name: &str,
-        data: K,
-        template: &PromptTemplate,
-    ) -> Result<String, ModelError> {
+impl<T: Serialize + std::marker::Sync + std::fmt::Display> GenerateWithData<T> for OpenAIClient<OpenAIConfig> {
+    async fn generate_with_data(&self, name: &str, data: &T, template: &PromptTemplate) -> Result<String, LLMError> {
         let prompt = template.render_data(name, data)?;
 
-        let request = CreateChatCompletionRequestArgs::default()
-            .model(self.model.clone())
-            .messages(RequestMessages::from(prompt))
-            .build()?;
+        let request = self.generate_request(prompt)?;
 
         match self.client.chat().create(request).await {
             Ok(response) => Ok(response.choices[0].to_owned().message.content.unwrap()),
-            Err(err) => Err(ModelError::OpenAIError(err)),
+            Err(err) => Err(LLMError::OpenAIError(err)),
         }
     }
 }
+
+impl<T: Serialize + std::marker::Sync + std::fmt::Display> LLM<T> for OpenAIClient<OpenAIConfig> {}
 
 #[cfg(test)]
 mod test {
@@ -163,10 +151,7 @@ mod test {
                 ("user", "What is the capital of {{country2}}"),
             ],
         );
-        let response = client
-            .generate_with_context("chat", &context, &template)
-            .await
-            .unwrap();
+        let response = client.generate_with_context("chat", &context, &template).await.unwrap();
         // contains "Paris" or "paris"
         assert!(response.to_lowercase().contains("berlin"));
     }
