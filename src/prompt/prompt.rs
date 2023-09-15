@@ -64,6 +64,9 @@ pub struct PromptTemplate<'p> {
     /// A map of template names to template strings
     templates: HashMap<String, Vec<Message>>,
 
+    // A map of rendered prompts
+    prompts: HashMap<String, Vec<Message>>,
+
     /// The handlebars template engine
     handlebars: Handlebars<'p>,
 }
@@ -79,9 +82,14 @@ impl<'p> PromptTemplate<'p> {
     pub fn new() -> PromptTemplate<'p> {
         let mut handlebars = Handlebars::new();
         let templates = HashMap::new();
+        let prompts = HashMap::new();
         handlebars.register_escape_fn(handlebars::no_escape);
 
-        PromptTemplate { templates, handlebars }
+        PromptTemplate {
+            templates,
+            prompts,
+            handlebars,
+        }
     }
 
     /// Initialize a prompt template with a single template string
@@ -125,7 +133,7 @@ impl<'p> PromptTemplate<'p> {
     /// let prompt = prompt_template.render_context("prompt", &context).unwrap();
     /// assert_eq!(prompt, vec![Message::single("Your name is gpt")]);
     /// ```
-    pub fn render_context<T>(&self, name: &str, context: &Context<T>) -> Result<Vec<Message>, PromptTemplateError>
+    pub fn render_context<T>(&mut self, name: &str, context: &Context<T>) -> Result<Vec<Message>, PromptTemplateError>
     where
         T: Serialize,
     {
@@ -138,6 +146,7 @@ impl<'p> PromptTemplate<'p> {
                 message: rendered,
             });
         }
+        self.prompts.insert(name.to_string(), messages.clone());
         Ok(messages)
     }
 
@@ -165,7 +174,7 @@ impl<'p> PromptTemplate<'p> {
     /// let prompt = prompt_template.render_data("prompt", &data).unwrap();
     /// assert_eq!(prompt, vec![Message::chat(Role::Ai, "My name is gpt and I am 5 years old.")]);
     /// ```
-    pub fn render_data<T>(&self, name: &str, data: &T) -> Result<Vec<Message>, PromptTemplateError>
+    pub fn render_data<T>(&mut self, name: &str, data: &T) -> Result<Vec<Message>, PromptTemplateError>
     where
         T: Serialize,
     {
@@ -178,6 +187,7 @@ impl<'p> PromptTemplate<'p> {
                 message: rendered,
             });
         }
+        self.prompts.insert(name.to_string(), messages.clone());
         Ok(messages)
     }
 }
@@ -198,7 +208,7 @@ mod test {
 
     #[test]
     fn test_prompt() {
-        let prompt_template = prompt!("prompt", str "What is the capital of {{country}}");
+        let mut prompt_template = prompt!("prompt", str "What is the capital of {{country}}");
         let mut context = Context::new();
         context.set("country", "France");
         let prompt = prompt_template.render_context("prompt", &context).unwrap();
@@ -207,7 +217,7 @@ mod test {
 
     #[test]
     fn test_chat() {
-        let prompt_template = prompt!(
+        let mut prompt_template = prompt!(
             "prompt",
             ("system", "You are NOT a master at {{subject}}. You know nothing about it."),
             ("user", "What is your favorite aspect of {{subject}}?"),
@@ -228,7 +238,7 @@ mod test {
 
     #[test]
     fn test_context() {
-        let prompt_template = prompt!("prompt", ("system", "This is my data: {{data}}."));
+        let mut prompt_template = prompt!("prompt", ("system", "This is my data: {{data}}."));
 
         let mut context = Context::new();
         context.set("data", serde_json::json!({"name": "gpt", "age": 5, "country": "France"}));
@@ -247,7 +257,7 @@ mod test {
             age: u8,
         }
 
-        let prompt_template = prompt!(
+        let mut prompt_template = prompt!(
             "prompt",
             (
                 "ai",

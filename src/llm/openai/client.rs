@@ -1,10 +1,8 @@
 use async_openai::types::{CreateChatCompletionRequest, CreateChatCompletionRequestArgs};
-use serde::Serialize;
 
 use crate::llm::error::LLMError;
-use crate::llm::llm::{GenerateWithContext, GenerateWithData, LLM};
+use crate::llm::llm::Generate;
 use crate::prompt::prompt::Message;
-use crate::prompt::{context::Context, prompt::PromptTemplate};
 
 use super::request::RequestMessages;
 
@@ -90,24 +88,22 @@ impl OpenAIClient {
         self
     }
 
-    pub fn generate_request(&self, messages: Vec<Message>) -> Result<CreateChatCompletionRequest, LLMError> {
+    pub fn generate_request(&self, messages: &Vec<Message>) -> Result<CreateChatCompletionRequest, LLMError> {
         Ok(CreateChatCompletionRequestArgs::default()
             .model(self.model.clone())
             .max_tokens(self.max_tokens)
             .temperature(self.temperature)
             .top_p(self.top_p)
             .stream(self.stream)
-            .messages(RequestMessages::from(messages))
+            .messages(RequestMessages::from(messages.clone()))
             .build()?)
     }
 }
 
 // Now implement these traits for your LLM types
 #[async_trait::async_trait(?Send)]
-impl<T: Serialize> GenerateWithContext<T> for OpenAIClient {
-    async fn generate_with_context(&self, name: &str, context: &Context<T>, template: &PromptTemplate) -> Result<String, LLMError> {
-        let prompt = template.render_context(name, context)?;
-
+impl Generate for OpenAIClient {
+    async fn generate(&self, prompt: &Vec<Message>) -> Result<String, LLMError> {
         let request = self.generate_request(prompt)?;
 
         match self.client.chat().create(request).await {
@@ -116,26 +112,12 @@ impl<T: Serialize> GenerateWithContext<T> for OpenAIClient {
         }
     }
 }
-
-#[async_trait::async_trait(?Send)]
-impl<T: Serialize> GenerateWithData<T> for OpenAIClient {
-    async fn generate_with_data(&self, name: &str, data: &T, template: &PromptTemplate) -> Result<String, LLMError> {
-        let prompt = template.render_data(name, data)?;
-
-        let request = self.generate_request(prompt)?;
-
-        match self.client.chat().create(request).await {
-            Ok(response) => Ok(response.choices[0].to_owned().message.content.unwrap()),
-            Err(err) => Err(LLMError::OpenAIError(err)),
-        }
-    }
-}
-
-impl<T: Serialize> LLM<T> for OpenAIClient {}
 
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::prompt::context::Context;
+    use crate::prompt::prompt::PromptTemplate;
 
     #[tokio::test]
     async fn test_generate() {
@@ -143,15 +125,18 @@ mod test {
         let mut context = Context::new();
         context.set("country1", "France");
         context.set("country2", "Germany");
-        let template = PromptTemplate::new().from_chat(
-            "chat",
-            vec![
-                ("user", "What is the capital of {{country1}}"),
-                ("ai", "Paris"),
-                ("user", "What is the capital of {{country2}}"),
-            ],
-        );
-        let response = client.generate_with_context("chat", &context, &template).await.unwrap();
+        let prompt = PromptTemplate::new()
+            .from_chat(
+                "chat",
+                vec![
+                    ("user", "What is the capital of {{country1}}"),
+                    ("ai", "Paris"),
+                    ("user", "What is the capital of {{country2}}"),
+                ],
+            )
+            .render_context("chat", &context)
+            .unwrap();
+        let response = client.generate(&prompt).await.unwrap();
         // contains "Paris" or "paris"
         assert!(response.to_lowercase().contains("berlin"));
     }
