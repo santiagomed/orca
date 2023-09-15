@@ -11,10 +11,10 @@ use super::request::RequestMessages;
 // make OpenAIConfig public
 pub use async_openai::config::{Config, OpenAIConfig};
 
-pub struct OpenAIClient<C: Config> {
+pub struct OpenAIClient {
     /// Client member for the OpenAI API. This client is a wrapper around the async-openai crate, with additional functionality to
     /// support LLM orchestration.
-    client: async_openai::Client<C>,
+    client: async_openai::Client<OpenAIConfig>,
 
     /// ID of the model to use.
     /// See the [model endpoint compatibility](https://platform.openai.com/docs/models/model-endpoint-compatibility) table for details on which models work with the Chat API.
@@ -44,7 +44,7 @@ pub struct OpenAIClient<C: Config> {
     max_tokens: u16,
 }
 
-impl OpenAIClient<OpenAIConfig> {
+impl OpenAIClient {
     /// Create a new OpenAI client
     pub fn new() -> Self {
         Self {
@@ -103,8 +103,8 @@ impl OpenAIClient<OpenAIConfig> {
 }
 
 // Now implement these traits for your LLM types
-#[async_trait::async_trait]
-impl<T: Serialize + std::marker::Sync + std::fmt::Display> GenerateWithContext<T> for OpenAIClient<OpenAIConfig> {
+#[async_trait::async_trait(?Send)]
+impl<T: Serialize> GenerateWithContext<T> for OpenAIClient {
     async fn generate_with_context(&self, name: &str, context: &Context<T>, template: &PromptTemplate) -> Result<String, LLMError> {
         let prompt = template.render_context(name, context)?;
 
@@ -117,8 +117,8 @@ impl<T: Serialize + std::marker::Sync + std::fmt::Display> GenerateWithContext<T
     }
 }
 
-#[async_trait::async_trait]
-impl<T: Serialize + std::marker::Sync + std::fmt::Display> GenerateWithData<T> for OpenAIClient<OpenAIConfig> {
+#[async_trait::async_trait(?Send)]
+impl<T: Serialize> GenerateWithData<T> for OpenAIClient {
     async fn generate_with_data(&self, name: &str, data: &T, template: &PromptTemplate) -> Result<String, LLMError> {
         let prompt = template.render_data(name, data)?;
 
@@ -131,7 +131,7 @@ impl<T: Serialize + std::marker::Sync + std::fmt::Display> GenerateWithData<T> f
     }
 }
 
-impl<T: Serialize + std::marker::Sync + std::fmt::Display> LLM<T> for OpenAIClient<OpenAIConfig> {}
+impl<T: Serialize> LLM<T> for OpenAIClient {}
 
 #[cfg(test)]
 mod test {

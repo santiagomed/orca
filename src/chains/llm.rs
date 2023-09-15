@@ -1,9 +1,8 @@
-use serde::Serialize;
-
-use crate::llm::error::LLMError;
-use crate::llm::llm::LLM;
+use crate::llm::llm::{GenerateWithData, LLM};
+use crate::llm::{error::LLMError, llm::GenerateWithContext};
 use crate::prompt::context::Context;
 use crate::prompt::prompt::PromptTemplate;
+use serde::Serialize;
 
 // /// LLM chain that formats a prompt and calls an LLM.
 // ///
@@ -17,80 +16,74 @@ use crate::prompt::prompt::PromptTemplate;
 // ///                                .with_prompt(PromptTemplate::new().from_prompt("prompt", "What is the capital of {{country}}"));
 // /// let res = llm_chain.generate("prompt", "France");
 // /// ```
-pub struct LLMChain<'a, T, L>
+pub struct LLMChain<'a, T>
 where
-    T: Serialize + std::marker::Sync + std::fmt::Display,
-    L: LLM<T>,
+    T: Serialize,
 {
-    llm: Box<L>,
-    prompt_template: PromptTemplate<'a>,
-    _t: std::marker::PhantomData<T>,
+    llm: Box<dyn LLM<T> + 'a>,
 }
 
-impl<'a, T, L> LLMChain<'a, T, L>
+impl<'a, T> LLMChain<'a, T>
 where
-    T: Serialize + std::marker::Sync + std::fmt::Display,
-    L: LLM<T>,
+    T: Serialize,
 {
-    pub fn new(llm: L) -> Self {
-        LLMChain {
-            llm: Box::new(llm),
-            prompt_template: PromptTemplate::new(),
-            _t: std::marker::PhantomData,
-        }
-    }
-
-    pub fn with_prompt(mut self, prompt_template: PromptTemplate<'a>) -> Self {
-        self.prompt_template = prompt_template;
-        self
+    pub fn new(llm: impl LLM<T> + 'a) -> Self {
+        LLMChain { llm: Box::new(llm) }
     }
 }
 
-#[async_trait::async_trait]
-pub trait Execute<T, L> {
-    async fn execute_context(&self, name: &str, data: &Context<T>) -> Result<String, LLMError>;
+impl<'a, T> LLM<T> for LLMChain<'a, T> where T: Serialize {}
 
-    async fn execute_data(&self, name: &str, data: &T) -> Result<String, LLMError>;
+#[async_trait::async_trait(?Send)]
+impl<T> GenerateWithContext<T> for LLMChain<'_, T>
+where
+    T: Serialize,
+{
+    async fn generate_with_context<'a>(&'a self, name: &str, context: &Context<T>, template: &PromptTemplate) -> Result<String, LLMError> {
+        self.llm.generate_with_context(name, context, template).await
+    }
 }
 
-#[async_trait::async_trait]
-impl<'a, T, L> Execute<T, L> for LLMChain<'a, T, L>
+#[async_trait::async_trait(?Send)]
+impl<T> GenerateWithData<T> for LLMChain<'_, T>
 where
-    T: Serialize + std::marker::Sync + std::fmt::Display + std::marker::Send,
-    L: LLM<T> + std::marker::Send + std::marker::Sync,
+    T: Serialize,
 {
-    async fn execute_context(&self, name: &str, context: &Context<T>) -> Result<String, LLMError> {
-        Ok(self.llm.generate_with_context(name, context, &self.prompt_template).await?)
-    }
-
-    async fn execute_data(&self, name: &str, data: &T) -> Result<String, LLMError> {
-        Ok(self.llm.generate_with_data(name, data, &self.prompt_template).await?)
+    async fn generate_with_data<'a>(&'a self, name: &str, data: &T, template: &PromptTemplate) -> Result<String, LLMError> {
+        self.llm.generate_with_data(name, data, template).await
     }
 }
 
 #[cfg(test)]
 mod test {
+
     use super::*;
-    use crate::{
-        llm::openai::client::{OpenAIClient, OpenAIConfig},
-        prompt,
-    };
+    use crate::{llm::openai::client::OpenAIClient, prompt};
+
+    #[derive(Serialize)]
+    pub struct Data {
+        country1: String,
+        country2: String,
+    }
 
     #[tokio::test]
     async fn test_generate() {
         let client = OpenAIClient::new();
-        let chain = LLMChain::<&str, OpenAIClient<OpenAIConfig>>::new(client).with_prompt(prompt!(
+
+        let chain = LLMChain::<Data>::new(client);
+        let prompt = prompt!(
             "capital",
-            ("user", "What is the capital of {{country}}"),
+            ("user", "What is the capital of {{country1}}"),
             ("ai", "Paris"),
             ("user", "What is the capital of {{country2}}")
-        ));
+        );
 
-        let mut context = Context::new();
-        context.set("country1", "France");
-        context.set("country2", "Germany");
+        let data = Data {
+            country1: "France".to_string(),
+            country2: "Germany".to_string(),
+        };
 
-        let response = chain.execute_context("capital", &context).await.unwrap();
+        let response = chain.generate_with_data("capital", &data, &prompt).await.unwrap();
         assert!(response.to_lowercase().contains("berlin"));
     }
 }

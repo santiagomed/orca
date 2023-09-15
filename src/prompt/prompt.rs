@@ -125,7 +125,10 @@ impl<'a> PromptTemplate<'a> {
     /// let prompt = prompt_template.render_context("prompt", &context).unwrap();
     /// assert_eq!(prompt, vec![Message::single("Your name is gpt")]);
     /// ```
-    pub fn render_context<T: Serialize + std::fmt::Display>(&self, name: &str, context: &Context<T>) -> Result<Vec<Message>, PromptTemplateError> {
+    pub fn render_context<T>(&self, name: &str, context: &Context<T>) -> Result<Vec<Message>, PromptTemplateError>
+    where
+        T: Serialize,
+    {
         let template = self.templates.get(name).unwrap();
         let mut messages = Vec::new();
         for message in template {
@@ -162,9 +165,9 @@ impl<'a> PromptTemplate<'a> {
     /// let prompt = prompt_template.render_data("prompt", &data).unwrap();
     /// assert_eq!(prompt, vec![Message::chat(Role::Ai, "My name is gpt and I am 5 years old.")]);
     /// ```
-    pub fn render_data<K>(&self, name: &str, data: &K) -> Result<Vec<Message>, PromptTemplateError>
+    pub fn render_data<T>(&self, name: &str, data: &T) -> Result<Vec<Message>, PromptTemplateError>
     where
-        K: Serialize,
+        T: Serialize,
     {
         let template = self.templates.get(name).unwrap();
         let mut messages = Vec::new();
@@ -228,9 +231,12 @@ mod test {
         let prompt_template = prompt!("prompt", ("system", "This is my data: {{data}}."));
 
         let mut context = Context::new();
-        context.set("data", serde_json::json!({"name": "gpt"}));
+        context.set("data", serde_json::json!({"name": "gpt", "age": 5, "country": "France"}));
         let prompt = prompt_template.render_context("prompt", &context).unwrap();
-        assert_eq!(prompt, vec![Message::chat(Role::System, "This is my data: {\"name\":\"gpt\"}.")]);
+        assert_eq!(
+            prompt,
+            vec![Message::chat(Role::System, "This is my data: {age:5,country:France,name:gpt}.")]
+        );
     }
 
     #[test]

@@ -8,9 +8,7 @@ pub struct Context<T> {
 
 impl<T> Context<T> {
     pub fn new() -> Context<T> {
-        Context {
-            variables: BTreeMap::new(),
-        }
+        Context { variables: BTreeMap::new() }
     }
 
     pub fn set(&mut self, name: &str, value: T) -> Option<T> {
@@ -23,11 +21,13 @@ impl<T> Context<T> {
 
     pub fn get_variables(&self) -> BTreeMap<String, String>
     where
-        T: Serialize + ToString,
+        T: Serialize,
     {
         let mut serialized_variables = BTreeMap::new();
         for (key, value) in &self.variables {
-            serialized_variables.insert(key.to_string(), value.to_string());
+            let s = serde_json::to_string(value).unwrap();
+            let s = s.replace("\"", "");
+            serialized_variables.insert(key.to_string(), s.to_string());
         }
         serialized_variables
     }
