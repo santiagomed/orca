@@ -16,30 +16,30 @@ use serde::Serialize;
 // ///                                .with_prompt(PromptTemplate::new().from_prompt("prompt", "What is the capital of {{country}}"));
 // /// let res = llm_chain.generate("prompt", "France");
 // /// ```
-pub struct LLMChain<'a, T>
+pub struct LLMChain<'llm, T>
 where
     T: Serialize,
 {
-    llm: Box<dyn LLM<T> + 'a>,
+    llm: Box<dyn LLM<T> + 'llm>,
 }
 
-impl<'a, T> LLMChain<'a, T>
+impl<'llm, T> LLMChain<'llm, T>
 where
     T: Serialize,
 {
-    pub fn new(llm: impl LLM<T> + 'a) -> Self {
+    pub fn new(llm: impl LLM<T> + 'llm) -> Self {
         LLMChain { llm: Box::new(llm) }
     }
 }
 
-impl<'a, T> LLM<T> for LLMChain<'a, T> where T: Serialize {}
+impl<'llm, T> LLM<T> for LLMChain<'llm, T> where T: Serialize {}
 
 #[async_trait::async_trait(?Send)]
 impl<T> GenerateWithContext<T> for LLMChain<'_, T>
 where
     T: Serialize,
 {
-    async fn generate_with_context<'a>(&'a self, name: &str, context: &Context<T>, template: &PromptTemplate) -> Result<String, LLMError> {
+    async fn generate_with_context<'llm>(&'llm self, name: &str, context: &Context<T>, template: &PromptTemplate) -> Result<String, LLMError> {
         self.llm.generate_with_context(name, context, template).await
     }
 }
@@ -49,7 +49,7 @@ impl<T> GenerateWithData<T> for LLMChain<'_, T>
 where
     T: Serialize,
 {
-    async fn generate_with_data<'a>(&'a self, name: &str, data: &T, template: &PromptTemplate) -> Result<String, LLMError> {
+    async fn generate_with_data<'llm>(&'llm self, name: &str, data: &T, template: &PromptTemplate) -> Result<String, LLMError> {
         self.llm.generate_with_data(name, data, template).await
     }
 }

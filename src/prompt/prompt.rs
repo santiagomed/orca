@@ -60,15 +60,15 @@ impl From<&str> for Role {
     }
 }
 
-pub struct PromptTemplate<'a> {
+pub struct PromptTemplate<'p> {
     /// A map of template names to template strings
     templates: HashMap<String, Vec<Message>>,
 
     /// The handlebars template engine
-    handlebars: Handlebars<'a>,
+    handlebars: Handlebars<'p>,
 }
 
-impl<'a> PromptTemplate<'a> {
+impl<'p> PromptTemplate<'p> {
     /// Initialize a prompt template
     /// # Example
     /// ```rust
@@ -76,7 +76,7 @@ impl<'a> PromptTemplate<'a> {
     ///
     /// let mut prompt_template = PromptTemplate::new();
     /// ```
-    pub fn new() -> PromptTemplate<'a> {
+    pub fn new() -> PromptTemplate<'p> {
         let mut handlebars = Handlebars::new();
         let templates = HashMap::new();
         handlebars.register_escape_fn(handlebars::no_escape);
@@ -92,7 +92,7 @@ impl<'a> PromptTemplate<'a> {
     ///
     /// let mut prompt_template = PromptTemplate::new().from_prompt("prompt", "What is the capital of {{country}}");
     /// ```
-    pub fn from_prompt(mut self, name: &str, template: &str) -> PromptTemplate<'a> {
+    pub fn from_prompt(mut self, name: &str, template: &str) -> PromptTemplate<'p> {
         self.templates.insert(name.to_string(), vec![Message::single(template)]);
         self
     }
@@ -109,7 +109,7 @@ impl<'a> PromptTemplate<'a> {
     ///    ("ai", "I don't know anything about {{subject}}."),
     /// ]);
     /// ```
-    pub fn from_chat(mut self, name: &str, templates: Vec<(&str, &str)>) -> PromptTemplate<'a> {
+    pub fn from_chat(mut self, name: &str, templates: Vec<(&str, &str)>) -> PromptTemplate<'p> {
         self.templates.insert(name.to_string(), Message::into_vec(templates));
         self
     }
