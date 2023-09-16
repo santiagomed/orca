@@ -1,0 +1,39 @@
+{
+    "Courier": "n022003l.pfb",
+    "CourierNewPSMT": "n022003l.pfb",
+    "Courier-Bold": "n022004l.pfb",
+    "Courier-Oblique": "n022023l.pfb",
+    "Courier-BoldOblique": "n022024l.pfb",
+    
+    "Times-Roman": "p052003l.pfb",
+    "Times New Roman": "p052003l.pfb",
+    "TimesNewRomanPSMT": "p052003l.pfb",
+    "TimesNewRoman": "p052003l.pfb",
+
+    "Times-Bold": "p052004l.pfb",
+    "Times New Roman,Bold": "p052004l.pfb",
+    "TimesNewRomanPS-BoldMT": "p052004l.pfb",
+    "TimesNewRoman,Bold": "p052004l.pfb",
+
+    "Times-Italic": "p052023l.pfb",
+    "TimesNewRoman,Italic": "p052023l.pfb",
+    "TimesNewRomanPS-ItalicMT": "p052023l.pfb",
+    
+    "Times-BoldItalic": "p052024l.pfb",
+    "TimesNewRomanPS-BoldItalicMT": "p052024l.pfb",
+    "TimesNewRoman,BoldItalic": "p052024l.pfb",
+    
+    "Helvetica": "n019003l.pfb",
+    "Helvetica-Bold": "n019004l.pfb",
+    "Helvetica-Oblique": "n019023l.pfb",
+    "Helvetica-BoldOblique": "n019024l.pfb",
+    
+    "Symbol": "s050000l.pfb",
+    "ZapfDingbats": "d050000l.pfb",
+    
+    "Arial-BoldMT": "n019004l.pfb",
+    "ArialMT": "n019003l.pfb",
+    "Arial": "n019003l.pfb",
+    "Arial-ItalicMT": "n019023l.pfb",
+    "Arial-Italic": "n019023l.pfb"
+}

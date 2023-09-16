@@ -14,3 +14,6 @@ async-trait = "0.1.73"
 tokio = "1.32.0"
 reqwest = "0.11.20"
 scraper = "0.17.1"
+pdf_text = { git = "https://github.com/pdf-rs/pdf_text" }
+itertools = "0.11.0"
+pdf = { git = "https://github.com/pdf-rs/pdf" }
