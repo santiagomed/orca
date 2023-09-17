@@ -4,7 +4,7 @@ use crate::llm::error::LLMError;
 use crate::llm::llm::Generate;
 use crate::prompt::prompt::PromptTemplate;
 
-/// LLM chain that formats a prompt and calls an LLM.
+/// Simple LLM chain that formats a prompt and calls an LLM.
 ///
 /// # Example
 /// ```rust

@@ -63,14 +63,14 @@ pub enum PDFOutput {
 }
 
 impl PDFOutput {
-    pub fn as_string(self) -> String {
+    pub fn to_string(self) -> String {
         match self {
             PDFOutput::String(string) => string.to_string(),
             PDFOutput::Vec(vec) => vec.join("\n******************\n"),
         }
     }
 
-    pub fn as_vec(self) -> Vec<String> {
+    pub fn to_vec(self) -> Vec<String> {
         match self {
             PDFOutput::String(string) => vec![string],
             PDFOutput::Vec(vec) => vec,
@@ -86,7 +86,7 @@ where
 
     fn spin(&self) -> Result<Record<PDFOutput>, RecordError> {
         let resolver = self.file.resolver();
-        if self.split {
+        return if self.split {
             let mut content = Vec::new();
             for page in self.file.pages() {
                 let page = page?;
@@ -103,7 +103,7 @@ where
                 }
                 content.push(page_content);
             }
-            return Ok(Record::new(PDFOutput::Vec(content)));
+            Ok(Record::new(PDFOutput::Vec(content)))
         } else {
             let resolver = self.file.resolver();
             let mut content = String::new();
@@ -120,7 +120,7 @@ where
                     }
                 }
             }
-            return Ok(Record::new(PDFOutput::String(content)));
+            Ok(Record::new(PDFOutput::String(content)))
         }
     }
 }
@@ -147,6 +147,6 @@ mod test {
         std::env::set_var("STANDARD_FONTS", "./assets/pdf_fonts");
         let record = PDF::<Vec<u8>>::from_file("./tests/sample-resume.pdf", false).spin().unwrap();
         let correct_content = include_str!("../../tests/out/sample-resume.out");
-        assert_eq!(record.content.as_string(), correct_content);
+        assert_eq!(record.content.to_string(), correct_content);
     }
 }
