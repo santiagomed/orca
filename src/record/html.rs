@@ -1,5 +1,5 @@
 use super::error::RecordError;
-use super::record::Record;
+use super::record::{Content, Record};
 use super::spin::Spin;
 use reqwest;
 use scraper::Selector;
@@ -34,9 +34,7 @@ impl HTML {
 }
 
 impl Spin for HTML {
-    type Output = String;
-
-    fn spin(&self) -> Result<Record<String>, RecordError> {
+    fn spin(&self) -> Result<Record, RecordError> {
         let html = scraper::Html::parse_document(&self.body);
 
         let mut header = String::new();
@@ -60,7 +58,7 @@ impl Spin for HTML {
             .collect::<Vec<_>>()
             .join("\n");
 
-        Ok(Record::new(content).with_header(header).with_metadata(metadata))
+        Ok(Record::new(Content::String(content)).with_header(header).with_metadata(metadata))
     }
 }
 
@@ -73,6 +71,6 @@ mod test {
         let record = HTML::from_url("https://careers.roblox.com/jobs/5221252", "p, li").await.unwrap().spin().unwrap();
         assert!(record.header.unwrap().contains("head"));
         assert!(record.metadata.unwrap().contains("Roblox"));
-        assert!(record.content.contains("Roblox"));
+        assert!(record.content.to_string().contains("Roblox"));
     }
 }

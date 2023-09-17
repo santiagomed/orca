@@ -1,31 +1,23 @@
-use std::sync::Arc;
+use std::{sync::Arc, vec};
 
-use super::{error::RecordError, record::Record, spin::Spin};
+use super::{
+    error::RecordError,
+    record::{Content, Record},
+    spin::Spin,
+};
 use pdf::{
     any::AnySync,
-    backend::Backend,
     file::{File, FileOptions, NoLog, SyncCache},
     object::PlainRef,
     PdfError,
 };
 
-pub trait Input {}
-
-impl Input for &[u8] {}
-impl Input for Vec<u8> {}
-
-pub struct PDF<T>
-where
-    T: Input,
-{
-    file: File<T, Arc<SyncCache<PlainRef, Result<AnySync, Arc<PdfError>>>>, Arc<SyncCache<PlainRef, Result<Arc<[u8]>, Arc<PdfError>>>>, NoLog>,
+pub struct PDF {
+    file: File<Vec<u8>, Arc<SyncCache<PlainRef, Result<AnySync, Arc<PdfError>>>>, Arc<SyncCache<PlainRef, Result<Arc<[u8]>, Arc<PdfError>>>>, NoLog>,
     split: bool,
 }
 
-impl<T> PDF<T>
-where
-    T: Input,
-{
+impl PDF {
     /// Create a new PDF record from a buffer
     /// When calling this function, specify the PDF generic type as a slice of bytes
     /// ```
@@ -33,10 +25,10 @@ where
     ///
     /// let record = PDF::<&[u8]>::from_buffer(include_bytes!("../../tests/records/pdf.in"), false).unwrap();
     /// ```
-    pub fn from_buffer(buffer: &[u8], split: bool) -> PDF<&[u8]> {
+    pub fn from_buffer(buffer: &[u8], split: bool) -> PDF {
         // convert buffer into file object
         PDF {
-            file: FileOptions::cached().load(buffer).unwrap(),
+            file: FileOptions::cached().load(buffer.to_vec()).unwrap(),
             split,
         }
     }
@@ -48,7 +40,7 @@ where
     ///
     /// let record = PDF::<Vec<u8>>::from_file("test/test.pdf", false).unwrap();
     /// ```
-    pub fn from_file(path: &str, split: bool) -> PDF<Vec<u8>> {
+    pub fn from_file(path: &str, split: bool) -> PDF {
         // convert buffer into file object
         PDF {
             file: FileOptions::cached().open(&path).unwrap(),
@@ -78,13 +70,8 @@ impl PDFOutput {
     }
 }
 
-impl<T> Spin for PDF<T>
-where
-    T: Input + Backend,
-{
-    type Output = PDFOutput;
-
-    fn spin(&self) -> Result<Record<PDFOutput>, RecordError> {
+impl Spin for PDF {
+    fn spin(&self) -> Result<Record, RecordError> {
         let resolver = self.file.resolver();
         return if self.split {
             let mut content = Vec::new();
@@ -103,7 +90,7 @@ where
                 }
                 content.push(page_content);
             }
-            Ok(Record::new(PDFOutput::Vec(content)))
+            Ok(Record::new(Content::Vec(content)))
         } else {
             let resolver = self.file.resolver();
             let mut content = String::new();
@@ -120,8 +107,8 @@ where
                     }
                 }
             }
-            Ok(Record::new(PDFOutput::String(content)))
-        }
+            Ok(Record::new(Content::String(content)))
+        };
     }
 }
 
@@ -132,20 +119,20 @@ mod test {
 
     #[test]
     fn test_from_buffer() {
-        let record = PDF::<&[u8]>::from_buffer(include_bytes!("../../tests/pdf.in"), false);
+        let record = PDF::from_buffer(include_bytes!("../../tests/pdf.in"), false);
         assert_eq!(record.split, false);
     }
 
     #[test]
     fn test_from_file() {
-        let record = PDF::<Vec<u8>>::from_file("test/test.pdf", false);
+        let record = PDF::from_file("test/test.pdf", false);
         assert_eq!(record.split, false);
     }
 
     #[test]
     fn test_spin() {
         std::env::set_var("STANDARD_FONTS", "./assets/pdf_fonts");
-        let record = PDF::<Vec<u8>>::from_file("./tests/sample-resume.pdf", false).spin().unwrap();
+        let record = PDF::from_file("./tests/sample-resume.pdf", false).spin().unwrap();
         let correct_content = include_str!("../../tests/out/sample-resume.out");
         assert_eq!(record.content.to_string(), correct_content);
     }
