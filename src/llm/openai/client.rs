@@ -88,6 +88,7 @@ impl OpenAIClient {
         self
     }
 
+    /// Generate a request for the OpenAI API and set the parameters
     pub fn generate_request(&self, messages: &Vec<Message>) -> Result<CreateChatCompletionRequest, LLMError> {
         Ok(CreateChatCompletionRequestArgs::default()
             .model(self.model.clone())
@@ -118,6 +119,7 @@ mod test {
     use super::*;
     use crate::prompt::context::Context;
     use crate::prompt::prompt::PromptTemplate;
+    use crate::prompts;
 
     #[tokio::test]
     async fn test_generate() {
@@ -125,17 +127,12 @@ mod test {
         let mut context = Context::new();
         context.set("country1", "France");
         context.set("country2", "Germany");
-        let prompt = PromptTemplate::new()
-            .from_chat(
-                "chat",
-                vec![
-                    ("user", "What is the capital of {{country1}}"),
-                    ("ai", "Paris"),
-                    ("user", "What is the capital of {{country2}}"),
-                ],
-            )
-            .render_context("chat", &context)
-            .unwrap();
+        let prompt = prompts!(
+            ("user", "What is the capital of {{country1}}"),
+            ("ai", "Paris"),
+            ("user", "What is the capital of {{country2}}")
+        );
+        let prompt = prompt.render_context(&context).unwrap();
         let response = client.generate(&prompt).await.unwrap();
         // contains "Paris" or "paris"
         assert!(response.to_lowercase().contains("berlin"));

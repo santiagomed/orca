@@ -7,18 +7,24 @@ pub struct Context<T> {
 }
 
 impl<T> Context<T> {
+    /// Create a new context
     pub fn new() -> Context<T> {
-        Context { variables: BTreeMap::new() }
+        Context {
+            variables: BTreeMap::new(),
+        }
     }
 
+    /// Set a variable in the context
     pub fn set(&mut self, name: &str, value: T) -> Option<T> {
         self.variables.insert(name.to_string(), value)
     }
 
+    /// Get a variable from the context
     pub fn get(&self, name: &str) -> Option<&T> {
         self.variables.get(name)
     }
 
+    /// Get the variables from the context and clean them up for serialization
     pub fn get_variables(&self) -> BTreeMap<String, String>
     where
         T: Serialize,

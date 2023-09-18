@@ -13,6 +13,7 @@ pub struct HTML {
 }
 
 impl HTML {
+    /// Create a new HTML record from a URL
     pub async fn from_url(url: &str, selectors: &str) -> Result<HTML, RecordError> {
         // check for timeout
         let client = reqwest::ClientBuilder::new().timeout(std::time::Duration::from_secs(5)).build()?;
@@ -24,6 +25,7 @@ impl HTML {
         })
     }
 
+    /// Create a new HTML record from a file
     pub fn from_file(path: &str, selectors: &str) -> Result<HTML, RecordError> {
         let body = fs::read_to_string(Path::new(path)).unwrap();
         Ok(HTML {

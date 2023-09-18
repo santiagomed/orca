@@ -13,7 +13,12 @@ use pdf::{
 };
 
 pub struct PDF {
-    file: File<Vec<u8>, Arc<SyncCache<PlainRef, Result<AnySync, Arc<PdfError>>>>, Arc<SyncCache<PlainRef, Result<Arc<[u8]>, Arc<PdfError>>>>, NoLog>,
+    file: File<
+        Vec<u8>,
+        Arc<SyncCache<PlainRef, Result<AnySync, Arc<PdfError>>>>,
+        Arc<SyncCache<PlainRef, Result<Arc<[u8]>, Arc<PdfError>>>>,
+        NoLog,
+    >,
     split: bool,
 }
 
@@ -55,6 +60,7 @@ pub enum PDFOutput {
 }
 
 impl PDFOutput {
+    /// Get the string representation of the PDF output
     pub fn to_string(self) -> String {
         match self {
             PDFOutput::String(string) => string.to_string(),
@@ -62,6 +68,7 @@ impl PDFOutput {
         }
     }
 
+    /// Get the vector representation of the PDF output
     pub fn to_vec(self) -> Vec<String> {
         match self {
             PDFOutput::String(string) => vec![string],

@@ -1,6 +1,7 @@
 use serde::Serialize;
 use std::collections::HashMap;
 
+use crate::chains::traits::{Execute, ExecuteWithRecord};
 use crate::llm::error::LLMError;
 use crate::llm::llm::Generate;
 use crate::prompt::prompt::PromptTemplate;
@@ -48,7 +49,7 @@ use crate::record::record::Record;
 /// ```
 pub struct LLMChain<'llm> {
     /// The LLM used by the LLMChain.
-    llm: Box<dyn Generate + 'llm>,
+    llm: &'llm (dyn Generate),
 
     /// The prompt template instance used by the LLMChain.
     prompt: PromptTemplate<'llm>,
@@ -59,17 +60,17 @@ pub struct LLMChain<'llm> {
 
 impl<'llm> LLMChain<'llm> {
     /// Initialize a new LLMChain with an LLM. The LLM must implement the LLM trait.
-    pub fn new(llm: impl Generate + 'llm, prompt: PromptTemplate<'llm>) -> LLMChain<'llm> {
+    pub fn new(llm: &'llm impl Generate, prompt: PromptTemplate<'llm>) -> LLMChain<'llm> {
         LLMChain {
-            llm: Box::new(llm),
+            llm,
             prompt,
             records: HashMap::new(),
         }
     }
 
     /// Change the LLM used by the LLMChain.
-    pub fn with_llm(mut self, llm: impl Generate + 'llm) -> Self {
-        self.llm = Box::new(llm);
+    pub fn with_llm(mut self, llm: &'llm impl Generate) -> Self {
+        self.llm = llm;
         self
     }
 
@@ -84,30 +85,19 @@ impl<'llm> LLMChain<'llm> {
         self.prompt = prompt;
         self
     }
-}
 
-#[async_trait::async_trait(?Send)]
-pub trait Execute<T> {
-    /// Execute an LLM chain using a context and a prompt template.
-    async fn execute(&mut self, name: &str, data: &T) -> Result<String, LLMError>;
-}
-
-#[async_trait::async_trait(?Send)]
-pub trait ExecuteWithRecord {
-    /// Execute an LLM chain using a record and a prompt template.
-    ///
-    /// [TODO]:
-    /// Creating a new hashmap when we already have one with records is not clean code
-    /// since we created the record object to standardize the way we handle records.
-    async fn execute_with_record(&mut self, prompt_name: &str, record_name: &str) -> Result<String, LLMError>;
+    /// Get the prompt template used by the LLMChain.
+    pub fn get_prompt(&mut self) -> &mut PromptTemplate<'llm> {
+        &mut self.prompt
+    }
 }
 
 #[async_trait::async_trait(?Send)]
 impl<'llm> ExecuteWithRecord for LLMChain<'llm> {
-    async fn execute_with_record(&mut self, prompt_name: &str, record_name: &str) -> Result<String, LLMError> {
+    async fn execute_with_record(&mut self, record_name: &str) -> Result<String, LLMError> {
         let mut h = HashMap::<String, String>::new();
         h.insert(record_name.to_string(), self.records[record_name].content.to_string());
-        let prompt = self.prompt.render_data(prompt_name, &h)?;
+        let prompt = self.prompt.render_data(&h)?;
         self.llm.generate(&prompt).await
     }
 }
@@ -117,9 +107,19 @@ impl<'llm, T> Execute<T> for LLMChain<'llm>
 where
     T: Serialize,
 {
-    async fn execute(&mut self, name: &str, data: &T) -> Result<String, LLMError> {
-        let prompt = self.prompt.render_data(name, data)?;
+    async fn execute(&mut self, data: &T) -> Result<String, LLMError> {
+        let prompt = self.prompt.render_data(data)?;
         self.llm.generate(&prompt).await
+    }
+}
+
+impl<'llm> Clone for LLMChain<'llm> {
+    fn clone(&self) -> Self {
+        LLMChain {
+            llm: self.llm.clone(),
+            prompt: self.prompt.clone(),
+            records: self.records.clone(),
+        }
     }
 }
 
@@ -129,7 +129,7 @@ mod test {
     use super::*;
     use crate::{
         llm::openai::client::OpenAIClient,
-        prompt,
+        prompts,
         record::{self, spin::Spin},
     };
     use serde::Serialize;
@@ -145,21 +145,17 @@ mod test {
         let client = OpenAIClient::new();
 
         let res = LLMChain::new(
-            client,
-            prompt!(
-                "capital",
+            &client,
+            prompts!(
                 ("user", "What is the capital of {{country1}}"),
                 ("ai", "Paris"),
                 ("user", "What is the capital of {{country2}}")
             ),
         )
-        .execute(
-            "capital",
-            &Data {
-                country1: "France".to_string(),
-                country2: "Germany".to_string(),
-            },
-        )
+        .execute(&Data {
+            country1: "France".to_string(),
+            country2: "Germany".to_string(),
+        })
         .await
         .unwrap();
 
@@ -175,14 +171,11 @@ mod test {
             .spin()
             .unwrap();
         let res = LLMChain::new(
-            client,
-            prompt!(
-                "story_summary",
-                ("system", "Give a long summary of the following story:\n{{story}}")
-            ),
+            &client,
+            prompts!(("system", "Give a long summary of the following story:\n{{story}}")),
         )
         .with_record("story", record)
-        .execute_with_record("story_summary", "story")
+        .execute_with_record("story")
         .await
         .unwrap();
         assert!(res.contains("elephant"));

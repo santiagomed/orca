@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use super::{context::Context, error::PromptTemplateError};
 use handlebars::Handlebars;
 use serde::Serialize;
@@ -61,11 +59,8 @@ impl From<&str> for Role {
 }
 
 pub struct PromptTemplate<'p> {
-    /// A map of template names to template strings
-    templates: HashMap<String, Vec<Message>>,
-
-    // A map of rendered prompts
-    prompts: HashMap<String, Vec<Message>>,
+    /// A vector of template strings
+    template: Vec<Message>,
 
     /// The handlebars template engine
     handlebars: Handlebars<'p>,
@@ -81,15 +76,10 @@ impl<'p> PromptTemplate<'p> {
     /// ```
     pub fn new() -> PromptTemplate<'p> {
         let mut handlebars = Handlebars::new();
-        let templates = HashMap::new();
-        let prompts = HashMap::new();
+        let template = Vec::new();
         handlebars.register_escape_fn(handlebars::no_escape);
 
-        PromptTemplate {
-            templates,
-            prompts,
-            handlebars,
-        }
+        PromptTemplate { template, handlebars }
     }
 
     /// Initialize a prompt template with a single template string
@@ -98,10 +88,10 @@ impl<'p> PromptTemplate<'p> {
     /// ```rust
     /// use orca::prompt::prompt::PromptTemplate;
     ///
-    /// let mut prompt_template = PromptTemplate::new().from_prompt("prompt", "What is the capital of {{country}}");
+    /// let mut prompt_template = PromptTemplate::new().from_prompt("What is the capital of {{country}}");
     /// ```
-    pub fn from_prompt(mut self, name: &str, template: &str) -> PromptTemplate<'p> {
-        self.templates.insert(name.to_string(), vec![Message::single(template)]);
+    pub fn from_prompt(mut self, template: &str) -> PromptTemplate<'p> {
+        self.template = vec![Message::single(template)];
         self
     }
 
@@ -111,15 +101,28 @@ impl<'p> PromptTemplate<'p> {
     /// ```rust
     /// use orca::prompt::prompt::PromptTemplate;
     ///
-    /// let mut prompt_template = PromptTemplate::new().from_chat("prompt", vec![
+    /// let mut prompt_template = PromptTemplate::new().from_chat(vec![
     ///    ("system", "You are NOT a master at {{subject}}. You know nothing about it."),
     ///    ("user", "What is your favorite aspect of {{subject}}?"),
     ///    ("ai", "I don't know anything about {{subject}}."),
     /// ]);
     /// ```
-    pub fn from_chat(mut self, name: &str, templates: Vec<(&str, &str)>) -> PromptTemplate<'p> {
-        self.templates.insert(name.to_string(), Message::into_vec(templates));
+    pub fn from_chat(mut self, templates: Vec<(&str, &str)>) -> PromptTemplate<'p> {
+        self.template = Message::into_vec(templates);
         self
+    }
+
+    /// Add a new template string to the prompt template
+    /// # Example
+    /// ```rust
+    /// use orca::prompt::prompt::PromptTemplate;
+    /// use orca::prompt::prompt::Message;
+    ///
+    /// let mut prompt_template = PromptTemplate::new().from_prompt("What is the capital of {{country}}");
+    /// prompt_template.add_prompt(("ai", "The capital is {{capital}}"));
+    /// ```
+    pub fn add_prompt(&mut self, template: (&str, &str)) {
+        self.template.push(Message::chat(template.0.into(), template.1));
     }
 
     /// Render a prompt template
@@ -127,26 +130,24 @@ impl<'p> PromptTemplate<'p> {
     /// ```rust
     /// use orca::prompt::{prompt::{Message, PromptTemplate}, context::Context};
     ///
-    /// let mut prompt_template = PromptTemplate::new().from_prompt("prompt", "Your name is {{name}}");
+    /// let mut prompt_template = PromptTemplate::new().from_prompt("Your name is {{name}}");
     /// let mut context = Context::new();
     /// context.set("name", "gpt");
-    /// let prompt = prompt_template.render_context("prompt", &context).unwrap();
+    /// let prompt = prompt_template.render_context(&context).unwrap();
     /// assert_eq!(prompt, vec![Message::single("Your name is gpt")]);
     /// ```
-    pub fn render_context<T>(&mut self, name: &str, context: &Context<T>) -> Result<Vec<Message>, PromptTemplateError>
+    pub fn render_context<T>(&self, context: &Context<T>) -> Result<Vec<Message>, PromptTemplateError>
     where
         T: Serialize,
     {
-        let template = self.templates.get(name).unwrap();
         let mut messages = Vec::new();
-        for message in template {
+        for message in &self.template {
             let rendered = self.handlebars.render_template(&message.message, &context.get_variables())?;
             messages.push(Message {
                 role: message.role.clone(),
                 message: rendered,
             });
         }
-        self.prompts.insert(name.to_string(), messages.clone());
         Ok(messages)
     }
 
@@ -162,7 +163,7 @@ impl<'p> PromptTemplate<'p> {
     ///    age: u8,
     /// }
     ///
-    /// let mut prompt_template = PromptTemplate::new().from_chat("prompt", vec![
+    /// let mut prompt_template = PromptTemplate::new().from_chat(vec![
     ///   ("ai", "My name is {{name}} and I am {{#if (eq age 1)}}1 year{{else}}{{age}} years{{/if}} old."),
     /// ]);
     ///
@@ -171,34 +172,46 @@ impl<'p> PromptTemplate<'p> {
     ///   age: 5,
     /// };
     ///
-    /// let prompt = prompt_template.render_data("prompt", &data).unwrap();
+    /// let prompt = prompt_template.render_data(&data).unwrap();
     /// assert_eq!(prompt, vec![Message::chat(Role::Ai, "My name is gpt and I am 5 years old.")]);
     /// ```
-    pub fn render_data<T>(&mut self, name: &str, data: &T) -> Result<Vec<Message>, PromptTemplateError>
+    pub fn render_data<T>(&self, data: &T) -> Result<Vec<Message>, PromptTemplateError>
     where
         T: Serialize,
     {
-        let template = self.templates.get(name).unwrap();
         let mut messages = Vec::new();
-        for message in template {
+        for message in &self.template {
             let rendered = self.handlebars.render_template(&message.message, &data)?;
             messages.push(Message {
                 role: message.role.clone(),
                 message: rendered,
             });
         }
-        self.prompts.insert(name.to_string(), messages.clone());
         Ok(messages)
+    }
+}
+
+impl<'p> Clone for PromptTemplate<'p> {
+    /// Clone a prompt template
+    fn clone(&self) -> Self {
+        PromptTemplate {
+            template: self.template.clone(),
+            handlebars: self.handlebars.clone(),
+        }
     }
 }
 
 #[macro_export]
 macro_rules! prompt {
-    ($name:expr, str $template:expr) => {
-        PromptTemplate::new().from_prompt($name, $template)
+    ($template:expr) => {
+        PromptTemplate::new().from_prompt($template)
     };
-    ($name:expr, $($template:expr),+) => {
-        PromptTemplate::new().from_chat($name, vec![$($template),+])
+}
+
+#[macro_export]
+macro_rules! prompts {
+    ($($template:expr),+) => {
+        PromptTemplate::new().from_chat(vec![$($template),+])
     };
 }
 
@@ -208,24 +221,26 @@ mod test {
 
     #[test]
     fn test_prompt() {
-        let mut prompt_template = prompt!("prompt", str "What is the capital of {{country}}");
+        let prompt_template = prompt!("What is the capital of {{country}}");
         let mut context = Context::new();
         context.set("country", "France");
-        let prompt = prompt_template.render_context("prompt", &context).unwrap();
+        let prompt = prompt_template.render_context(&context).unwrap();
         assert_eq!(prompt, vec![Message::single("What is the capital of France")]);
     }
 
     #[test]
     fn test_chat() {
-        let mut prompt_template = prompt!(
-            "prompt",
-            ("system", "You are NOT a master at {{subject}}. You know nothing about it."),
+        let prompt_template = prompts!(
+            (
+                "system",
+                "You are NOT a master at {{subject}}. You know nothing about it."
+            ),
             ("user", "What is your favorite aspect of {{subject}}?"),
             ("ai", "I don't know anything about {{subject}}.")
         );
         let mut context = Context::new();
         context.set("subject", "math");
-        let prompt = prompt_template.render_context("prompt", &context).unwrap();
+        let prompt = prompt_template.render_context(&context).unwrap();
         assert_eq!(
             prompt,
             vec![
@@ -238,14 +253,20 @@ mod test {
 
     #[test]
     fn test_context() {
-        let mut prompt_template = prompt!("prompt", ("system", "This is my data: {{data}}."));
+        let prompt_template = prompts!(("system", "This is my data: {{data}}."));
 
         let mut context = Context::new();
-        context.set("data", serde_json::json!({"name": "gpt", "age": 5, "country": "France"}));
-        let prompt = prompt_template.render_context("prompt", &context).unwrap();
+        context.set(
+            "data",
+            serde_json::json!({"name": "gpt", "age": 5, "country": "France"}),
+        );
+        let prompt = prompt_template.render_context(&context).unwrap();
         assert_eq!(
             prompt,
-            vec![Message::chat(Role::System, "This is my data: {age:5,country:France,name:gpt}.")]
+            vec![Message::chat(
+                Role::System,
+                "This is my data: {age:5,country:France,name:gpt}."
+            )]
         );
     }
 
@@ -257,20 +278,20 @@ mod test {
             age: u8,
         }
 
-        let mut prompt_template = prompt!(
-            "prompt",
-            (
-                "ai",
-                "My name is {{name}} and I am {{#if (eq age 1)}}1 year{{else}}{{age}} years{{/if}} old.",
-            )
-        );
+        let prompt_template = prompts!((
+            "ai",
+            "My name is {{name}} and I am {{#if (eq age 1)}}1 year{{else}}{{age}} years{{/if}} old.",
+        ));
 
         let data = Data {
             name: "gpt".to_string(),
             age: 5,
         };
 
-        let prompt = prompt_template.render_data("prompt", &data).unwrap();
-        assert_eq!(prompt, vec![Message::chat(Role::Ai, "My name is gpt and I am 5 years old.")]);
+        let prompt = prompt_template.render_data(&data).unwrap();
+        assert_eq!(
+            prompt,
+            vec![Message::chat(Role::Ai, "My name is gpt and I am 5 years old.")]
+        );
     }
 }

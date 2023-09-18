@@ -9,6 +9,7 @@ pub enum Content {
 }
 
 impl ToString for Content {
+    /// Get the string representation of the content.
     fn to_string(&self) -> String {
         match self {
             Content::String(string) => string.to_string(),
@@ -32,6 +33,7 @@ pub struct Record {
 }
 
 impl Record {
+    /// Create a new record with the given content.
     pub fn new(content: Content) -> Record {
         Record {
             header: None,
@@ -40,11 +42,13 @@ impl Record {
         }
     }
 
+    /// Modify the header of the record.
     pub fn with_header(mut self, header: String) -> Self {
         self.header = Some(header);
         self
     }
 
+    /// Modify the metadata of the record.
     pub fn with_metadata(mut self, metadata: String) -> Self {
         self.metadata = Some(metadata);
         self
