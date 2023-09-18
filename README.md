@@ -24,7 +24,8 @@ pub struct Data {
     country2: String,
 }
 
-async fn test_generate() {
+#[tokio::main]
+async fn main() {
     let client = OpenAIClient::new();
     let res = LLMChain::new(
         Some("MyChain"),

@@ -10,13 +10,13 @@ pub struct SequentialChain<'llm> {
 impl<'llm> SequentialChain<'llm> {
     /// Initialize a new sequential chain.
     pub fn new() -> SequentialChain<'llm> {
-        log::info!("< Initializing a new sequential chain. >");
+        println!("< Initializing a new sequential chain. >");
         SequentialChain { chains: Vec::new() }
     }
 
     /// Add a simple LLM Chain to the sequential chain.
     pub fn link(mut self, chain: LLMChain<'llm>) -> SequentialChain<'llm> {
-        log::info!("< Adding a new chain to the sequential chain. >");
+        println!("< Adding a new chain to the sequential chain. >");
         self.chains.push(chain);
         self
     }
@@ -28,7 +28,7 @@ where
     T: Serialize,
 {
     async fn execute(&mut self, data: &T) -> Result<String, LLMError> {
-        log::info!("< Executing a sequential chain. >");
+        println!("< Executing a sequential chain. >");
         let mut response = String::new();
         for chain in &mut self.chains {
             if !response.is_empty() {
