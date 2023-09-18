@@ -117,10 +117,10 @@ where
 {
     async fn execute(&mut self, data: &T) -> Result<String, LLMError> {
         let prompt = self.prompt.render_data(data)?;
-        println!("< Executing chain {:?}. >", self.get_name());
+        println!("< Executing chain {:#?}. >", self.get_name());
         let response = self.llm.generate(&prompt).await?;
         println!(
-            "< Chain {:?} executed successfully. >\n< Response >\n{:?}",
+            "< Chain {:#?} executed successfully. >\n< Response >\n{:?}",
             self.get_name(),
             response
         );

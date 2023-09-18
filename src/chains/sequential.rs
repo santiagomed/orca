@@ -16,7 +16,7 @@ impl<'llm> SequentialChain<'llm> {
 
     /// Add a simple LLM Chain to the sequential chain.
     pub fn link(mut self, chain: LLMChain<'llm>) -> SequentialChain<'llm> {
-        println!("< Adding a new chain to the sequential chain. >");
+        println!("< Adding a {:#?} to the sequential chain. >", chain.get_name());
         self.chains.push(chain);
         self
     }
