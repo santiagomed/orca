@@ -12,8 +12,8 @@ use crate::record::record::Record;
 /// # Example
 /// ```rust
 /// use orca::chains::chain::LLMChain;
-/// use orca::chains::chain::Execute;
-/// use orca::prompt;
+/// use orca::chains::traits::Execute;
+/// use orca::prompts;
 /// use orca::prompt::prompt::PromptTemplate;
 /// use orca::llm::openai::client::OpenAIClient;
 /// use serde::Serialize;
@@ -27,16 +27,15 @@ use crate::record::record::Record;
 /// async fn test_generate() {
 ///     let client = OpenAIClient::new();
 ///     let res = LLMChain::new(
-///         client,
-///         prompt!(
-///             "capital",
+///         Some("MyChain"),
+///         &client,
+///         prompts!(
 ///             ("user", "What is the capital of {{country1}}"),
 ///             ("ai", "Paris"),
 ///             ("user", "What is the capital of {{country2}}")
 ///         ),
 ///     )
 ///     .execute(
-///         "capital",
 ///         &Data {
 ///             country1: "France".to_string(),
 ///             country2: "Germany".to_string(),
@@ -63,9 +62,9 @@ pub struct LLMChain<'llm> {
 
 impl<'llm> LLMChain<'llm> {
     /// Initialize a new LLMChain with an LLM. The LLM must implement the LLM trait.
-    pub fn new(name: Option<String>, llm: &'llm impl Generate, prompt: PromptTemplate<'llm>) -> LLMChain<'llm> {
+    pub fn new(name: Option<&str>, llm: &'llm impl Generate, prompt: PromptTemplate<'llm>) -> LLMChain<'llm> {
         LLMChain {
-            name: name.unwrap_or(uuid::Uuid::new_v4().to_string()),
+            name: name.unwrap_or(&uuid::Uuid::new_v4().to_string()).to_string(),
             llm,
             prompt,
             records: HashMap::new(),
@@ -143,7 +142,7 @@ impl<'llm> Clone for LLMChain<'llm> {
 #[macro_export]
 macro_rules! chain {
     ($name:expr, $client:expr, $prompt:expr) => {
-        LLMChain::new(Some($name.to_string()), $client, $prompt)
+        LLMChain::new(Some($name), $client, $prompt)
     };
     ($client:expr, $prompt:expr) => {
         LLMChain::new(None, $client, $prompt)

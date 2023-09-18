@@ -12,8 +12,8 @@ orca = { git = "https://github.com/santiagomed/orca" }
 Orca supports simple LLM chains and sequential chains. It also supports reading PDF and HTML records (documents). Following is a simple example on how to use Orca.
 ```rust
 use orca::chains::chain::LLMChain;
-use orca::chains::chain::Execute;
-use orca::prompt;
+use orca::chains::traits::Execute;
+use orca::prompts;
 use orca::prompt::prompt::PromptTemplate;
 use orca::llm::openai::client::OpenAIClient;
 use serde::Serialize;
@@ -24,20 +24,18 @@ pub struct Data {
     country2: String,
 }
 
-#[tokio::main]
-async fn main() {
+async fn test_generate() {
     let client = OpenAIClient::new();
     let res = LLMChain::new(
-        client,
-        prompt!(
-            "capital",
+        Some("MyChain"),
+        &client,
+        prompts!(
             ("user", "What is the capital of {{country1}}"),
             ("ai", "Paris"),
             ("user", "What is the capital of {{country2}}")
         ),
     )
     .execute(
-        "capital",
         &Data {
             country1: "France".to_string(),
             country2: "Germany".to_string(),
