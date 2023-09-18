@@ -8,11 +8,15 @@ pub struct SequentialChain<'llm> {
 }
 
 impl<'llm> SequentialChain<'llm> {
+    /// Initialize a new sequential chain.
     pub fn new() -> SequentialChain<'llm> {
+        log::info!("< Initializing a new sequential chain. >");
         SequentialChain { chains: Vec::new() }
     }
 
+    /// Add a simple LLM Chain to the sequential chain.
     pub fn link(mut self, chain: LLMChain<'llm>) -> SequentialChain<'llm> {
+        log::info!("< Adding a new chain to the sequential chain. >");
         self.chains.push(chain);
         self
     }
@@ -24,6 +28,7 @@ where
     T: Serialize,
 {
     async fn execute(&mut self, data: &T) -> Result<String, LLMError> {
+        log::info!("< Executing a sequential chain. >");
         let mut response = String::new();
         for chain in &mut self.chains {
             if !response.is_empty() {
@@ -41,7 +46,7 @@ mod test {
 
     use super::*;
     use crate::prompt::prompt::PromptTemplate;
-    use crate::{llm::openai::client::OpenAIClient, prompt, prompts};
+    use crate::{chain, llm::openai::client::OpenAIClient, prompt, prompts};
     use serde::Serialize;
 
     #[derive(Serialize)]
@@ -54,8 +59,8 @@ mod test {
         let client = OpenAIClient::new();
 
         let res = SequentialChain::new()
-            .link(LLMChain::new(&client, prompt!("Give me a summary of {{play}}'s plot.")))
-            .link(LLMChain::new(&client, prompts!(("ai", "You are a professional critic. When given a summary of a play, you must write a review of it. Here is a summary of {{play}}'s plot:"))))
+            .link(chain!("Summary", &client, prompt!("Give me a summary of {{play}}'s plot.")))
+            .link(chain!("Critic", &client, prompts!(("ai", "You are a professional critic. When given a summary of a play, you must write a review of it. Here is a summary of {{play}}'s plot:"))))
             .execute(&Data {
                 play: "Hamlet".to_string(),
             })

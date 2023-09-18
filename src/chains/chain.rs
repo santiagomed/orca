@@ -48,6 +48,9 @@ use crate::record::record::Record;
 /// }
 /// ```
 pub struct LLMChain<'llm> {
+    /// The name of the LLMChain.
+    name: String,
+
     /// The LLM used by the LLMChain.
     llm: &'llm (dyn Generate),
 
@@ -60,8 +63,9 @@ pub struct LLMChain<'llm> {
 
 impl<'llm> LLMChain<'llm> {
     /// Initialize a new LLMChain with an LLM. The LLM must implement the LLM trait.
-    pub fn new(llm: &'llm impl Generate, prompt: PromptTemplate<'llm>) -> LLMChain<'llm> {
+    pub fn new(name: Option<String>, llm: &'llm impl Generate, prompt: PromptTemplate<'llm>) -> LLMChain<'llm> {
         LLMChain {
+            name: name.unwrap_or(uuid::Uuid::new_v4().to_string()),
             llm,
             prompt,
             records: HashMap::new(),
@@ -84,6 +88,11 @@ impl<'llm> LLMChain<'llm> {
     pub fn with_prompt(mut self, prompt: PromptTemplate<'llm>) -> Self {
         self.prompt = prompt;
         self
+    }
+
+    /// Get the name of the LLMChain.
+    pub fn get_name(&self) -> &String {
+        &self.name
     }
 
     /// Get the prompt template used by the LLMChain.
@@ -109,18 +118,36 @@ where
 {
     async fn execute(&mut self, data: &T) -> Result<String, LLMError> {
         let prompt = self.prompt.render_data(data)?;
-        self.llm.generate(&prompt).await
+        log::info!("< Executing chain {:?}. >", self.get_name());
+        let response = self.llm.generate(&prompt).await?;
+        log::info!(
+            "< Chain {:?} executed successfully. >\n< Response >\n{:?}",
+            self.get_name(),
+            response
+        );
+        Ok(response)
     }
 }
 
 impl<'llm> Clone for LLMChain<'llm> {
     fn clone(&self) -> Self {
         LLMChain {
+            name: self.name.clone(),
             llm: self.llm.clone(),
             prompt: self.prompt.clone(),
             records: self.records.clone(),
         }
     }
+}
+
+#[macro_export]
+macro_rules! chain {
+    ($name:expr, $client:expr, $prompt:expr) => {
+        LLMChain::new(Some($name.to_string()), $client, $prompt)
+    };
+    ($client:expr, $prompt:expr) => {
+        LLMChain::new(None, $client, $prompt)
+    };
 }
 
 #[cfg(test)]
@@ -144,13 +171,13 @@ mod test {
     async fn test_generate() {
         let client = OpenAIClient::new();
 
-        let res = LLMChain::new(
+        let res = chain!(
             &client,
             prompts!(
                 ("user", "What is the capital of {{country1}}"),
                 ("ai", "Paris"),
                 ("user", "What is the capital of {{country2}}")
-            ),
+            )
         )
         .execute(&Data {
             country1: "France".to_string(),
@@ -170,9 +197,9 @@ mod test {
             .unwrap()
             .spin()
             .unwrap();
-        let res = LLMChain::new(
+        let res = chain!(
             &client,
-            prompts!(("system", "Give a long summary of the following story:\n{{story}}")),
+            prompts!(("system", "Give a long summary of the following story:\n{{story}}"))
         )
         .with_record("story", record)
         .execute_with_record("story")
