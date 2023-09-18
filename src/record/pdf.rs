@@ -26,14 +26,22 @@ impl PDF {
     /// Create a new PDF record from a buffer
     /// When calling this function, specify the PDF generic type as a slice of bytes
     /// ```
-    /// use resume::record::pdf::PDF;
+    /// use orca::record::pdf::PDF;
+    /// use base64::{engine::general_purpose, Engine};
+    /// use std::io::Read;
     ///
-    /// let record = PDF::<&[u8]>::from_buffer(include_bytes!("../../tests/records/pdf.in"), false).unwrap();
+    /// let mut f = std::fs::File::open("./tests/pdf.in").unwrap();
+    /// let mut c = String::new();
+    /// f.read_to_string(&mut c).unwrap();
+    /// let mut bytes: Vec<u8> = Vec::new();
+    /// general_purpose::STANDARD.decode_vec(c, &mut bytes).unwrap();
+    ///
+    /// let record = PDF::from_buffer(bytes, false);
     /// ```
-    pub fn from_buffer(buffer: &[u8], split: bool) -> PDF {
+    pub fn from_buffer(buffer: Vec<u8>, split: bool) -> PDF {
         // convert buffer into file object
         PDF {
-            file: FileOptions::cached().load(buffer.to_vec()).unwrap(),
+            file: FileOptions::cached().load(buffer).unwrap(),
             split,
         }
     }
@@ -41,9 +49,9 @@ impl PDF {
     /// Create a new PDF record from a file
     /// When calling this function, specify the PDF generic type as a vector of bytes
     /// ```
-    /// use resume::record::pdf::PDF;
+    /// use orca::record::pdf::PDF;
     ///
-    /// let record = PDF::<Vec<u8>>::from_file("test/test.pdf", false).unwrap();
+    /// let record = PDF::from_file("./tests/sample-resume.pdf", false);
     /// ```
     pub fn from_file(path: &str, split: bool) -> PDF {
         // convert buffer into file object
@@ -122,22 +130,45 @@ impl Spin for PDF {
 #[cfg(test)]
 mod test {
 
+    use std::io::Read;
+
     use super::*;
+    use base64::{engine::general_purpose, Engine};
 
     #[test]
     fn test_from_buffer() {
-        let record = PDF::from_buffer(include_bytes!("../../tests/pdf.in"), false);
+        let mut f = std::fs::File::open("./tests/pdf.in").unwrap();
+        let mut c = String::new();
+        f.read_to_string(&mut c).unwrap();
+        let mut bytes: Vec<u8> = Vec::new();
+        general_purpose::STANDARD.decode_vec(c, &mut bytes).unwrap();
+
+        let record = PDF::from_buffer(bytes, false);
         assert_eq!(record.split, false);
     }
 
     #[test]
     fn test_from_file() {
-        let record = PDF::from_file("test/test.pdf", false);
+        let record = PDF::from_file("./tests/sample-resume.pdf", false);
         assert_eq!(record.split, false);
     }
 
     #[test]
-    fn test_spin() {
+    fn test_spin_from_buffer() {
+        std::env::set_var("STANDARD_FONTS", "./assets/pdf_fonts");
+        let mut f = std::fs::File::open("./tests/pdf.in").unwrap();
+        let mut c = String::new();
+        f.read_to_string(&mut c).unwrap();
+        let mut bytes: Vec<u8> = Vec::new();
+        general_purpose::STANDARD.decode_vec(c, &mut bytes).unwrap();
+
+        let record = PDF::from_buffer(bytes, false).spin().unwrap();
+        let correct_content = include_str!("../../tests/out/sample-resume.out");
+        assert_eq!(record.content.to_string(), correct_content);
+    }
+
+    #[test]
+    fn test_spin_from_file() {
         std::env::set_var("STANDARD_FONTS", "./assets/pdf_fonts");
         let record = PDF::from_file("./tests/sample-resume.pdf", false).spin().unwrap();
         let correct_content = include_str!("../../tests/out/sample-resume.out");
