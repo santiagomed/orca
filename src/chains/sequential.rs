@@ -46,7 +46,7 @@ mod test {
 
     use super::*;
     use crate::prompt::prompt::PromptTemplate;
-    use crate::{chain, llm::openai::client::OpenAIClient, prompt, prompts};
+    use crate::{llm::openai::client::OpenAIClient, prompt, prompts};
     use serde::Serialize;
 
     #[derive(Serialize)]
@@ -59,8 +59,8 @@ mod test {
         let client = OpenAIClient::new();
 
         let res = SequentialChain::new()
-            .link(chain!("Summary", &client, prompt!("Give me a summary of {{play}}'s plot.")))
-            .link(chain!("Critic", &client, prompts!(("ai", "You are a professional critic. When given a summary of a play, you must write a review of it. Here is a summary of {{play}}'s plot:"))))
+            .link(LLMChain::new(&client, prompt!("Give me a summary of {{play}}'s plot.")))
+            .link(LLMChain::new(&client, prompts!(("ai", "You are a professional critic. When given a summary of a play, you must write a review of it. Here is a summary of {{play}}'s plot:"))))
             .execute(&Data {
                 play: "Hamlet".to_string(),
             })

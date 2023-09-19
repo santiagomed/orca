@@ -1,8 +1,9 @@
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
-#[derive(Serialize, Deserialize, Clone)]
 /// Content of a record which can be represented as either a string or a vector of strings.
 /// To get the string representation of the content, use the `to_string` method.
+#[derive(Serialize, Clone)]
+#[serde(untagged)]
 pub enum Content {
     String(String),
     Vec(Vec<String>),
@@ -18,7 +19,7 @@ impl ToString for Content {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Clone)]
 pub struct Record {
     /// Header information for the record.
     #[serde(skip_serializing_if = "Option::is_none")]
