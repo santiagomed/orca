@@ -1,5 +1,5 @@
 use super::chain::LLMChain;
-use super::traits::Execute;
+use super::Execute;
 use crate::llm::error::LLMError;
 use serde::Serialize;
 
@@ -10,13 +10,11 @@ pub struct SequentialChain<'llm> {
 impl<'llm> SequentialChain<'llm> {
     /// Initialize a new sequential chain.
     pub fn new() -> SequentialChain<'llm> {
-        println!("< Initializing a new sequential chain. >");
         SequentialChain { chains: Vec::new() }
     }
 
     /// Add a simple LLM Chain to the sequential chain.
     pub fn link(mut self, chain: LLMChain<'llm>) -> SequentialChain<'llm> {
-        println!("< Adding a {:#?} to the sequential chain. >", chain.get_name());
         self.chains.push(chain);
         self
     }
@@ -28,7 +26,6 @@ where
     T: Serialize,
 {
     async fn execute(&mut self, data: &T) -> Result<String, LLMError> {
-        println!("< Executing a sequential chain. >");
         let mut response = String::new();
         for chain in &mut self.chains {
             if !response.is_empty() {
@@ -46,7 +43,7 @@ mod test {
 
     use super::*;
     use crate::prompt::prompt::PromptTemplate;
-    use crate::{llm::openai::client::OpenAIClient, prompt, prompts};
+    use crate::{llm::openai::OpenAIClient, prompt, prompts};
     use serde::Serialize;
 
     #[derive(Serialize)]

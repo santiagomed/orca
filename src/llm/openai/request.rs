@@ -40,8 +40,8 @@ impl From<Vec<Message>> for RequestMessages {
 }
 
 /// Trait for converting a RequestMessages into a vector of ChatCompletionRequestMessage
-impl Into<Vec<ChatCompletionRequestMessage>> for RequestMessages {
-    fn into(self) -> Vec<ChatCompletionRequestMessage> {
-        self.0
+impl From<RequestMessages> for Vec<ChatCompletionRequestMessage> {
+    fn from(messages: RequestMessages) -> Self {
+        messages.0
     }
 }

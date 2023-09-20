@@ -1,6 +1,8 @@
 use super::{context::Context, error::PromptTemplateError};
 use handlebars::Handlebars;
 use serde::Serialize;
+use std::fmt::{Display, Formatter};
+use std::fmt;
 
 #[derive(Serialize, PartialEq, Debug, Clone)]
 pub struct Message {
@@ -36,6 +38,15 @@ impl Message {
     }
 }
 
+impl Display for Message {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match &self.role {
+            Some(role) => write!(f, "[{}] {}", role, self.message),
+            None => write!(f, "{}", self.message),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum Role {
@@ -54,6 +65,17 @@ impl From<&str> for Role {
             "user" => Role::User,
             "ai" => Role::Ai,
             _ => panic!("Invalid role: {}", s),
+        }
+    }
+}
+
+impl Display for Role {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            Role::System => write!(f, "system"),
+            Role::User => write!(f, "user"),
+            Role::Ai => write!(f, "ai"),
+            Role::Function => write!(f, "function"),
         }
     }
 }

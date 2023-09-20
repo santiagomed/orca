@@ -1,8 +1,11 @@
+use std::sync::Arc;
+
 use serde::Serialize;
 
-use crate::chains::traits::Execute;
+use super::Execute;
 use crate::llm::error::LLMError;
-use crate::llm::llm::Generate;
+use crate::llm::Generate;
+use crate::memory::Memory;
 use crate::prompt::prompt::PromptTemplate;
 
 /// Simple LLM chain that formats a prompt and calls an LLM.
@@ -52,6 +55,9 @@ pub struct LLMChain<'llm> {
 
     /// The prompt template instance used by the LLMChain.
     prompt: PromptTemplate<'llm>,
+
+    /// Memory of the LLMChain.
+    memory: (dyn Memory)
 }
 
 impl<'llm> LLMChain<'llm> {
@@ -61,6 +67,7 @@ impl<'llm> LLMChain<'llm> {
             name: uuid::Uuid::new_v4().to_string(),
             llm,
             prompt,
+            memory: None,
         }
     }
 
@@ -73,6 +80,12 @@ impl<'llm> LLMChain<'llm> {
     /// Change the prompt template used by the LLMChain.
     pub fn with_prompt(mut self, prompt: PromptTemplate<'llm>) -> Self {
         self.prompt = prompt;
+        self
+    }
+
+    /// Change the memory used by the LLMChain.
+    pub fn with_memory(mut self, memory: impl Memory + 'llm) -> Self {
+        self.memory = memory;
         self
     }
 
@@ -94,15 +107,8 @@ where
 {
     async fn execute(&mut self, data: &T) -> Result<String, LLMError> {
         let prompt = self.prompt.render_data(data)?;
-        println!("< Rendered prompt. >");
-        println!("< Prompt >\n{:#?}", prompt);
-        println!("< Executing chain {:#?}. >", self.get_name());
         let response = self.llm.generate(&prompt).await?;
-        println!(
-            "< Chain {:#?} executed successfully. >\n< Response >\n{:?}",
-            self.get_name(),
-            response
-        );
+        self.memory.load_memory(prompt);
         Ok(response)
     }
 }
@@ -113,6 +119,7 @@ impl<'llm> Clone for LLMChain<'llm> {
             name: self.name.clone(),
             llm: self.llm.clone(),
             prompt: self.prompt.clone(),
+            memory: self.memory.clone(),
         }
     }
 }
@@ -122,9 +129,9 @@ mod test {
 
     use super::*;
     use crate::{
-        llm::openai::client::OpenAIClient,
+        llm::openai::OpenAIClient,
         prompts,
-        record::{self, spin::Spin},
+        record::{self, spin::Spin}, prompt::prompt::Message,
     };
     use serde::Serialize;
 
@@ -180,5 +187,12 @@ mod test {
         .await
         .unwrap();
         assert!(res.contains("elephant"));
+    }
+
+    #[tokio::test]
+    async fn test_generate_with_memory() {
+        let client = OpenAIClient::new();
+        let mut memory = Buffer::new();
+
     }
 }
