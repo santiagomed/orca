@@ -5,8 +5,13 @@ use super::{Chain, ChainResult};
 use crate::llm::error::LLMError;
 
 pub struct SequentialChain<'llm> {
+    /// The name of the LLMChain.
     name: String,
+
+    /// Vector of LLM chains used by the SequentialChain.
     chains: Vec<LLMChain<'llm>>,
+
+    /// The context for for the templates used by the SequentialChain.
     context: HashMap<String, String>,
 }
 
@@ -20,6 +25,7 @@ impl<'llm> SequentialChain<'llm> {
         }
     }
 
+    /// Get the name of the LLMChain.
     pub fn get_name(&self) -> &String {
         &self.name
     }
