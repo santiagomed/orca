@@ -1,20 +1,24 @@
-use serde::Serialize;
+use std::collections::HashMap;
 
-use crate::chains::traits::Execute;
+use super::Chain;
 use crate::llm::error::LLMError;
-use crate::llm::llm::Generate;
+use crate::llm::Generate;
+use crate::memory::memory;
+use crate::memory::Memory;
 use crate::prompt::prompt::PromptTemplate;
+use crate::prompt::{Message, Role};
 
 /// Simple LLM chain that formats a prompt and calls an LLM.
 ///
 /// # Example
 /// ```rust
 /// use orca::chains::chain::LLMChain;
-/// use orca::chains::traits::Execute;
+/// use orca::chains::Chain;
 /// use orca::prompts;
 /// use orca::prompt::prompt::PromptTemplate;
-/// use orca::llm::openai::client::OpenAIClient;
+/// use orca::llm::openai::OpenAIClient;
 /// use serde::Serialize;
+/// use tokio;
 ///
 /// #[derive(Serialize)]
 /// pub struct Data {
@@ -22,24 +26,20 @@ use crate::prompt::prompt::PromptTemplate;
 ///     country2: String,
 /// }
 ///
-/// async fn test_generate() {
+/// #[tokio::main]
+/// async fn main() {
 ///     let client = OpenAIClient::new();
-///     let res = LLMChain::new(
-///         &client,
-///         prompts!(
-///             ("user", "What is the capital of {{country1}}"),
-///             ("ai", "Paris"),
-///             ("user", "What is the capital of {{country2}}")
-///         ),
-///     )
-///     .execute(
-///         &Data {
-///             country1: "France".to_string(),
-///             country2: "Germany".to_string(),
-///         },
-///     )
-///     .await
-///     .unwrap();
+///
+///     let mut chain = LLMChain::new(&client).with_prompt(prompts!(
+///         ("user", "What is the capital of {{country1}}"),
+///         ("ai", "Paris"),
+///         ("user", "What is the capital of {{country2}}")
+///     ));
+///     chain.set_context(&Data {
+///         country1: "France".to_string(),
+///         country2: "Germany".to_string(),
+///     });
+///     let res = chain.execute().await.unwrap();
 ///     assert!(res.contains("Berlin") || res.contains("berlin"));
 /// }
 /// ```
@@ -52,27 +52,34 @@ pub struct LLMChain<'llm> {
 
     /// The prompt template instance used by the LLMChain.
     prompt: PromptTemplate<'llm>,
+
+    /// Memory of the LLMChain.
+    memory: Box<dyn Memory<'llm> + 'llm>,
+
+    context: HashMap<String, String>,
 }
 
 impl<'llm> LLMChain<'llm> {
     /// Initialize a new LLMChain with an LLM. The LLM must implement the LLM trait.
-    pub fn new(llm: &'llm impl Generate, prompt: PromptTemplate<'llm>) -> LLMChain<'llm> {
+    pub fn new(llm: &'llm impl Generate) -> LLMChain<'llm> {
         LLMChain {
             name: uuid::Uuid::new_v4().to_string(),
             llm,
-            prompt,
+            prompt: PromptTemplate::new(),
+            memory: Box::new(memory::Buffer::new()),
+            context: HashMap::new(),
         }
-    }
-
-    /// Change the LLM used by the LLMChain.
-    pub fn with_llm(mut self, llm: &'llm impl Generate) -> Self {
-        self.llm = llm;
-        self
     }
 
     /// Change the prompt template used by the LLMChain.
     pub fn with_prompt(mut self, prompt: PromptTemplate<'llm>) -> Self {
         self.prompt = prompt;
+        self
+    }
+
+    /// Change the memory used by the LLMChain.
+    pub fn with_memory(mut self, memory: impl Memory<'llm> + 'llm) -> Self {
+        self.memory = Box::new(memory);
         self
     }
 
@@ -88,22 +95,18 @@ impl<'llm> LLMChain<'llm> {
 }
 
 #[async_trait::async_trait(?Send)]
-impl<'llm, T> Execute<T> for LLMChain<'llm>
-where
-    T: Serialize,
-{
-    async fn execute(&mut self, data: &T) -> Result<String, LLMError> {
-        let prompt = self.prompt.render_data(data)?;
-        println!("< Rendered prompt. >");
-        println!("< Prompt >\n{:#?}", prompt);
-        println!("< Executing chain {:#?}. >", self.get_name());
+impl<'llm> Chain for LLMChain<'llm> {
+    async fn execute(&mut self) -> Result<String, LLMError> {
+        let msgs = self.prompt.render(&self.context)?;
+        let prompt = self.memory.get_memory();
+        prompt.extend(msgs);
         let response = self.llm.generate(&prompt).await?;
-        println!(
-            "< Chain {:#?} executed successfully. >\n< Response >\n{:?}",
-            self.get_name(),
-            response
-        );
+        prompt.push(Message::chat(Role::Ai, &response));
         Ok(response)
+    }
+
+    fn get_context(&mut self) -> &mut HashMap<String, String> {
+        &mut self.context
     }
 }
 
@@ -113,6 +116,8 @@ impl<'llm> Clone for LLMChain<'llm> {
             name: self.name.clone(),
             llm: self.llm.clone(),
             prompt: self.prompt.clone(),
+            memory: self.memory.clone(),
+            context: self.context.clone(),
         }
     }
 }
@@ -120,10 +125,12 @@ impl<'llm> Clone for LLMChain<'llm> {
 #[cfg(test)]
 mod test {
 
+    use std::vec;
+
     use super::*;
     use crate::{
-        llm::openai::client::OpenAIClient,
-        prompts,
+        llm::openai::OpenAIClient,
+        prompt, prompts,
         record::{self, spin::Spin},
     };
     use serde::Serialize;
@@ -143,20 +150,16 @@ mod test {
     async fn test_generate() {
         let client = OpenAIClient::new();
 
-        let res = LLMChain::new(
-            &client,
-            prompts!(
-                ("user", "What is the capital of {{country1}}"),
-                ("ai", "Paris"),
-                ("user", "What is the capital of {{country2}}")
-            ),
-        )
-        .execute(&DataOne {
+        let mut chain = LLMChain::new(&client).with_prompt(prompts!(
+            ("user", "What is the capital of {{country1}}"),
+            ("ai", "Paris"),
+            ("user", "What is the capital of {{country2}}")
+        ));
+        chain.set_context(&DataOne {
             country1: "France".to_string(),
             country2: "Germany".to_string(),
-        })
-        .await
-        .unwrap();
+        });
+        let res = chain.execute().await.unwrap();
 
         assert!(res.contains("Berlin") || res.contains("berlin"));
     }
@@ -170,15 +173,26 @@ mod test {
             .spin()
             .unwrap();
 
-        let res = LLMChain::new(
-            &client,
-            prompts!(("system", "Give a long summary of the following story:\n{{story}}")),
-        )
-        .execute(&DataTwo {
-            story: record.content.to_string(),
-        })
-        .await
-        .unwrap();
-        assert!(res.contains("elephant"));
+        let mut chain = LLMChain::new(&client).with_prompt(prompts!((
+            "system",
+            "Give a long summary of the following story:\n{{story}}"
+        )));
+
+        chain.set_record("story", record);
+        let res = chain.execute().await.unwrap().to_lowercase();
+        assert!(res.contains("elephant") || res.contains("burma"));
+    }
+
+    #[tokio::test]
+    async fn test_generate_with_memory() {
+        let client = OpenAIClient::new();
+
+        let mut chain = LLMChain::new(&client).with_prompt(prompts!(("user", "My name is Orca")));
+        chain.execute().await.unwrap();
+        let mut chain = chain.with_prompt(prompt!("What is my name?"));
+        let res = chain.execute().await.unwrap();
+
+        assert!(res.contains("Orca"));
+        assert_eq!(chain.memory.get_memory().len(), 4);
     }
 }

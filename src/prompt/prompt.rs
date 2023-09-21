@@ -1,62 +1,6 @@
-use super::{context::Context, error::PromptTemplateError};
+use super::{context::Context, error::PromptTemplateError, Message};
 use handlebars::Handlebars;
 use serde::Serialize;
-
-#[derive(Serialize, PartialEq, Debug, Clone)]
-pub struct Message {
-    /// The message role (system, user, ai)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub role: Option<Role>,
-
-    /// The message text
-    pub message: String,
-}
-
-impl Message {
-    pub fn single(message: &str) -> Message {
-        Message {
-            role: None,
-            message: message.to_string(),
-        }
-    }
-
-    pub fn chat(role: Role, message: &str) -> Message {
-        Message {
-            role: Some(role),
-            message: message.to_string(),
-        }
-    }
-
-    pub fn into_vec(v: Vec<(&str, &str)>) -> Vec<Message> {
-        let mut messages = Vec::new();
-        for (role, message) in v {
-            messages.push(Message::chat(role.into(), message));
-        }
-        messages
-    }
-}
-
-#[derive(Debug, Serialize, Clone, Default, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum Role {
-    System,
-    #[default]
-    User,
-    Ai,
-    Function,
-}
-
-/// Trait for converting a string to a role
-impl From<&str> for Role {
-    fn from(s: &str) -> Role {
-        match s {
-            "system" => Role::System,
-            "user" => Role::User,
-            "ai" => Role::Ai,
-            _ => panic!("Invalid role: {}", s),
-        }
-    }
-}
 
 pub struct PromptTemplate<'p> {
     /// A vector of template strings
@@ -116,7 +60,7 @@ impl<'p> PromptTemplate<'p> {
     /// # Example
     /// ```rust
     /// use orca::prompt::prompt::PromptTemplate;
-    /// use orca::prompt::prompt::Message;
+    /// use orca::prompt::Message;
     ///
     /// let mut prompt_template = PromptTemplate::new().from_prompt("What is the capital of {{country}}");
     /// prompt_template.add_prompt(("ai", "The capital is {{capital}}"));
@@ -128,7 +72,8 @@ impl<'p> PromptTemplate<'p> {
     /// Render a prompt template
     /// # Example
     /// ```rust
-    /// use orca::prompt::{prompt::{Message, PromptTemplate}, context::Context};
+    /// use orca::prompt::{prompt::PromptTemplate, context::Context};
+    /// use orca::prompt::{Message, Role};
     ///
     /// let mut prompt_template = PromptTemplate::new().from_prompt("Your name is {{name}}");
     /// let mut context = Context::new();
@@ -154,7 +99,8 @@ impl<'p> PromptTemplate<'p> {
     /// Render a prompt template with data
     /// # Example
     /// ```rust
-    /// use orca::prompt::{prompt::{Message, PromptTemplate, Role}, context::Context};
+    /// use orca::prompt::{prompt::{PromptTemplate}, context::Context};
+    /// use orca::prompt::{Message, Role};
     /// use serde::Serialize;
     ///
     /// #[derive(Serialize)]
@@ -172,10 +118,10 @@ impl<'p> PromptTemplate<'p> {
     ///   age: 5,
     /// };
     ///
-    /// let prompt = prompt_template.render_data(&data).unwrap();
+    /// let prompt = prompt_template.render(&data).unwrap();
     /// assert_eq!(prompt, vec![Message::chat(Role::Ai, "My name is gpt and I am 5 years old.")]);
     /// ```
-    pub fn render_data<T>(&self, data: &T) -> Result<Vec<Message>, PromptTemplateError>
+    pub fn render<T>(&self, data: &T) -> Result<Vec<Message>, PromptTemplateError>
     where
         T: Serialize,
     {
@@ -217,6 +163,8 @@ macro_rules! prompts {
 
 #[cfg(test)]
 mod test {
+    use crate::prompt::Role;
+
     use super::*;
 
     #[test]
@@ -288,7 +236,7 @@ mod test {
             age: 5,
         };
 
-        let prompt = prompt_template.render_data(&data).unwrap();
+        let prompt = prompt_template.render(&data).unwrap();
         assert_eq!(
             prompt,
             vec![Message::chat(Role::Ai, "My name is gpt and I am 5 years old.")]
