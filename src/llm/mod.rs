@@ -1,8 +1,8 @@
 pub mod error;
 pub mod openai;
 
+use crate::prompt::Message;
 use error::LLMError;
-use crate::prompt::prompt::Message;
 
 /// Generate with context trait is used to execute an LLM using a context and a prompt template.
 /// The context is a previously created context using the Context struct. The prompt template

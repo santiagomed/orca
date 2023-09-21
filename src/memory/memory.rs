@@ -1,6 +1,6 @@
-use crate::prompt::prompt::Message;
-use std::{fmt::{Display, Formatter}, sync::{Arc, Mutex}};
 use super::Memory;
+use crate::prompt::Message;
+use std::fmt::{Display, Formatter};
 
 pub struct Buffer {
     memory: Vec<Message>,
@@ -13,7 +13,7 @@ impl Buffer {
     }
 }
 
-impl Memory for Buffer {
+impl<'m> Memory<'m> for Buffer {
     /// Get the memory of the Memory Buffer.
     fn get_memory(&mut self) -> &mut Vec<Message> {
         &mut self.memory

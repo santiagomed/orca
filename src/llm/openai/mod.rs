@@ -4,7 +4,7 @@ use async_openai::types::{CreateChatCompletionRequest, CreateChatCompletionReque
 
 use crate::llm::error::LLMError;
 use crate::llm::Generate;
-use crate::prompt::prompt::Message;
+use crate::prompt::Message;
 
 use request::RequestMessages;
 
