@@ -2,8 +2,8 @@ use std::{sync::Arc, vec};
 
 use super::{
     error::RecordError,
-    record::{Content, Record},
-    spin::Spin,
+    Content, Record,
+    Spin,
 };
 use pdf::{
     any::AnySync,

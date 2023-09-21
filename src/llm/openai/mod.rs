@@ -3,13 +3,15 @@ mod request;
 use async_openai::types::{CreateChatCompletionRequest, CreateChatCompletionRequestArgs};
 
 use crate::llm::error::LLMError;
-use crate::llm::Generate;
+use crate::llm::LLM;
 use crate::prompt::Message;
 
 use request::RequestMessages;
 
 // make OpenAIConfig public
 pub use async_openai::config::{Config, OpenAIConfig};
+
+use super::LLMResponse;
 
 pub struct OpenAIClient {
     /// Client member for the OpenAI API. This client is a wrapper around the async-openai crate, with additional functionality to
@@ -105,12 +107,12 @@ impl OpenAIClient {
 
 // Now implement these traits for your LLM types
 #[async_trait::async_trait(?Send)]
-impl Generate for OpenAIClient {
-    async fn generate(&self, prompt: &Vec<Message>) -> Result<String, LLMError> {
+impl LLM for OpenAIClient {
+    async fn generate(&self, prompt: &Vec<Message>) -> Result<LLMResponse, LLMError> {
         let request = self.generate_request(prompt)?;
 
         match self.client.chat().create(request).await {
-            Ok(response) => Ok(response.choices[0].to_owned().message.content.unwrap()),
+            Ok(response) => Ok(response.into()),
             Err(err) => Err(LLMError::OpenAIError(err)),
         }
     }
@@ -137,6 +139,6 @@ mod test {
         let prompt = prompt.render_context(&context).unwrap();
         let response = client.generate(&prompt).await.unwrap();
         // contains "Paris" or "paris"
-        assert!(response.to_lowercase().contains("berlin"));
+        assert!(response.get_response_content().to_lowercase().contains("paris"));
     }
 }

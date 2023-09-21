@@ -1,6 +1,6 @@
 use super::error::RecordError;
-use super::record::{Content, Record};
-use super::spin::Spin;
+use super::{Content, Record};
+use super::Spin;
 use reqwest;
 use scraper::Selector;
 use std::fs;
