@@ -25,11 +25,6 @@ impl<'llm> SequentialChain<'llm> {
         }
     }
 
-    /// Get the name of the LLMChain.
-    pub fn get_name(&self) -> &String {
-        &self.name
-    }
-
     /// Add a simple LLM Chain to the sequential chain.
     pub fn link(mut self, chain: LLMChain<'llm>) -> SequentialChain<'llm> {
         self.chains.push(chain);
@@ -41,7 +36,7 @@ impl<'llm> SequentialChain<'llm> {
 impl<'llm> Chain for SequentialChain<'llm> {
     async fn execute(&mut self) -> Result<ChainResult, LLMError> {
         let mut response = String::new();
-        let mut result: ChainResult = ChainResult::new(self.get_name().to_string()); // initialize result to a default value
+        let mut result: ChainResult = ChainResult::new(self.name.to_string()); // initialize result to a default value
         for chain in &mut self.chains {
             if !response.is_empty() {
                 let prompt = chain.get_prompt();
@@ -53,7 +48,7 @@ impl<'llm> Chain for SequentialChain<'llm> {
         Ok(result)
     }
 
-    fn get_context(&mut self) -> &mut HashMap<String, String> {
+    fn context(&mut self) -> &mut HashMap<String, String> {
         &mut self.context
     }
 }

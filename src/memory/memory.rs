@@ -15,7 +15,7 @@ impl Buffer {
 
 impl<'m> Memory<'m> for Buffer {
     /// Get the memory of the Memory Buffer.
-    fn get_memory(&mut self) -> &mut Vec<Message> {
+    fn memory(&mut self) -> &mut Vec<Message> {
         &mut self.memory
     }
 }

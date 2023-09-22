@@ -5,7 +5,10 @@ use std::collections::HashMap;
 
 use serde::Serialize;
 
-use crate::{llm::{error::LLMError, LLMResponse}, record::Record};
+use crate::{
+    llm::{error::LLMError, LLMResponse},
+    record::Record,
+};
 
 #[async_trait::async_trait(?Send)]
 pub trait Chain {
@@ -20,20 +23,20 @@ pub trait Chain {
         let context = serde_json::to_value(context).unwrap();
         let context = context.as_object().unwrap();
         for (key, value) in context {
-            self.get_context().insert(key.to_string(), value.to_string());
+            self.context().insert(key.to_string(), value.to_string());
         }
     }
 
     /// Save a record content to the context of an LLM Chain.
-    fn set_record(&mut self, name: &str, record: Record) {
-        let context = self.get_context();
+    fn load_record(&mut self, name: &str, record: Record) {
+        let context = self.context();
         if !context.contains_key(name) {
             context.insert(name.to_string(), record.content.to_string());
         }
     }
 
     /// Get the context of the LLMChain.
-    fn get_context(&mut self) -> &mut HashMap<String, String>;
+    fn context(&mut self) -> &mut HashMap<String, String>;
 }
 
 pub struct ChainResult {

@@ -84,11 +84,6 @@ impl<'llm> LLMChain<'llm> {
         self
     }
 
-    /// Get the name of the LLMChain.
-    pub fn get_name(&self) -> &String {
-        &self.name
-    }
-
     /// Get the prompt template used by the LLMChain.
     pub fn get_prompt(&mut self) -> &mut PromptTemplate<'llm> {
         &mut self.prompt
@@ -99,14 +94,14 @@ impl<'llm> LLMChain<'llm> {
 impl<'llm> Chain for LLMChain<'llm> {
     async fn execute(&mut self) -> Result<ChainResult, LLMError> {
         let msgs = self.prompt.render(&self.context)?;
-        let prompt = self.memory.get_memory();
+        let prompt = self.memory.memory();
         prompt.extend(msgs);
         let response = self.llm.generate(&prompt).await?;
         prompt.push(Message::chat(Role::Ai, &response.get_response_content()));
         Ok(ChainResult::new(self.name.clone()).with_llm_response(response))
     }
 
-    fn get_context(&mut self) -> &mut HashMap<String, String> {
+    fn context(&mut self) -> &mut HashMap<String, String> {
         &mut self.context
     }
 }
@@ -179,7 +174,7 @@ mod test {
             "Give a long summary of the following story:\n{{story}}"
         )));
 
-        chain.set_record("story", record);
+        chain.load_record("story", record);
         let res = chain.execute().await.unwrap().get_content();
         assert!(res.contains("elephant") || res.contains("burma"));
     }
@@ -194,6 +189,6 @@ mod test {
         let res = chain.execute().await.unwrap().get_content();
 
         assert!(res.contains("Orca"));
-        assert_eq!(chain.memory.get_memory().len(), 4);
+        assert_eq!(chain.memory.memory().len(), 4);
     }
 }
