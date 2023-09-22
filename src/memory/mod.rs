@@ -4,11 +4,11 @@ pub mod memory;
 
 pub trait Memory<'m>: MemoryClone<'m> {
     /// Get the memory of the Memory Buffer.
-    fn get_memory(&mut self) -> &mut Vec<Message>;
+    fn memory(&mut self) -> &mut Vec<Message>;
 
     /// Load a message into the Memory Buffer.
     fn save_memory(&mut self, msgs: Vec<Message>) {
-        *self.get_memory() = msgs;
+        *self.memory() = msgs;
     }
 }
 

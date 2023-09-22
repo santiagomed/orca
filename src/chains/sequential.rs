@@ -1,11 +1,17 @@
 use std::collections::HashMap;
 
 use super::chain::LLMChain;
-use super::Chain;
+use super::{Chain, ChainResult};
 use crate::llm::error::LLMError;
 
 pub struct SequentialChain<'llm> {
+    /// The name of the LLMChain.
+    name: String,
+
+    /// Vector of LLM chains used by the SequentialChain.
     chains: Vec<LLMChain<'llm>>,
+
+    /// The context for for the templates used by the SequentialChain.
     context: HashMap<String, String>,
 }
 
@@ -13,6 +19,7 @@ impl<'llm> SequentialChain<'llm> {
     /// Initialize a new sequential chain.
     pub fn new() -> SequentialChain<'llm> {
         SequentialChain {
+            name: uuid::Uuid::new_v4().to_string(),
             chains: Vec::new(),
             context: HashMap::new(),
         }
@@ -27,19 +34,21 @@ impl<'llm> SequentialChain<'llm> {
 
 #[async_trait::async_trait(?Send)]
 impl<'llm> Chain for SequentialChain<'llm> {
-    async fn execute(&mut self) -> Result<String, LLMError> {
+    async fn execute(&mut self) -> Result<ChainResult, LLMError> {
         let mut response = String::new();
+        let mut result: ChainResult = ChainResult::new(self.name.to_string()); // initialize result to a default value
         for chain in &mut self.chains {
             if !response.is_empty() {
                 let prompt = chain.get_prompt();
                 prompt.add_prompt(("user", &response));
             }
-            response = chain.execute().await?;
+            result = chain.execute().await?;
+            response = result.get_content();
         }
-        Ok(response)
+        Ok(result)
     }
 
-    fn get_context(&mut self) -> &mut HashMap<String, String> {
+    fn context(&mut self) -> &mut HashMap<String, String> {
         &mut self.context
     }
 }
