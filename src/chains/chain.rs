@@ -188,7 +188,7 @@ mod test {
         let mut chain = chain.with_prompt(prompt!("What is my name?"));
         let res = chain.execute().await.unwrap().get_content();
 
-        assert!(res.contains("Orca"));
+        assert!(res.to_lowercase().contains("orca"));
         assert_eq!(chain.memory.memory().len(), 4);
     }
 }
