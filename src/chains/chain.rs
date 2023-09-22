@@ -6,7 +6,7 @@ use crate::llm::error::LLMError;
 use crate::llm::LLM;
 use crate::memory::memory;
 use crate::memory::Memory;
-use crate::prompt::prompt::PromptTemplate;
+use crate::prompt::prompt::PromptEngine;
 use crate::prompt::{Message, Role};
 
 /// Simple LLM chain that formats a prompt and calls an LLM.
@@ -16,7 +16,7 @@ use crate::prompt::{Message, Role};
 /// use orca::chains::chain::LLMChain;
 /// use orca::chains::Chain;
 /// use orca::prompts;
-/// use orca::prompt::prompt::PromptTemplate;
+/// use orca::prompt::prompt::PromptEngine;
 /// use orca::llm::openai::OpenAIClient;
 /// use serde::Serialize;
 /// use tokio;
@@ -36,23 +36,23 @@ use crate::prompt::{Message, Role};
 ///         ("ai", "Paris"),
 ///         ("user", "What is the capital of {{country2}}")
 ///     ));
-///     chain.set_context(&Data {
+///     chain.load_context(&Data {
 ///         country1: "France".to_string(),
 ///         country2: "Germany".to_string(),
 ///     });
 ///     let res = chain.execute().await.unwrap();
-///     assert!(res.get_content().to_lowercase().contains("berlin"));
+///     assert!(res.content().to_lowercase().contains("berlin"));
 /// }
 /// ```
 pub struct LLMChain<'llm> {
     /// The name of the LLMChain.
-    name: String,
+    pub name: String,
+
+    /// The prompt template instance used by the LLMChain.
+    pub prompt: PromptEngine<'llm>,
 
     /// The LLM used by the LLMChain.
     llm: &'llm (dyn LLM),
-
-    /// The prompt template instance used by the LLMChain.
-    prompt: PromptTemplate<'llm>,
 
     /// Memory of the LLMChain.
     memory: Box<dyn Memory<'llm> + 'llm>,
@@ -66,14 +66,14 @@ impl<'llm> LLMChain<'llm> {
         LLMChain {
             name: uuid::Uuid::new_v4().to_string(),
             llm,
-            prompt: PromptTemplate::new(),
+            prompt: PromptEngine::new(),
             memory: Box::new(memory::Buffer::new()),
             context: HashMap::new(),
         }
     }
 
     /// Change the prompt template used by the LLMChain.
-    pub fn with_prompt(mut self, prompt: PromptTemplate<'llm>) -> Self {
+    pub fn with_prompt(mut self, prompt: PromptEngine<'llm>) -> Self {
         self.prompt = prompt;
         self
     }
@@ -82,11 +82,6 @@ impl<'llm> LLMChain<'llm> {
     pub fn with_memory(mut self, memory: impl Memory<'llm> + 'llm) -> Self {
         self.memory = Box::new(memory);
         self
-    }
-
-    /// Get the prompt template used by the LLMChain.
-    pub fn get_prompt(&mut self) -> &mut PromptTemplate<'llm> {
-        &mut self.prompt
     }
 }
 
@@ -151,11 +146,11 @@ mod test {
             ("ai", "Paris"),
             ("user", "What is the capital of {{country2}}")
         ));
-        chain.set_context(&DataOne {
+        chain.load_context(&DataOne {
             country1: "France".to_string(),
             country2: "Germany".to_string(),
         });
-        let res = chain.execute().await.unwrap().get_content();
+        let res = chain.execute().await.unwrap().content();
 
         assert!(res.contains("Berlin") || res.contains("berlin"));
     }
@@ -175,7 +170,7 @@ mod test {
         )));
 
         chain.load_record("story", record);
-        let res = chain.execute().await.unwrap().get_content();
+        let res = chain.execute().await.unwrap().content();
         assert!(res.contains("elephant") || res.contains("burma"));
     }
 
@@ -186,7 +181,7 @@ mod test {
         let mut chain = LLMChain::new(&client).with_prompt(prompts!(("user", "My name is Orca")));
         chain.execute().await.unwrap();
         let mut chain = chain.with_prompt(prompt!("What is my name?"));
-        let res = chain.execute().await.unwrap().get_content();
+        let res = chain.execute().await.unwrap().content();
 
         assert!(res.to_lowercase().contains("orca"));
         assert_eq!(chain.memory.memory().len(), 4);

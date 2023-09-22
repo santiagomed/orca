@@ -27,7 +27,7 @@ Orca supports simple LLM chains and sequential chains. It also supports reading 
 use orca::chains::chain::LLMChain;
 use orca::chains::Chain;
 use orca::prompts;
-use orca::prompt::prompt::PromptTemplate;
+use orca::prompt::prompt::PromptEngine;
 use orca::llm::openai::OpenAIClient;
 use serde::Serialize;
 
@@ -46,7 +46,7 @@ async fn main() {
             ("ai", "Paris"),
             ("user", "What is the capital of {{country2}}")
         ));
-        chain.set_context(&DataOne {
+        chain.load_context(&DataOne {
             country1: "France".to_string(),
             country2: "Germany".to_string(),
         });

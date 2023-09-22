@@ -1,9 +1,9 @@
-use crate::prompt::error::PromptTemplateError;
+use crate::prompt::error::PromptEngineError;
 
 #[derive(Debug)]
 pub enum LLMError {
     /// Prompt template error
-    PromptTemplateError(PromptTemplateError),
+    PromptEngineError(PromptEngineError),
 
     /// OpenAI error
     OpenAIError(async_openai::error::OpenAIError),
@@ -12,10 +12,10 @@ pub enum LLMError {
     NotImplemented,
 }
 
-impl From<PromptTemplateError> for LLMError {
+impl From<PromptEngineError> for LLMError {
     /// Convert a prompt template error into an LLM error
-    fn from(err: PromptTemplateError) -> LLMError {
-        LLMError::PromptTemplateError(err.into())
+    fn from(err: PromptEngineError) -> LLMError {
+        LLMError::PromptEngineError(err.into())
     }
 }
 

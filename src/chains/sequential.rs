@@ -39,11 +39,11 @@ impl<'llm> Chain for SequentialChain<'llm> {
         let mut result: ChainResult = ChainResult::new(self.name.to_string()); // initialize result to a default value
         for chain in &mut self.chains {
             if !response.is_empty() {
-                let prompt = chain.get_prompt();
+                let prompt = &mut chain.prompt;
                 prompt.add_prompt(("user", &response));
             }
             result = chain.execute().await?;
-            response = result.get_content();
+            response = result.content();
         }
         Ok(result)
     }
@@ -57,7 +57,7 @@ impl<'llm> Chain for SequentialChain<'llm> {
 mod test {
 
     use super::*;
-    use crate::prompt::prompt::PromptTemplate;
+    use crate::prompt::prompt::PromptEngine;
     use crate::{llm::openai::OpenAIClient, prompt, prompts};
     use serde::Serialize;
 
@@ -73,7 +73,7 @@ mod test {
         let mut chain = SequentialChain::new()
             .link(LLMChain::new(&client).with_prompt(prompt!("Give me a summary of {{play}}'s plot.")))
             .link(LLMChain::new(&client).with_prompt(prompts!(("ai", "You are a professional critic. When given a summary of a play, you must write a review of it. Here is a summary of {{play}}'s plot:"))));
-        chain.set_context(&Data {
+        chain.load_context(&Data {
             play: "Hamlet".to_string(),
         });
         let res = chain.execute().await;

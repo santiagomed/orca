@@ -122,7 +122,7 @@ impl LLM for OpenAIClient {
 mod test {
     use super::*;
     use crate::prompt::context::Context;
-    use crate::prompt::prompt::PromptTemplate;
+    use crate::prompt::prompt::PromptEngine;
     use crate::prompts;
 
     #[tokio::test]

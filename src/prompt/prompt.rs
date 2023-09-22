@@ -1,8 +1,8 @@
-use super::{context::Context, error::PromptTemplateError, Message};
+use super::{context::Context, error::PromptEngineError, Message};
 use handlebars::Handlebars;
 use serde::Serialize;
 
-pub struct PromptTemplate<'p> {
+pub struct PromptEngine<'p> {
     /// A vector of template strings
     template: Vec<Message>,
 
@@ -10,31 +10,31 @@ pub struct PromptTemplate<'p> {
     handlebars: Handlebars<'p>,
 }
 
-impl<'p> PromptTemplate<'p> {
+impl<'p> PromptEngine<'p> {
     /// Initialize a prompt template
     /// # Example
     /// ```rust
-    /// use orca::prompt::prompt::PromptTemplate;
+    /// use orca::prompt::prompt::PromptEngine;
     ///
-    /// let mut prompt_template = PromptTemplate::new();
+    /// let mut prompt_template = PromptEngine::new();
     /// ```
-    pub fn new() -> PromptTemplate<'p> {
+    pub fn new() -> PromptEngine<'p> {
         let mut handlebars = Handlebars::new();
         let template = Vec::new();
         handlebars.register_escape_fn(handlebars::no_escape);
 
-        PromptTemplate { template, handlebars }
+        PromptEngine { template, handlebars }
     }
 
     /// Initialize a prompt template with a single template string
     /// If chat format is desired, use from_chat instead
     /// # Example
     /// ```rust
-    /// use orca::prompt::prompt::PromptTemplate;
+    /// use orca::prompt::prompt::PromptEngine;
     ///
-    /// let mut prompt_template = PromptTemplate::new().from_prompt("What is the capital of {{country}}");
+    /// let mut prompt_template = PromptEngine::new().from_prompt("What is the capital of {{country}}");
     /// ```
-    pub fn from_prompt(mut self, template: &str) -> PromptTemplate<'p> {
+    pub fn from_prompt(mut self, template: &str) -> PromptEngine<'p> {
         self.template = vec![Message::single(template)];
         self
     }
@@ -43,15 +43,15 @@ impl<'p> PromptTemplate<'p> {
     /// If single format is desired, use from_prompt instead
     /// # Example
     /// ```rust
-    /// use orca::prompt::prompt::PromptTemplate;
+    /// use orca::prompt::prompt::PromptEngine;
     ///
-    /// let mut prompt_template = PromptTemplate::new().from_chat(vec![
+    /// let mut prompt_template = PromptEngine::new().from_chat(vec![
     ///    ("system", "You are NOT a master at {{subject}}. You know nothing about it."),
     ///    ("user", "What is your favorite aspect of {{subject}}?"),
     ///    ("ai", "I don't know anything about {{subject}}."),
     /// ]);
     /// ```
-    pub fn from_chat(mut self, templates: Vec<(&str, &str)>) -> PromptTemplate<'p> {
+    pub fn from_chat(mut self, templates: Vec<(&str, &str)>) -> PromptEngine<'p> {
         self.template = Message::into_vec(templates);
         self
     }
@@ -59,10 +59,10 @@ impl<'p> PromptTemplate<'p> {
     /// Add a new template string to the prompt template
     /// # Example
     /// ```rust
-    /// use orca::prompt::prompt::PromptTemplate;
+    /// use orca::prompt::prompt::PromptEngine;
     /// use orca::prompt::Message;
     ///
-    /// let mut prompt_template = PromptTemplate::new().from_prompt("What is the capital of {{country}}");
+    /// let mut prompt_template = PromptEngine::new().from_prompt("What is the capital of {{country}}");
     /// prompt_template.add_prompt(("ai", "The capital is {{capital}}"));
     /// ```
     pub fn add_prompt(&mut self, template: (&str, &str)) {
@@ -72,16 +72,16 @@ impl<'p> PromptTemplate<'p> {
     /// Render a prompt template
     /// # Example
     /// ```rust
-    /// use orca::prompt::{prompt::PromptTemplate, context::Context};
+    /// use orca::prompt::{prompt::PromptEngine, context::Context};
     /// use orca::prompt::{Message, Role};
     ///
-    /// let mut prompt_template = PromptTemplate::new().from_prompt("Your name is {{name}}");
+    /// let mut prompt_template = PromptEngine::new().from_prompt("Your name is {{name}}");
     /// let mut context = Context::new();
     /// context.set("name", "gpt");
     /// let prompt = prompt_template.render_context(&context).unwrap();
     /// assert_eq!(prompt, vec![Message::single("Your name is gpt")]);
     /// ```
-    pub fn render_context<T>(&self, context: &Context<T>) -> Result<Vec<Message>, PromptTemplateError>
+    pub fn render_context<T>(&self, context: &Context<T>) -> Result<Vec<Message>, PromptEngineError>
     where
         T: Serialize,
     {
@@ -99,7 +99,7 @@ impl<'p> PromptTemplate<'p> {
     /// Render a prompt template with data
     /// # Example
     /// ```rust
-    /// use orca::prompt::{prompt::{PromptTemplate}, context::Context};
+    /// use orca::prompt::{prompt::{PromptEngine}, context::Context};
     /// use orca::prompt::{Message, Role};
     /// use serde::Serialize;
     ///
@@ -109,7 +109,7 @@ impl<'p> PromptTemplate<'p> {
     ///    age: u8,
     /// }
     ///
-    /// let mut prompt_template = PromptTemplate::new().from_chat(vec![
+    /// let mut prompt_template = PromptEngine::new().from_chat(vec![
     ///   ("ai", "My name is {{name}} and I am {{#if (eq age 1)}}1 year{{else}}{{age}} years{{/if}} old."),
     /// ]);
     ///
@@ -121,7 +121,7 @@ impl<'p> PromptTemplate<'p> {
     /// let prompt = prompt_template.render(&data).unwrap();
     /// assert_eq!(prompt, vec![Message::chat(Role::Ai, "My name is gpt and I am 5 years old.")]);
     /// ```
-    pub fn render<T>(&self, data: &T) -> Result<Vec<Message>, PromptTemplateError>
+    pub fn render<T>(&self, data: &T) -> Result<Vec<Message>, PromptEngineError>
     where
         T: Serialize,
     {
@@ -137,10 +137,10 @@ impl<'p> PromptTemplate<'p> {
     }
 }
 
-impl<'p> Clone for PromptTemplate<'p> {
+impl<'p> Clone for PromptEngine<'p> {
     /// Clone a prompt template
     fn clone(&self) -> Self {
-        PromptTemplate {
+        PromptEngine {
             template: self.template.clone(),
             handlebars: self.handlebars.clone(),
         }
@@ -150,14 +150,14 @@ impl<'p> Clone for PromptTemplate<'p> {
 #[macro_export]
 macro_rules! prompt {
     ($template:expr) => {
-        PromptTemplate::new().from_prompt($template)
+        PromptEngine::new().from_prompt($template)
     };
 }
 
 #[macro_export]
 macro_rules! prompts {
     ($($template:expr),+) => {
-        PromptTemplate::new().from_chat(vec![$($template),+])
+        PromptEngine::new().from_chat(vec![$($template),+])
     };
 }
 
