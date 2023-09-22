@@ -7,7 +7,7 @@
 
 <!-- prettier-ignore-start -->
 
-[![CI](https://github.com/scrippt-tech/orca/actions/workflows/rust.yml/badge.svg)](https://github.com/scrippt-tech/orca/actions/workflows/rust.yml)
+[![CI](https://github.com/scrippt-tech/orca/actions/workflows/ci.yml/badge.svg)](https://github.com/scrippt-tech/orca/actions/workflows/ci.yml)
 
 <!-- prettier-ignore-end -->
 
