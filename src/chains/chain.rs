@@ -41,7 +41,7 @@ use crate::prompt::{Message, Role};
 ///         country2: "Germany".to_string(),
 ///     });
 ///     let res = chain.execute().await.unwrap();
-///     assert!(res.contains("Berlin") || res.contains("berlin"));
+///     assert!(res.get_content().to_lowercase().contains("berlin"));
 /// }
 /// ```
 pub struct LLMChain<'llm> {
@@ -63,7 +63,6 @@ pub struct LLMChain<'llm> {
 impl<'llm> LLMChain<'llm> {
     /// Initialize a new LLMChain with an LLM. The LLM must implement the LLM trait.
     pub fn new(llm: &'llm impl LLM) -> LLMChain<'llm> {
-        
         LLMChain {
             name: uuid::Uuid::new_v4().to_string(),
             llm,

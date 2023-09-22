@@ -138,7 +138,6 @@ mod test {
         );
         let prompt = prompt.render_context(&context).unwrap();
         let response = client.generate(&prompt).await.unwrap();
-        // contains "Paris" or "paris"
-        assert!(response.get_response_content().to_lowercase().contains("paris"));
+        assert!(response.get_response_content().to_lowercase().contains("berlin"));
     }
 }
