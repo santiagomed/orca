@@ -11,7 +11,7 @@ use error::LLMError;
 #[async_trait::async_trait(?Send)]
 pub trait LLM {
     /// Generate a response from an LLM using a context and a prompt template.
-    async fn generate(&self, prompt: &Vec<Message>) -> Result<LLMResponse, LLMError>;
+    async fn generate(&self, prompt: &[Message]) -> Result<LLMResponse, LLMError>;
 }
 
 pub enum LLMResponse {

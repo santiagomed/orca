@@ -15,7 +15,7 @@ pub enum LLMError {
 impl From<PromptEngineError> for LLMError {
     /// Convert a prompt template error into an LLM error
     fn from(err: PromptEngineError) -> LLMError {
-        LLMError::PromptEngineError(err.into())
+        LLMError::PromptEngineError(err)
     }
 }
 

@@ -46,9 +46,8 @@ pub struct OpenAIClient {
     max_tokens: u16,
 }
 
-impl OpenAIClient {
-    /// Create a new OpenAI client
-    pub fn new() -> Self {
+impl Default for OpenAIClient {
+    fn default() -> Self {
         Self {
             client: async_openai::Client::new(),
             model: "gpt-3.5-turbo".to_string(),
@@ -57,6 +56,13 @@ impl OpenAIClient {
             stream: false,
             max_tokens: 1024u16,
         }
+    }
+}
+
+impl OpenAIClient {
+    /// Create a new OpenAI client
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// Set model to use
@@ -93,14 +99,14 @@ impl OpenAIClient {
     }
 
     /// Generate a request for the OpenAI API and set the parameters
-    pub fn generate_request(&self, messages: &Vec<Message>) -> Result<CreateChatCompletionRequest, LLMError> {
+    pub fn generate_request(&self, messages: &[Message]) -> Result<CreateChatCompletionRequest, LLMError> {
         Ok(CreateChatCompletionRequestArgs::default()
             .model(self.model.clone())
             .max_tokens(self.max_tokens)
             .temperature(self.temperature)
             .top_p(self.top_p)
             .stream(self.stream)
-            .messages(RequestMessages::from(messages.clone()))
+            .messages(RequestMessages::from(messages.to_owned()))
             .build()?)
     }
 }
@@ -108,7 +114,7 @@ impl OpenAIClient {
 // Now implement these traits for your LLM types
 #[async_trait::async_trait(?Send)]
 impl LLM for OpenAIClient {
-    async fn generate(&self, prompt: &Vec<Message>) -> Result<LLMResponse, LLMError> {
+    async fn generate(&self, prompt: &[Message]) -> Result<LLMResponse, LLMError> {
         let request = self.generate_request(prompt)?;
 
         match self.client.chat().create(request).await {
@@ -122,7 +128,7 @@ impl LLM for OpenAIClient {
 mod test {
     use super::*;
     use crate::prompt::context::Context;
-    use crate::prompt::prompt::PromptEngine;
+    use crate::prompt::PromptEngine;
     use crate::prompts;
 
     #[tokio::test]

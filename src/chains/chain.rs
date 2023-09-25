@@ -4,9 +4,9 @@ use super::Chain;
 use super::ChainResult;
 use crate::llm::error::LLMError;
 use crate::llm::LLM;
-use crate::memory::memory;
+use crate::memory;
 use crate::memory::Memory;
-use crate::prompt::prompt::PromptEngine;
+use crate::prompt::PromptEngine;
 use crate::prompt::{Message, Role};
 
 /// Simple LLM chain that formats a prompt and calls an LLM.
@@ -91,7 +91,7 @@ impl<'llm> Chain for LLMChain<'llm> {
         let msgs = self.prompt.render(&self.context)?;
         let prompt = self.memory.memory();
         prompt.extend(msgs);
-        let response = self.llm.generate(&prompt).await?;
+        let response = self.llm.generate(prompt).await?;
         prompt.push(Message::chat(Role::Ai, &response.get_response_content()));
         Ok(ChainResult::new(self.name.clone()).with_llm_response(response))
     }

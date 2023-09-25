@@ -6,12 +6,19 @@ pub struct Context<T> {
     variables: BTreeMap<String, T>,
 }
 
+impl<T> Default for Context<T> {
+    /// Create a new context
+    fn default() -> Self {
+        Self {
+            variables: BTreeMap::new(),
+        }
+    }
+}
+
 impl<T> Context<T> {
     /// Create a new context
     pub fn new() -> Context<T> {
-        Context {
-            variables: BTreeMap::new(),
-        }
+        Context::default()
     }
 
     /// Set a variable in the context
@@ -32,7 +39,7 @@ impl<T> Context<T> {
         let mut serialized_variables = BTreeMap::new();
         for (key, value) in &self.variables {
             let s = serde_json::to_string(value).unwrap();
-            let s = s.replace("\"", "");
+            let s = s.replace('\"', "");
             serialized_variables.insert(key.to_string(), s.to_string());
         }
         serialized_variables

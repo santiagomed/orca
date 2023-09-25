@@ -15,14 +15,20 @@ pub struct SequentialChain<'llm> {
     context: HashMap<String, String>,
 }
 
-impl<'llm> SequentialChain<'llm> {
-    /// Initialize a new sequential chain.
-    pub fn new() -> SequentialChain<'llm> {
-        SequentialChain {
+impl<'llm> Default for SequentialChain<'llm> {
+    fn default() -> Self {
+        Self {
             name: uuid::Uuid::new_v4().to_string(),
             chains: Vec::new(),
             context: HashMap::new(),
         }
+    }
+}
+
+impl<'llm> SequentialChain<'llm> {
+    /// Initialize a new sequential chain.
+    pub fn new() -> SequentialChain<'llm> {
+        SequentialChain::default()
     }
 
     /// Add a simple LLM Chain to the sequential chain.
@@ -57,7 +63,7 @@ impl<'llm> Chain for SequentialChain<'llm> {
 mod test {
 
     use super::*;
-    use crate::prompt::prompt::PromptEngine;
+    use crate::prompt::PromptEngine;
     use crate::{llm::openai::OpenAIClient, prompt, prompts};
     use serde::Serialize;
 

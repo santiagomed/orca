@@ -1,10 +1,6 @@
-use std::{sync::Arc, vec};
+use std::{fmt::Display, sync::Arc, vec};
 
-use super::{
-    error::RecordError,
-    Content, Record,
-    Spin,
-};
+use super::{error::RecordError, Content, Record, Spin};
 use pdf::{
     any::AnySync,
     file::{File, FileOptions, NoLog, SyncCache},
@@ -12,13 +8,15 @@ use pdf::{
     PdfError,
 };
 
+type PDFFile = File<
+    Vec<u8>,
+    Arc<SyncCache<PlainRef, Result<AnySync, Arc<PdfError>>>>,
+    Arc<SyncCache<PlainRef, Result<Arc<[u8]>, Arc<PdfError>>>>,
+    NoLog,
+>;
+
 pub struct PDF {
-    file: File<
-        Vec<u8>,
-        Arc<SyncCache<PlainRef, Result<AnySync, Arc<PdfError>>>>,
-        Arc<SyncCache<PlainRef, Result<Arc<[u8]>, Arc<PdfError>>>>,
-        NoLog,
-    >,
+    file: PDFFile,
     split: bool,
 }
 
@@ -56,7 +54,7 @@ impl PDF {
     pub fn from_file(path: &str, split: bool) -> PDF {
         // convert buffer into file object
         PDF {
-            file: FileOptions::cached().open(&path).unwrap(),
+            file: FileOptions::cached().open(path).unwrap(),
             split,
         }
     }
@@ -68,19 +66,20 @@ pub enum PDFOutput {
 }
 
 impl PDFOutput {
-    /// Get the string representation of the PDF output
-    pub fn to_string(self) -> String {
-        match self {
-            PDFOutput::String(string) => string.to_string(),
-            PDFOutput::Vec(vec) => vec.join("\n******************\n"),
-        }
-    }
-
     /// Get the vector representation of the PDF output
     pub fn to_vec(self) -> Vec<String> {
         match self {
             PDFOutput::String(string) => vec![string],
             PDFOutput::Vec(vec) => vec,
+        }
+    }
+}
+
+impl Display for PDFOutput {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PDFOutput::String(string) => write!(f, "{}", string),
+            PDFOutput::Vec(vec) => write!(f, "{}", vec.join("\n******************\n")),
         }
     }
 }
@@ -144,13 +143,13 @@ mod test {
         general_purpose::STANDARD.decode_vec(c, &mut bytes).unwrap();
 
         let record = PDF::from_buffer(bytes, false);
-        assert_eq!(record.split, false);
+        assert!(!record.split);
     }
 
     #[test]
     fn test_from_file() {
         let record = PDF::from_file("./tests/sample-resume.pdf", false);
-        assert_eq!(record.split, false);
+        assert!(!record.split);
     }
 
     #[test]
