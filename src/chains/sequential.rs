@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use super::chain::LLMChain;
 use super::{Chain, ChainResult};
-use crate::llm::error::LLMError;
+use anyhow::Result;
 
 pub struct SequentialChain<'llm> {
     /// The name of the LLMChain.
@@ -40,7 +40,7 @@ impl<'llm> SequentialChain<'llm> {
 
 #[async_trait::async_trait(?Send)]
 impl<'llm> Chain for SequentialChain<'llm> {
-    async fn execute(&mut self) -> Result<ChainResult, LLMError> {
+    async fn execute(&mut self) -> Result<ChainResult> {
         let mut response = String::new();
         let mut result: ChainResult = ChainResult::new(self.name.to_string()); // initialize result to a default value
         for chain in &mut self.chains {

@@ -1,10 +1,9 @@
 mod request;
 
-use async_openai::types::{CreateChatCompletionRequest, CreateChatCompletionRequestArgs};
-
-use crate::llm::error::LLMError;
 use crate::llm::LLM;
 use crate::prompt::Message;
+use anyhow::Result;
+use async_openai::types::{CreateChatCompletionRequest, CreateChatCompletionRequestArgs};
 
 use request::RequestMessages;
 
@@ -99,7 +98,7 @@ impl OpenAIClient {
     }
 
     /// Generate a request for the OpenAI API and set the parameters
-    pub fn generate_request(&self, messages: &[Message]) -> Result<CreateChatCompletionRequest, LLMError> {
+    pub fn generate_request(&self, messages: &[Message]) -> Result<CreateChatCompletionRequest> {
         Ok(CreateChatCompletionRequestArgs::default()
             .model(self.model.clone())
             .max_tokens(self.max_tokens)
@@ -114,13 +113,11 @@ impl OpenAIClient {
 // Now implement these traits for your LLM types
 #[async_trait::async_trait(?Send)]
 impl LLM for OpenAIClient {
-    async fn generate(&self, prompt: &[Message]) -> Result<LLMResponse, LLMError> {
+    async fn generate(&self, prompt: &[Message]) -> Result<LLMResponse> {
         let request = self.generate_request(prompt)?;
 
-        match self.client.chat().create(request).await {
-            Ok(response) => Ok(response.into()),
-            Err(err) => Err(LLMError::OpenAIError(err)),
-        }
+        let res = self.client.chat().create(request).await?;
+        Ok(res.into())
     }
 }
 

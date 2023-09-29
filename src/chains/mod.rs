@@ -1,19 +1,16 @@
 pub mod chain;
 pub mod sequential;
 
+use anyhow::Result;
+use serde::Serialize;
 use std::collections::HashMap;
 
-use serde::Serialize;
-
-use crate::{
-    llm::{error::LLMError, LLMResponse},
-    record::Record,
-};
+use crate::{llm::LLMResponse, record::Record};
 
 #[async_trait::async_trait(?Send)]
 pub trait Chain {
     /// Execute an LLM chain.
-    async fn execute(&mut self) -> Result<ChainResult, LLMError>;
+    async fn execute(&mut self) -> Result<ChainResult>;
 
     /// Set the context of the LLMChain.
     fn load_context<T>(&mut self, context: &T)

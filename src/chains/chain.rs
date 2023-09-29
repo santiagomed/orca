@@ -2,12 +2,13 @@ use std::collections::HashMap;
 
 use super::Chain;
 use super::ChainResult;
-use crate::llm::error::LLMError;
 use crate::llm::LLM;
 use crate::memory;
 use crate::memory::Memory;
 use crate::prompt::PromptEngine;
 use crate::prompt::{Message, Role};
+
+use anyhow::Result;
 
 /// Simple LLM chain that formats a prompt and calls an LLM.
 ///
@@ -87,7 +88,7 @@ impl<'llm> LLMChain<'llm> {
 
 #[async_trait::async_trait(?Send)]
 impl<'llm> Chain for LLMChain<'llm> {
-    async fn execute(&mut self) -> Result<ChainResult, LLMError> {
+    async fn execute(&mut self) -> Result<ChainResult> {
         let msgs = self.prompt.render(&self.context)?;
         let prompt = self.memory.memory();
         prompt.extend(msgs);

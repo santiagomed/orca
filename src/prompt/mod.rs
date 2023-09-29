@@ -1,14 +1,15 @@
 pub mod context;
-pub mod error;
 
 use serde;
 use serde::Serialize;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 
+use anyhow::Result;
 use context::Context;
-use error::PromptEngineError;
 use handlebars::Handlebars;
+
+use thiserror::Error;
 
 #[derive(Serialize, PartialEq, Debug, Clone)]
 pub struct Message {
@@ -171,7 +172,7 @@ impl<'p> PromptEngine<'p> {
     /// let prompt = prompt_template.render_context(&context).unwrap();
     /// assert_eq!(prompt, vec![Message::single("Your name is gpt")]);
     /// ```
-    pub fn render_context<T>(&self, context: &Context<T>) -> Result<Vec<Message>, PromptEngineError>
+    pub fn render_context<T>(&self, context: &Context<T>) -> Result<Vec<Message>>
     where
         T: Serialize,
     {
@@ -211,7 +212,7 @@ impl<'p> PromptEngine<'p> {
     /// let prompt = prompt_template.render(&data).unwrap();
     /// assert_eq!(prompt, vec![Message::chat(Role::Ai, "My name is gpt and I am 5 years old.")]);
     /// ```
-    pub fn render<T>(&self, data: &T) -> Result<Vec<Message>, PromptEngineError>
+    pub fn render<T>(&self, data: &T) -> Result<Vec<Message>>
     where
         T: Serialize,
     {
@@ -235,6 +236,18 @@ impl<'p> Clone for PromptEngine<'p> {
             handlebars: self.handlebars.clone(),
         }
     }
+}
+
+/// Prompt template error
+#[derive(Debug, Error)]
+pub enum PromptEngineError {
+    /// Handlebars render error
+    #[error("RenderError: {0}")]
+    RenderError(#[from] handlebars::RenderError),
+
+    /// Handlebars template error
+    #[error("TemplateError: {0}")]
+    TemplateError(#[from] handlebars::TemplateError),
 }
 
 #[macro_export]

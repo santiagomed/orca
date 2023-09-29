@@ -1,27 +1,14 @@
-use crate::prompt::error::PromptEngineError;
+use crate::prompt;
+use thiserror::Error;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum LLMError {
-    /// Prompt template error
-    PromptEngineError(PromptEngineError),
+    #[error(transparent)]
+    PromptEngineError(#[from] prompt::PromptEngineError),
 
-    /// OpenAI error
-    OpenAIError(async_openai::error::OpenAIError),
+    #[error(transparent)]
+    OpenAIError(#[from] async_openai::error::OpenAIError),
 
-    /// NotImplemented error
+    #[error("Functionality not implemented")]
     NotImplemented,
-}
-
-impl From<PromptEngineError> for LLMError {
-    /// Convert a prompt template error into an LLM error
-    fn from(err: PromptEngineError) -> LLMError {
-        LLMError::PromptEngineError(err)
-    }
-}
-
-impl From<async_openai::error::OpenAIError> for LLMError {
-    /// Convert an OpenAI error into an LLM error
-    fn from(err: async_openai::error::OpenAIError) -> LLMError {
-        LLMError::OpenAIError(err)
-    }
 }
