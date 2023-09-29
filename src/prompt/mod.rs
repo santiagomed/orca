@@ -9,8 +9,6 @@ use anyhow::Result;
 use context::Context;
 use handlebars::Handlebars;
 
-use thiserror::Error;
-
 #[derive(Serialize, PartialEq, Debug, Clone)]
 pub struct Message {
     /// The message role (system, user, ai)
@@ -236,18 +234,6 @@ impl<'p> Clone for PromptEngine<'p> {
             handlebars: self.handlebars.clone(),
         }
     }
-}
-
-/// Prompt template error
-#[derive(Debug, Error)]
-pub enum PromptEngineError {
-    /// Handlebars render error
-    #[error("RenderError: {0}")]
-    RenderError(#[from] handlebars::RenderError),
-
-    /// Handlebars template error
-    #[error("TemplateError: {0}")]
-    TemplateError(#[from] handlebars::TemplateError),
 }
 
 #[macro_export]

@@ -1,11 +1,9 @@
-mod request;
-
 use crate::llm::LLM;
 use crate::prompt::Message;
 use anyhow::Result;
 use async_openai::types::{CreateChatCompletionRequest, CreateChatCompletionRequestArgs};
 
-use request::RequestMessages;
+use super::request::RequestMessages;
 
 // make OpenAIConfig public
 pub use async_openai::config::{Config, OpenAIConfig};

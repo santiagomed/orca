@@ -1,4 +1,3 @@
-use super::error::RecordError;
 use super::Spin;
 use super::{Content, Record};
 use anyhow::Result;
@@ -17,7 +16,7 @@ impl HTML {
     const DEFAULT_SELECTORS: &'static str = "main, article, div.content";
 
     /// Create a new HTML record from a URL
-    pub async fn from_url(url: &str) -> Result<HTML, RecordError> {
+    pub async fn from_url(url: &str) -> Result<HTML> {
         let client = reqwest::ClientBuilder::new().timeout(std::time::Duration::from_secs(5)).build()?;
         let body = client.get(url).send().await?.text().await?;
 
@@ -28,7 +27,7 @@ impl HTML {
     }
 
     /// Create a new HTML record from a file
-    pub fn from_file(path: &str) -> Result<HTML, RecordError> {
+    pub fn from_file(path: &str) -> Result<HTML> {
         let body = fs::read_to_string(Path::new(path))?;
         Ok(HTML {
             body,

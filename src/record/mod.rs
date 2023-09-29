@@ -1,4 +1,3 @@
-pub mod error;
 pub mod html;
 pub mod pdf;
 use std::path::Path;

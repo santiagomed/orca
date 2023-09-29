@@ -1,6 +1,5 @@
-pub mod error;
 pub mod openai;
-
+pub mod request;
 use crate::prompt::Message;
 use anyhow::Result;
 use async_openai::types::CreateChatCompletionResponse;
