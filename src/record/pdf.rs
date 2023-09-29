@@ -1,6 +1,7 @@
 use std::{fmt::Display, sync::Arc, vec};
 
-use super::{error::RecordError, Content, Record, Spin};
+use super::{Content, Record, Spin};
+use anyhow::Result;
 use pdf::{
     any::AnySync,
     file::{File, FileOptions, NoLog, SyncCache},
@@ -85,7 +86,7 @@ impl Display for PDFOutput {
 }
 
 impl Spin for PDF {
-    fn spin(&self) -> Result<Record, RecordError> {
+    fn spin(&self) -> Result<Record> {
         let resolver = self.file.resolver();
         return if self.split {
             let mut content = Vec::new();

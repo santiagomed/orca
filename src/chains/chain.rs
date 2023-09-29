@@ -159,7 +159,7 @@ mod test {
     #[tokio::test]
     async fn test_generate_with_record() {
         let client = OpenAIClient::new().with_model("gpt-3.5-turbo-16k");
-        let record = record::html::HTML::from_url("https://www.orwellfoundation.com/the-orwell-foundation/orwell/essays-and-other-works/shooting-an-elephant/", "p, li")
+        let record = record::html::HTML::from_url("https://www.orwellfoundation.com/the-orwell-foundation/orwell/essays-and-other-works/shooting-an-elephant/")
             .await
             .unwrap()
             .spin()
