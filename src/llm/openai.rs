@@ -1,19 +1,79 @@
-use crate::llm::LLM;
-use crate::prompt::Message;
-use anyhow::Result;
-use async_openai::types::{CreateChatCompletionRequest, CreateChatCompletionRequestArgs};
+use std::fmt::{self, Display, Formatter};
 
 use super::request::RequestMessages;
-
-// make OpenAIConfig public
+use crate::llm::LLM;
+use anyhow::Result;
 pub use async_openai::config::{Config, OpenAIConfig};
+use async_openai::types::{CreateChatCompletionRequest, CreateChatCompletionRequestArgs, Role as R};
+use serde::Serialize;
 
 use super::LLMResponse;
+
+#[derive(Serialize, Debug, Clone)]
+pub struct Role(R);
+
+impl From<&str> for Role {
+    fn from(role: &str) -> Self {
+        match role {
+            "system" => Role(R::System),
+            "user" => Role(R::User),
+            "assistant" => Role(R::Assistant),
+            "function" => Role(R::Function),
+            _ => Role(R::System),
+        }
+    }
+}
+
+impl Display for Role {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self.0 {
+            R::System => write!(f, "system"),
+            R::User => write!(f, "user"),
+            R::Assistant => write!(f, "assistant"),
+            R::Function => write!(f, "function"),
+        }
+    }
+}
+
+#[derive(Serialize, Debug, Clone)]
+pub struct Message {
+    /// The message role (system, user, assistant)
+    pub role: Role,
+
+    /// The message text
+    pub message: String,
+}
+
+impl Message {
+    pub fn new(role: Role, message: &str) -> Message {
+        Message {
+            role,
+            message: message.to_string(),
+        }
+    }
+
+    pub fn into_vec(v: Vec<(&str, &str)>) -> Vec<Message> {
+        let mut messages = Vec::new();
+        for (role, message) in v {
+            messages.push(Message::new(role.into(), message));
+        }
+        messages
+    }
+}
+
+impl Display for Message {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "[{}] {}", self.role, self.message)
+    }
+}
 
 pub struct OpenAIClient {
     /// Client member for the OpenAI API. This client is a wrapper around the async-openai crate, with additional functionality to
     /// support LLM orchestration.
     client: async_openai::Client<OpenAIConfig>,
+
+    /// The prompt to use for the OpenAI API
+    prompt: Option<Vec<Message>>,
 
     /// ID of the model to use.
     /// See the [model endpoint compatibility](https://platform.openai.com/docs/models/model-endpoint-compatibility) table for details on which models work with the Chat API.
@@ -47,6 +107,7 @@ impl Default for OpenAIClient {
     fn default() -> Self {
         Self {
             client: async_openai::Client::new(),
+            prompt: None,
             model: "gpt-3.5-turbo".to_string(),
             temperature: 1.0,
             top_p: 1.0,
@@ -66,6 +127,14 @@ impl OpenAIClient {
     /// e.g. "davinci", "gpt-3.5-turbo"
     pub fn with_model(mut self, model: &str) -> Self {
         self.model = model.to_string();
+        self
+    }
+
+    /// Set prompt to use
+    /// e.g. "What is the capital of France?"
+    /// This is the prompt that will be used to generate the response.
+    pub fn with_prompt(mut self, prompt: Vec<Message>) -> Self {
+        self.prompt = Some(prompt);
         self
     }
 
@@ -111,8 +180,8 @@ impl OpenAIClient {
 // Now implement these traits for your LLM types
 #[async_trait::async_trait(?Send)]
 impl LLM for OpenAIClient {
-    async fn generate(&self, prompt: &[Message]) -> Result<LLMResponse> {
-        let request = self.generate_request(prompt)?;
+    async fn generate(&self) -> Result<LLMResponse> {
+        let request = self.generate_request(&self.prompt.unwrap())?;
 
         let res = self.client.chat().create(request).await?;
         Ok(res.into())
