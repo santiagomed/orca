@@ -17,7 +17,7 @@ impl HTML {
 
     /// Create a new HTML record from a URL
     pub async fn from_url(url: &str) -> Result<HTML> {
-        let client = reqwest::ClientBuilder::new().timeout(std::time::Duration::from_secs(5)).build()?;
+        let client = reqwest::ClientBuilder::new().timeout(std::time::Duration::from_secs(10)).build()?;
         let body = client.get(url).send().await?.text().await?;
 
         Ok(HTML {
@@ -46,7 +46,7 @@ impl Spin for HTML {
     fn spin(&self) -> Result<Record> {
         let html = scraper::Html::parse_document(&self.body);
 
-        let header_selector = Selector::parse("header, nav").unwrap();
+        let header_selector = Selector::parse("head, nav").unwrap();
         let metadata_selector = Selector::parse("meta").unwrap();
 
         let header = html.select(&header_selector).map(|element| element.inner_html()).collect::<Vec<_>>().join("\n");
@@ -73,9 +73,17 @@ mod test {
 
     #[tokio::test]
     async fn test_from_url() {
-        let record = HTML::from_url("https://careers.roblox.com/jobs/5221252").await.unwrap().spin().unwrap();
+        let record =
+            HTML::from_url("https://medium.com/better-programming/how-i-build-a-rust-backend-service-71a7400c16df")
+                .await
+                .unwrap()
+                .with_selectors("p")
+                .spin()
+                .unwrap();
+
+        println!("{:#?}", record);
         assert!(record.header.unwrap().contains("head"));
-        assert!(record.metadata.unwrap().contains("Roblox"));
-        assert!(record.content.to_string().contains("Roblox"));
+        assert!(record.metadata.unwrap().contains("Rust"));
+        assert!(record.content.to_string().contains("Rust"));
     }
 }

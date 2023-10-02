@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use std::fmt::{self, Display, Formatter};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Role(pub R);
 
 impl From<&str> for Role {
@@ -30,7 +30,7 @@ impl Display for Role {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Message {
     /// The message role (system, user, assistant)
     pub role: Role,
@@ -56,6 +56,8 @@ impl Display for Message {
 
 #[derive(Clone)]
 pub struct RoleHelper;
+#[derive(Clone)]
+pub struct ChatHelper;
 
 impl HelperDef for RoleHelper {
     fn call<'reg: 'rc, 'rc>(
@@ -74,9 +76,25 @@ impl HelperDef for RoleHelper {
     }
 }
 
-pub static SYSTEM_HELPER: RoleHelper = RoleHelper;
-pub static USER_HELPER: RoleHelper = RoleHelper;
-pub static ASSISTANT_HELPER: RoleHelper = RoleHelper;
+impl HelperDef for ChatHelper {
+    fn call<'reg: 'rc, 'rc>(
+        &self,
+        h: &Helper<'reg, 'rc>,
+        _r: &'reg Registry<'reg>,
+        ctx: &'rc Context,
+        rc: &mut RenderContext<'reg, 'rc>,
+        out: &mut dyn Output,
+    ) -> HelperResult {
+        let content = h.template().map_or(Ok(String::new()), |t| t.renders(_r, ctx, rc))?;
+        let content = content.trim().trim_end_matches(',');
+        let json = format!(r#"[{}]"#, content);
+        out.write(&json)?;
+        Ok(())
+    }
+}
+
+impl Copy for RoleHelper {}
+impl Copy for ChatHelper {}
 
 #[cfg(test)]
 mod test {
@@ -84,14 +102,21 @@ mod test {
     use handlebars::Handlebars;
     use serde_json::{from_str, json};
 
+    static SYSTEM_HELPER: RoleHelper = RoleHelper;
+    static USER_HELPER: RoleHelper = RoleHelper;
+    static ASSISTANT_HELPER: RoleHelper = RoleHelper;
+    static CHAT_HELPER: ChatHelper = ChatHelper;
+
     #[test]
     fn test_chat() {
         let mut handlebars = Handlebars::new();
-        handlebars.register_helper("system", Box::new(SYSTEM_HELPER.clone()));
-        handlebars.register_helper("user", Box::new(USER_HELPER.clone()));
-        handlebars.register_helper("assistant", Box::new(ASSISTANT_HELPER.clone()));
+        handlebars.register_helper("system", Box::new(SYSTEM_HELPER));
+        handlebars.register_helper("user", Box::new(USER_HELPER));
+        handlebars.register_helper("assistant", Box::new(ASSISTANT_HELPER));
+        handlebars.register_helper("chat", Box::new(CHAT_HELPER));
 
         let template = r#"
+            {{#chat}}
             {{#system}}
             You are an expert in world capitals.
             {{/system}}
@@ -104,6 +129,7 @@ mod test {
             {{#user}}
             What is the capital of {{country}}?
             {{/user}}
+            {{/chat}}
             "#;
 
         let data = json!({
@@ -111,10 +137,9 @@ mod test {
         });
 
         let rendered = handlebars.render_template(template, &data).unwrap();
-        let json_rendered = format!("[{}]", rendered.trim().trim_end_matches(','));
-        println!("{}", json_rendered);
+        println!("{}", rendered);
 
-        let messages: Vec<Message> = from_str(&json_rendered).unwrap();
+        let messages: Vec<Message> = from_str(&rendered).unwrap();
         assert_eq!(messages.len(), 4);
     }
 }

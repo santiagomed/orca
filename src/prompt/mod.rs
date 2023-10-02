@@ -3,78 +3,88 @@ use serde;
 use serde::Serialize;
 
 use anyhow::Result;
-use chat::{Message, Role};
+use chat::Message;
 use handlebars::Handlebars;
 
-use self::chat::{ASSISTANT_HELPER, SYSTEM_HELPER, USER_HELPER};
+use self::chat::RoleHelper;
 
 pub mod chat;
 
+static SYSTEM_HELPER: RoleHelper = RoleHelper;
+static USER_HELPER: RoleHelper = RoleHelper;
+static ASSISTANT_HELPER: RoleHelper = RoleHelper;
+
+/// Represents a prompt engine that uses handlebars templates to render strings.
 pub struct PromptEngine<'p> {
     /// A vector of template strings
-    template: String,
+    pub template: String,
 
     /// The handlebars template engine
     handlebars: Handlebars<'p>,
 }
 
 impl<'p> PromptEngine<'p> {
-    /// Initialize a prompt template
-    /// # Example
-    /// ```rust
-    /// use orca::prompt::prompt::PromptEngine;
+    /// Creates a new `PromptEngine` with the given prompt string.
+    /// # Arguments
+    /// * `prompt` - A string slice that holds the prompt template.
     ///
-    /// let prompt_template = PromptEngine::new("What is the capital of {{country}}");
+    /// # Example
+    /// ```
+    /// use orca::prompt::PromptEngine;
+    /// let prompt = PromptEngine::new("Welcome, {{user}}!");
     /// ```
     pub fn new(prompt: &str) -> PromptEngine<'p> {
         let mut handlebars = Handlebars::new();
         let template = prompt.to_string();
         handlebars.register_escape_fn(handlebars::no_escape);
 
-        handlebars.register_helper("system", Box::new(SYSTEM_HELPER.clone()));
-        handlebars.register_helper("user", Box::new(USER_HELPER.clone()));
-        handlebars.register_helper("assistant", Box::new(ASSISTANT_HELPER.clone()));
+        handlebars.register_helper("system", Box::new(SYSTEM_HELPER));
+        handlebars.register_helper("user", Box::new(USER_HELPER));
+        handlebars.register_helper("assistant", Box::new(ASSISTANT_HELPER));
 
         PromptEngine { template, handlebars }
     }
 
-    /// Add a new template string to the prompt template
-    /// # Example
-    /// ```rust
-    /// use orca::prompt::prompt::PromptEngine;
-    /// use orca::prompt::Message;
+    /// Adds a new template to the prompt.
     ///
-    /// let mut prompt_template = PromptEngine::new("What is the capital of {{country}}");
-    /// prompt_template.add_prompt("The capital is {{capital}}");
+    /// This function appends a new template to the existing prompt. The template
+    /// should be a string slice that holds the template to be added. The template
+    /// will be added to the prompt on a new line.
+    ///
+    /// # Arguments
+    /// * `template` - A string slice that holds the template to be added.
+    ///
+    /// # Example
+    /// ```
+    /// use orca::prompt::PromptEngine;
+    ///
+    /// let mut prompt = PromptEngine::new("Welcome!");
+    /// prompt.add_to_prompt("Hello, world!");
+    /// assert_eq!(prompt.template, "Welcome!\nHello, world!");
     /// ```
     pub fn add_to_prompt(&mut self, template: &str) {
-        self.template.push_str(template);
+        self.template.push_str(format!("\n{}", template).as_str());
     }
 
-    /// Render a prompt template with data
+    /// Renders a Handlebars template with the given data and returns the result as a String.
+    ///
+    /// # Arguments
+    /// * `data` - A reference to the data to be used in the template rendering.
+    ///
+    /// # Returns
+    /// Returns a `Result` containing the rendered template as a `String` if successful, or an error if the rendering fails.
+    ///
     /// # Example
-    /// ```rust
-    /// use orca::prompt::{prompt::{PromptEngine}, context::Context};
-    /// use orca::prompt::{Message, Role};
-    /// use serde::Serialize;
+    /// ```
+    /// use serde_json::json;
+    /// use orca::prompt::PromptEngine;
+    /// use async_openai::types::Role as R;
     ///
-    /// #[derive(Serialize)]
-    /// struct Data {
-    ///    name: String,
-    ///    age: u8,
-    /// }
+    /// let prompt = PromptEngine::new("Hello, {{name}}!");
+    /// let data = json!({"name": "world"});
+    /// let result = prompt.render(&data);
     ///
-    /// let mut prompt_template = PromptEngine::new().from_chat(vec![
-    ///   ("ai", "My name is {{name}} and I am {{#if (eq age 1)}}1 year{{else}}{{age}} years{{/if}} old."),
-    /// ]);
-    ///
-    /// let data = Data {
-    ///   name: "gpt".to_string(),
-    ///   age: 5,
-    /// };
-    ///
-    /// let prompt = prompt_template.render(&data).unwrap();
-    /// assert_eq!(prompt, vec![Message::chat(Role::Ai, "My name is gpt and I am 5 years old.")]);
+    /// assert_eq!(result.unwrap(), "Hello, world!".to_string());
     /// ```
     pub fn render<T>(&self, data: &T) -> Result<String>
     where
@@ -84,13 +94,34 @@ impl<'p> PromptEngine<'p> {
         Ok(rendered)
     }
 
+    /// Renders a Handlebars template with the given data and returns the result as a vector of `Message`s.
+    ///
+    /// # Arguments
+    /// * `data` - A reference to the data to be used in the template rendering.
+    ///
+    /// # Returns
+    /// Returns a `Result` containing the rendered template as a vector of `Message`s if successful, or an error if the rendering fails.
+    ///
+    /// # Example
+    /// ```
+    /// use serde_json::json;
+    /// use orca::prompt::{PromptEngine};
+    /// use orca::prompt::chat::{Role, Message};
+    /// use async_openai::types::Role as R;
+    ///
+    /// let prompt = PromptEngine::new("{{#system}}Hello, {{name}}!{{/system}}");
+    /// let data = json!({"name": "world"});
+    /// let result = prompt.render_chat(&data);
+    /// assert_eq!(result.unwrap(), vec![Message::new(Role(R::System), "Hello, world!")]);
+    /// ```
     pub fn render_chat<T>(&self, data: &T) -> Result<Vec<Message>>
     where
         T: Serialize,
     {
-        // let mut renderer = CaptureRenderer::new();
-        // self.handlebars.render_template_to_write(&self.template, data, &mut renderer)?;
-        Ok(Vec::new())
+        let rendered = self.render(data)?;
+        let rendered_json = format!("[{}]", rendered.trim().trim_end_matches(','));
+        let messages: Vec<Message> = serde_json::from_str(&rendered_json)?;
+        Ok(messages)
     }
 }
 
@@ -111,84 +142,78 @@ macro_rules! prompt {
     };
 }
 
-// #[cfg(test)]
-// mod test {
+#[cfg(test)]
+mod test {
 
-//     use super::*;
+    use crate::prompt::chat::Role;
+    use async_openai::types::Role as R;
+    use std::collections::HashMap;
 
-//     #[test]
-//     fn test_prompt() {
-//         let prompt_template = prompt!("What is the capital of {{country}}");
-//         let mut context = Context::new();
-//         context.set("country", "France");
-//         let prompt = prompt_template.render_context(&context).unwrap();
-//         assert_eq!(prompt, vec![Message::single("What is the capital of France")]);
-//     }
+    use super::*;
 
-//     #[test]
-//     fn test_chat() {
-//         let prompt_template = prompts!(
-//             (
-//                 "system",
-//                 "You are NOT a master at {{subject}}. You know nothing about it."
-//             ),
-//             ("user", "What is your favorite aspect of {{subject}}?"),
-//             ("ai", "I don't know anything about {{subject}}.")
-//         );
-//         let mut context = Context::new();
-//         context.set("subject", "math");
-//         let prompt = prompt_template.render_context(&context).unwrap();
-//         assert_eq!(
-//             prompt,
-//             vec![
-//                 Message::chat(Role::System, "You are NOT a master at math. You know nothing about it."),
-//                 Message::chat(Role::User, "What is your favorite aspect of math?"),
-//                 Message::chat(Role::Ai, "I don't know anything about math."),
-//             ]
-//         );
-//     }
+    #[test]
+    fn test_prompt() {
+        let prompt_template = prompt!("What is the capital of {{country}}");
+        let mut context = HashMap::new();
+        context.insert("country", "France");
+        let prompt = prompt_template.render(&context).unwrap();
+        assert_eq!(prompt, "What is the capital of France");
+    }
 
-//     #[test]
-//     fn test_context() {
-//         let prompt_template = prompts!(("system", "This is my data: {{data}}."));
+    #[test]
+    fn test_chat() {
+        let prompt_template = prompt!(
+            r#"
+                {{#system}}
+                You are NOT a master at {{subject}}. You know nothing about it.
+                {{/system}}
+                {{#user}}
+                What is your favorite aspect of {{subject}}?
+                {{/user}}
+                {{#assistant}}
+                I don't know anything about {{subject}}.
+                {{/assistant}}
+            "#
+        );
+        let mut context = HashMap::new();
+        context.insert("subject", "math");
+        let prompt = prompt_template.render_chat(&context).unwrap();
+        assert_eq!(
+            prompt,
+            vec![
+                Message::new(
+                    Role(R::System),
+                    "You are NOT a master at math. You know nothing about it."
+                ),
+                Message::new(Role(R::User), "What is your favorite aspect of math?"),
+                Message::new(Role(R::Assistant), "I don't know anything about math."),
+            ]
+        );
+    }
 
-//         let mut context = Context::new();
-//         context.set(
-//             "data",
-//             serde_json::json!({"name": "gpt", "age": 5, "country": "France"}),
-//         );
-//         let prompt = prompt_template.render_context(&context).unwrap();
-//         assert_eq!(
-//             prompt,
-//             vec![Message::chat(
-//                 Role::System,
-//                 "This is my data: {age:5,country:France,name:gpt}."
-//             )]
-//         );
-//     }
+    #[test]
+    fn test_data() {
+        #[derive(Serialize)]
+        struct Data {
+            name: String,
+            age: u8,
+        }
 
-//     #[test]
-//     fn test_data() {
-//         #[derive(Serialize)]
-//         struct Data {
-//             name: String,
-//             age: u8,
-//         }
+        let prompt_template = prompt!(
+            "{{#assistant}}
+            My name is {{name}} and I am {{#if (eq age 1)}}1 year{{else}}{{age}} years{{/if}} old.
+            {{/assistant}}"
+        );
 
-//         let prompt_template = prompts!((
-//             "ai",
-//             "My name is {{name}} and I am {{#if (eq age 1)}}1 year{{else}}{{age}} years{{/if}} old.",
-//         ));
+        let data = Data {
+            name: "gpt".to_string(),
+            age: 5,
+        };
 
-//         let data = Data {
-//             name: "gpt".to_string(),
-//             age: 5,
-//         };
-
-//         let prompt = prompt_template.render(&data).unwrap();
-//         assert_eq!(
-//             prompt,
-//             vec![Message::chat(Role::Ai, "My name is gpt and I am 5 years old.")]
-//         );
-//     }
-// }
+        let prompt = prompt_template.render_chat(&data).unwrap();
+        assert_eq!(
+            prompt,
+            vec![Message::new(Role(R::Assistant), "My name is gpt and I am 5 years old.")]
+        );
+    }
+}

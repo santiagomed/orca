@@ -24,7 +24,7 @@ impl ToString for Content {
     }
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, Debug)]
 pub struct Record {
     /// Header information for the record.
     #[serde(skip_serializing_if = "Option::is_none")]

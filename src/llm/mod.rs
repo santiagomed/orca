@@ -12,9 +12,10 @@ use candle_core::{Device, Result as CandleResult, Tensor};
 #[async_trait::async_trait(?Send)]
 pub trait LLM {
     /// Generate a response from an LLM using a context and a prompt template.
-    async fn generate(&self) -> Result<LLMResponse>;
+    async fn generate(&self, prompt: &str) -> Result<LLMResponse>;
 }
 
+#[derive(Debug)]
 pub enum LLMResponse {
     /// OpenAI response
     OpenAI(CreateChatCompletionResponse),
@@ -61,13 +62,28 @@ impl Default for LLMResponse {
     }
 }
 
+/// Returns a `Device` object representing either a CPU or a CUDA device.
+///
+/// # Arguments
+/// * `cpu` - A boolean value indicating whether to use a CPU device (`true`) or a CUDA device (`false`).
+///
+/// # Examples
+/// ```
+/// use orca::llm::device;
+///
+/// // Use a CPU device
+/// let cpu_device = device(true).unwrap();
+///
+/// // Use a CUDA device
+/// let cuda_device = device(false).unwrap();
+/// ```
 pub fn device(cpu: bool) -> CandleResult<Device> {
     if cpu {
         Ok(Device::Cpu)
     } else {
         let device = Device::cuda_if_available(0)?;
         if !device.is_cuda() {
-            println!("Running on CPU, to run on GPU, build this example with `--features cuda`");
+            println!("Running on CPU, to run on GPU, specify it using the llm.with_cpu() method.");
         }
         Ok(device)
     }

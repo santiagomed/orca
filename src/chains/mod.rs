@@ -1,11 +1,10 @@
 pub mod chain;
 pub mod sequential;
+use crate::{llm::LLMResponse, record::Record};
 
 use anyhow::Result;
 use serde::Serialize;
 use std::collections::HashMap;
-
-use crate::{llm::LLMResponse, record::Record};
 
 #[async_trait::async_trait(?Send)]
 pub trait Chain {
@@ -17,10 +16,12 @@ pub trait Chain {
     where
         T: Serialize,
     {
-        let context = serde_json::to_value(context).unwrap();
-        let context = context.as_object().unwrap();
-        for (key, value) in context {
-            self.context().insert(key.to_string(), value.to_string());
+        let context = serde_json::to_value(context).unwrap_or(serde_json::Value::Null);
+        if let serde_json::Value::Object(map) = context {
+            map.into_iter().for_each(|(key, value)| {
+                let value = value.as_str().unwrap_or("");
+                self.context().insert(key, value.to_string());
+            });
         }
     }
 
