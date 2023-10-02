@@ -1,25 +1,13 @@
 use async_openai::types::{ChatCompletionRequestMessage, ChatCompletionRequestMessageArgs};
 
-use crate::prompt::{Message, Role};
-
-impl From<Role> for async_openai::types::Role {
-    /// Convert a Role into an async_openai::types::Role
-    fn from(role: Role) -> Self {
-        match role {
-            Role::System => async_openai::types::Role::System,
-            Role::User => async_openai::types::Role::User,
-            Role::Ai => async_openai::types::Role::Assistant,
-            Role::Function => async_openai::types::Role::Function,
-        }
-    }
-}
+use crate::prompt::chat::Message;
 
 impl From<Message> for ChatCompletionRequestMessage {
     /// Convert a Message into a ChatCompletionRequestMessage
     fn from(message: Message) -> Self {
         ChatCompletionRequestMessageArgs::default()
-            .role::<async_openai::types::Role>(message.role.unwrap_or_default().into())
-            .content(message.message)
+            .role::<async_openai::types::Role>(message.role.0)
+            .content(message.content)
             .build()
             .unwrap()
     }

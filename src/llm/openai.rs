@@ -1,71 +1,10 @@
-use std::fmt::{self, Display, Formatter};
-
 use super::request::RequestMessages;
-use crate::llm::LLM;
+use crate::{llm::LLM, prompt::chat::Message};
 use anyhow::Result;
 pub use async_openai::config::{Config, OpenAIConfig};
-use async_openai::types::{CreateChatCompletionRequest, CreateChatCompletionRequestArgs, Role as R};
-use serde::Serialize;
+use async_openai::types::{CreateChatCompletionRequest, CreateChatCompletionRequestArgs};
 
 use super::LLMResponse;
-
-#[derive(Serialize, Debug, Clone)]
-pub struct Role(R);
-
-impl From<&str> for Role {
-    fn from(role: &str) -> Self {
-        match role {
-            "system" => Role(R::System),
-            "user" => Role(R::User),
-            "assistant" => Role(R::Assistant),
-            "function" => Role(R::Function),
-            _ => Role(R::System),
-        }
-    }
-}
-
-impl Display for Role {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match self.0 {
-            R::System => write!(f, "system"),
-            R::User => write!(f, "user"),
-            R::Assistant => write!(f, "assistant"),
-            R::Function => write!(f, "function"),
-        }
-    }
-}
-
-#[derive(Serialize, Debug, Clone)]
-pub struct Message {
-    /// The message role (system, user, assistant)
-    pub role: Role,
-
-    /// The message text
-    pub message: String,
-}
-
-impl Message {
-    pub fn new(role: Role, message: &str) -> Message {
-        Message {
-            role,
-            message: message.to_string(),
-        }
-    }
-
-    pub fn into_vec(v: Vec<(&str, &str)>) -> Vec<Message> {
-        let mut messages = Vec::new();
-        for (role, message) in v {
-            messages.push(Message::new(role.into(), message));
-        }
-        messages
-    }
-}
-
-impl Display for Message {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "[{}] {}", self.role, self.message)
-    }
-}
 
 pub struct OpenAIClient {
     /// Client member for the OpenAI API. This client is a wrapper around the async-openai crate, with additional functionality to
@@ -178,36 +117,36 @@ impl OpenAIClient {
 }
 
 // Now implement these traits for your LLM types
-#[async_trait::async_trait(?Send)]
-impl LLM for OpenAIClient {
-    async fn generate(&self) -> Result<LLMResponse> {
-        let request = self.generate_request(&self.prompt.unwrap())?;
+// #[async_trait::async_trait(?Send)]
+// impl LLM for OpenAIClient {
+//     async fn generate(&self) -> Result<LLMResponse> {
+//         let request = self.generate_request(&self.prompt.unwrap())?;
 
-        let res = self.client.chat().create(request).await?;
-        Ok(res.into())
-    }
-}
+//         let res = self.client.chat().create(request).await?;
+//         Ok(res.into())
+//     }
+// }
 
-#[cfg(test)]
-mod test {
-    use super::*;
-    use crate::prompt::context::Context;
-    use crate::prompt::PromptEngine;
-    use crate::prompts;
+// #[cfg(test)]
+// mod test {
+//     use super::*;
+//     use crate::prompt;
+//     use crate::prompt::context::Context;
+//     use crate::prompt::PromptEngine;
 
-    #[tokio::test]
-    async fn test_generate() {
-        let client = OpenAIClient::new();
-        let mut context = Context::new();
-        context.set("country1", "France");
-        context.set("country2", "Germany");
-        let prompt = prompts!(
-            ("user", "What is the capital of {{country1}}"),
-            ("ai", "Paris"),
-            ("user", "What is the capital of {{country2}}")
-        );
-        let prompt = prompt.render_context(&context).unwrap();
-        let response = client.generate(&prompt).await.unwrap();
-        assert!(response.get_response_content().to_lowercase().contains("berlin"));
-    }
-}
+//     #[tokio::test]
+//     async fn test_generate() {
+//         let client = OpenAIClient::new();
+//         let mut context = Context::new();
+//         context.set("country1", "France");
+//         context.set("country2", "Germany");
+//         let prompt = prompt!(
+//             ("user", "What is the capital of {{country1}}"),
+//             ("ai", "Paris"),
+//             ("user", "What is the capital of {{country2}}")
+//         );
+//         let prompt = prompt.render_context(&context).unwrap();
+//         let response = client.generate(&prompt).await.unwrap();
+//         assert!(response.get_response_content().to_lowercase().contains("berlin"));
+//     }
+// }

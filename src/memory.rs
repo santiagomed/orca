@@ -1,13 +1,12 @@
-use crate::prompt::Message;
 use std::fmt::{Display, Formatter};
 
 pub trait Memory<'m>: MemoryClone<'m> {
     /// Get the memory of the Memory Buffer.
-    fn memory(&mut self) -> &mut Vec<Message>;
+    fn memory(&mut self) -> &mut String;
 
     /// Load a message into the Memory Buffer.
-    fn save_memory(&mut self, msgs: Vec<Message>) {
-        *self.memory() = msgs;
+    fn save_memory(&mut self, msgs: &str) {
+        *self.memory() = msgs.to_string();
     }
 }
 
@@ -33,7 +32,7 @@ impl<'m> Clone for Box<dyn Memory<'m> + 'm> {
 
 #[derive(Default, Debug)]
 pub struct Buffer {
-    memory: Vec<Message>,
+    memory: String,
 }
 
 impl Buffer {
@@ -45,7 +44,7 @@ impl Buffer {
 
 impl<'m> Memory<'m> for Buffer {
     /// Get the memory of the Memory Buffer.
-    fn memory(&mut self) -> &mut Vec<Message> {
+    fn memory(&mut self) -> &mut String {
         &mut self.memory
     }
 }
@@ -53,10 +52,7 @@ impl<'m> Memory<'m> for Buffer {
 impl Display for Buffer {
     /// Display the memory of the Memory Buffer.
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        for msg in &self.memory {
-            write!(f, "{}", msg)?;
-        }
-        Ok(())
+        write!(f, "{}", self.memory)
     }
 }
 
