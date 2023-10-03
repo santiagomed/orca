@@ -21,7 +21,7 @@ pub trait Chain {
         if let serde_json::Value::Object(map) = context {
             map.into_iter().for_each(|(key, value)| {
                 let value = value.as_str().unwrap_or("");
-                self.context().insert(key, clean_prompt(value));
+                self.context().insert(key, clean_prompt(value, true));
             });
         }
     }
@@ -29,7 +29,10 @@ pub trait Chain {
     /// Save a record content to the context of an LLM Chain.
     fn load_record(&mut self, name: &str, record: Record) {
         if !self.context().contains_key(name) {
-            self.context().insert(name.to_string(), clean_prompt(record.content.to_string().as_str()));
+            self.context().insert(
+                name.to_string(),
+                clean_prompt(record.content.to_string().as_str(), true),
+            );
         }
     }
 
@@ -37,6 +40,7 @@ pub trait Chain {
     fn context(&mut self) -> &mut HashMap<String, String>;
 }
 
+#[derive(Debug)]
 pub struct ChainResult {
     /// Name of the chain which generated the result.
     pub name: String,

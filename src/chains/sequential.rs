@@ -38,6 +38,10 @@ impl<'llm> SequentialChain<'llm> {
     }
 }
 
+pub fn format_prompt_as_user(prompt: &mut str) -> String {
+    format!("{{{{#user}}}}{}{{{{/user}}}}", prompt)
+}
+
 #[async_trait::async_trait(?Send)]
 impl<'llm> Chain for SequentialChain<'llm> {
     async fn execute(&mut self) -> Result<ChainResult> {
@@ -45,8 +49,7 @@ impl<'llm> Chain for SequentialChain<'llm> {
         let mut result: ChainResult = ChainResult::new(self.name.to_string()); // initialize result to a default value
         for chain in &mut self.chains {
             if !response.is_empty() {
-                let prompt = &mut chain.prompt;
-                prompt.add_to_prompt(response.as_str());
+                chain.prompt.add_to_prompt(&format_prompt_as_user(&mut response));
             }
             result = chain.execute().await?;
             response = result.content();
@@ -56,6 +59,15 @@ impl<'llm> Chain for SequentialChain<'llm> {
 
     fn context(&mut self) -> &mut HashMap<String, String> {
         &mut self.context
+    }
+
+    fn load_context<T>(&mut self, context: &T)
+    where
+        T: serde::Serialize,
+    {
+        for chain in &mut self.chains {
+            chain.load_context(context);
+        }
     }
 }
 

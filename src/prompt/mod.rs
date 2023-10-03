@@ -136,11 +136,11 @@ impl<'p> Clone for PromptEngine<'p> {
 }
 
 /// Cleans the prompt by removing unparsable characters and quotations.
-pub fn clean_prompt(content: &str) -> String {
+pub fn clean_prompt(content: &str, quotes: bool) -> String {
     content
         .chars()
         .filter(|&c| c > '\u{1F}')
-        .filter(|&c| c != '"')
+        .filter(|&c| if quotes { c != '"' } else { true })
         .collect::<String>()
         .replace("&nbsp;", " ")
 }

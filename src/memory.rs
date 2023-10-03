@@ -139,15 +139,3 @@ impl Clone for ChatBuffer {
         }
     }
 }
-
-pub mod template {
-    pub static CHAT_TEMPLATE: &str = r#"
-    {{#system}}
-    The following is a conversation between a human and an AI.
-    The AI is talkative and provides lots of specific details from its context.
-    If the AI does not know the answer to a question, it truthfully says it does not know.
-    Current conversation:
-    {{memory}}
-    {{/system}} 
-    "#;
-}

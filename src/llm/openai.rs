@@ -1,7 +1,10 @@
 use super::request::RequestMessages;
 use crate::{
     llm::LLM,
-    prompt::chat::{clean_json_string, Message},
+    prompt::{
+        chat::{clean_json_string, Message},
+        clean_prompt,
+    },
 };
 use anyhow::Result;
 pub use async_openai::config::{Config, OpenAIConfig};
@@ -111,6 +114,7 @@ impl OpenAIClient {
 #[async_trait::async_trait(?Send)]
 impl LLM for OpenAIClient {
     async fn generate(&self, prompt: &str) -> Result<LLMResponse> {
+        let prompt = &clean_prompt(prompt, false);
         let messages = match from_str::<Vec<Message>>(prompt) {
             Ok(messages) => messages,
             Err(_) => {

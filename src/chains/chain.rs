@@ -92,6 +92,7 @@ impl<'llm> Chain for LLMChain<'llm> {
             mem.save(&prompt)?;
             self.llm.generate(&mem.to_string()?).await?
         } else {
+            // Fix this to deal with string and chat messages
             self.llm.generate(&prompt).await?
         };
         Ok(ChainResult::new(self.name.clone()).with_llm_response(response))
