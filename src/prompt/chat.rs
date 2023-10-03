@@ -86,7 +86,7 @@ impl HelperDef for ChatHelper {
         out: &mut dyn Output,
     ) -> HelperResult {
         let content = h.template().map_or(Ok(String::new()), |t| t.renders(_r, ctx, rc))?;
-        let content = content.trim().trim_end_matches(',');
+        let content = clean_json_string(content.as_str());
         let json = format!(r#"[{}]"#, content);
         out.write(&json)?;
         Ok(())
@@ -95,6 +95,10 @@ impl HelperDef for ChatHelper {
 
 impl Copy for RoleHelper {}
 impl Copy for ChatHelper {}
+
+pub fn clean_json_string(content: &str) -> String {
+    content.trim().trim_end_matches(',').to_string()
+}
 
 #[cfg(test)]
 mod test {

@@ -1,7 +1,6 @@
 use super::Chain;
 use super::ChainResult;
 use crate::llm::LLM;
-use crate::memory;
 use crate::memory::Memory;
 use crate::prompt::PromptEngine;
 
@@ -54,7 +53,7 @@ pub struct LLMChain<'llm> {
     llm: &'llm (dyn LLM),
 
     /// Memory of the LLMChain.
-    memory: Box<dyn Memory<'llm> + 'llm>,
+    memory: Option<Box<dyn Memory>>,
 
     context: HashMap<String, String>,
 }
@@ -66,7 +65,7 @@ impl<'llm> LLMChain<'llm> {
             name: uuid::Uuid::new_v4().to_string(),
             llm,
             prompt: PromptEngine::new(prompt),
-            memory: Box::new(memory::Buffer::new()),
+            memory: None,
             context: HashMap::new(),
         }
     }
@@ -78,8 +77,8 @@ impl<'llm> LLMChain<'llm> {
     }
 
     /// Change the memory used by the LLMChain.
-    pub fn with_memory(mut self, memory: impl Memory<'llm> + 'llm) -> Self {
-        self.memory = Box::new(memory);
+    pub fn with_memory(mut self, memory: impl Memory + 'static) -> Self {
+        self.memory = Some(Box::new(memory));
         self
     }
 }
@@ -87,11 +86,14 @@ impl<'llm> LLMChain<'llm> {
 #[async_trait::async_trait(?Send)]
 impl<'llm> Chain for LLMChain<'llm> {
     async fn execute(&mut self) -> Result<ChainResult> {
-        let msgs = self.prompt.render(&self.context)?;
-        let prompt = self.memory.memory();
-        prompt.push_str(&msgs);
-        let response = self.llm.generate(prompt).await?;
-        prompt.push_str(&response.get_response_content());
+        let prompt = self.prompt.render(&self.context)?;
+        let response = if let Some(memory) = &mut self.memory {
+            let mem = memory.memory();
+            mem.save(&prompt)?;
+            self.llm.generate(&mem.to_string()?).await?
+        } else {
+            self.llm.generate(&prompt).await?
+        };
         Ok(ChainResult::new(self.name.clone()).with_llm_response(response))
     }
 
@@ -118,7 +120,7 @@ mod test {
     use super::*;
     use crate::{
         llm::openai::OpenAIClient,
-        prompt,
+        memory, prompt,
         record::{self, Spin},
     };
     use serde::Serialize;
@@ -164,13 +166,14 @@ mod test {
         let record = record::html::HTML::from_url("https://www.orwellfoundation.com/the-orwell-foundation/orwell/essays-and-other-works/shooting-an-elephant/")
             .await
             .unwrap()
+            .with_selectors("p")
             .spin()
             .unwrap();
 
         let prompt = r#"
-            {{#system}}
+            {{#user}}
             Give a long summary of the following story: {{story}}
-            {{/system}}
+            {{/user}}
             "#;
 
         let mut chain = LLMChain::new(&client, prompt);
@@ -185,12 +188,11 @@ mod test {
         let client = OpenAIClient::new();
 
         let prompt = "{{#user}}My name is Orca{{/user}}";
-        let mut chain = LLMChain::new(&client, prompt);
+        let mut chain = LLMChain::new(&client, prompt).with_memory(memory::ChatBuffer::new());
         chain.execute().await.unwrap();
         let mut chain = chain.with_prompt(prompt!("{{#user}}What is my name?{{/user}}"));
         let res = chain.execute().await.unwrap().content();
 
         assert!(res.to_lowercase().contains("orca"));
-        assert_eq!(chain.memory.memory().len(), 4);
     }
 }

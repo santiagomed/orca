@@ -37,7 +37,7 @@ impl From<CreateChatCompletionResponse> for LLMResponse {
 
 impl LLMResponse {
     /// Get the response content from an LLMResponse
-    pub fn get_response_content(&self) -> String {
+    pub fn to_string(&self) -> String {
         match self {
             LLMResponse::OpenAI(response) => response.choices[0].message.content.as_ref().unwrap().to_string(),
             LLMResponse::Bert(response) => response.iter().map(|x| x.to_string()).collect::<Vec<String>>().join(", "),

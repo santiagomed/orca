@@ -1,5 +1,8 @@
 use super::request::RequestMessages;
-use crate::{llm::LLM, prompt::chat::Message};
+use crate::{
+    llm::LLM,
+    prompt::chat::{clean_json_string, Message},
+};
 use anyhow::Result;
 pub use async_openai::config::{Config, OpenAIConfig};
 use async_openai::types::{CreateChatCompletionRequest, CreateChatCompletionRequestArgs};
@@ -108,13 +111,10 @@ impl OpenAIClient {
 #[async_trait::async_trait(?Send)]
 impl LLM for OpenAIClient {
     async fn generate(&self, prompt: &str) -> Result<LLMResponse> {
-        // attempt to convert prompt to a vector of messages
-        // if that fails, wrap the prompt string in [] and try again
-        // if that fails, return an error
         let messages = match from_str::<Vec<Message>>(prompt) {
             Ok(messages) => messages,
             Err(_) => {
-                let prompt = format!("[{}]", prompt.trim().trim_end_matches(','));
+                let prompt = format!("[{}]", clean_json_string(prompt));
                 match serde_json::from_str::<Vec<Message>>(&prompt) {
                     Ok(messages) => messages,
                     Err(e) => return Err(anyhow::anyhow!("Unable to parse prompt: {}", e)),
@@ -155,6 +155,6 @@ mod test {
         );
         let prompt = prompt.render(&context).unwrap();
         let response = client.generate(prompt.as_str()).await.unwrap();
-        assert!(response.get_response_content().to_lowercase().contains("berlin"));
+        assert!(response.to_string().to_lowercase().contains("berlin"));
     }
 }

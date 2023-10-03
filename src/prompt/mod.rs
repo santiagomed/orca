@@ -6,7 +6,7 @@ use anyhow::Result;
 use chat::Message;
 use handlebars::Handlebars;
 
-use self::chat::RoleHelper;
+use self::chat::{clean_json_string, RoleHelper};
 
 pub mod chat;
 
@@ -119,7 +119,7 @@ impl<'p> PromptEngine<'p> {
         T: Serialize,
     {
         let rendered = self.render(data)?;
-        let rendered_json = format!("[{}]", rendered.trim().trim_end_matches(','));
+        let rendered_json = format!("[{}]", clean_json_string(rendered.as_str()));
         let messages: Vec<Message> = serde_json::from_str(&rendered_json)?;
         Ok(messages)
     }
@@ -133,6 +133,16 @@ impl<'p> Clone for PromptEngine<'p> {
             handlebars: self.handlebars.clone(),
         }
     }
+}
+
+/// Cleans the prompt by removing unparsable characters and quotations.
+pub fn clean_prompt(content: &str) -> String {
+    content
+        .chars()
+        .filter(|&c| c > '\u{1F}')
+        .filter(|&c| c != '"')
+        .collect::<String>()
+        .replace("&nbsp;", " ")
 }
 
 #[macro_export]
