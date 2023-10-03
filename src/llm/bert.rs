@@ -13,6 +13,8 @@ use candle_transformers::models::bert::{BertModel, Config, DTYPE};
 use hf_hub::{api::sync::Api, Cache, Repo, RepoType};
 use tokenizers::Tokenizer;
 
+use crate::prompt::Prompt;
+
 use super::{LLMResponse, LLM};
 
 #[derive(Clone)]
@@ -42,7 +44,7 @@ impl Default for Bert {
     /// Provides default values for `Bert`.
     fn default() -> Self {
         Self {
-            cpu: false,
+            cpu: true,
             offline: false,
             tracing: false,
             model_id: None,
@@ -67,7 +69,7 @@ impl Bert {
 
     /// Configures the model to run on CPU.
     pub fn with_cpu(mut self) -> Self {
-        self.cpu = true;
+        self.cpu = false;
         self
     }
 
@@ -148,7 +150,7 @@ impl Bert {
 
 #[async_trait::async_trait(?Send)]
 impl LLM for Bert {
-    async fn generate(&self, prompt: &str) -> Result<LLMResponse> {
+    async fn generate(&self, prompt: &dyn Prompt) -> Result<LLMResponse> {
         use tracing_chrome::ChromeLayerBuilder;
         use tracing_subscriber::prelude::*;
 
@@ -165,9 +167,9 @@ impl LLM for Bert {
         let (model, mut tokenizer) = tokio::task::spawn_blocking(move || cloned.build_model_and_tokenizer()).await??;
         let model = Arc::new(model);
         let device = &model.device;
-
+        let prompt = prompt.to_string()?;
         let tokenizer = tokenizer.with_padding(None).with_truncation(None).map_err(E::msg)?;
-        let tokens = tokenizer.encode(prompt.to_string(), true).map_err(E::msg)?.get_ids().to_vec();
+        let tokens = tokenizer.encode(prompt, true).map_err(E::msg)?.get_ids().to_vec();
         let token_ids = Tensor::new(&tokens[..], device)?.unsqueeze(0)?;
         let token_type_ids = token_ids.zeros_like()?;
         let mut out_tensors = Vec::<Tensor>::with_capacity(self.n);
@@ -190,7 +192,7 @@ mod test {
     #[tokio::test]
     async fn test_generate() {
         let bert = Bert::new();
-        let response = bert.generate("Hello, world").await;
+        let response = bert.generate(&"Hello, world".to_string()).await;
         assert!(response.is_ok());
     }
 }

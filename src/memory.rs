@@ -1,52 +1,15 @@
+use crate::prompt::chat::Message;
+use crate::prompt::Prompt;
+
 use std::fmt::{Display, Formatter};
-
 use anyhow::Result;
-
-use crate::prompt::chat::{clean_json_string, Message};
-
-pub trait MemoryData {
-    fn save(&mut self, data: &str) -> Result<()>;
-    fn to_string(&self) -> Result<String>;
-    fn to_vec(&self) -> Result<Vec<Message>>;
-}
-
-impl MemoryData for Vec<Message> {
-    fn save(&mut self, data: &str) -> Result<()> {
-        println!("Saving data: {}", data);
-        let msgs = serde_json::from_str::<Vec<Message>>(&format!("[{}]", &clean_json_string(data)))?;
-        self.extend(msgs);
-        Ok(())
-    }
-
-    fn to_string(&self) -> Result<String> {
-        Ok(serde_json::to_string(self)?)
-    }
-
-    fn to_vec(&self) -> Result<Vec<Message>> {
-        Ok(self.clone())
-    }
-}
-impl MemoryData for String {
-    fn save(&mut self, data: &str) -> Result<()> {
-        self.push_str(data);
-        Ok(())
-    }
-
-    fn to_string(&self) -> Result<String> {
-        Ok(self.clone())
-    }
-
-    fn to_vec(&self) -> Result<Vec<Message>> {
-        Err(anyhow::anyhow!("Unable to convert String to Vec<Message>"))
-    }
-}
 
 pub trait Memory: MemoryClone {
     /// Get the memory of the Memory Buffer.
-    fn memory(&mut self) -> &mut dyn MemoryData;
+    fn memory(&mut self) -> &mut dyn Prompt;
 
     /// Load a message into the Memory Buffer.
-    fn save_memory(&mut self, msgs: &mut dyn MemoryData);
+    fn save_memory(&mut self, msgs: &dyn Prompt) -> Result<()>;
 }
 
 /// We do this to allow for cloning of Box<dyn Memory>.
@@ -83,13 +46,14 @@ impl Buffer {
 
 impl Memory for Buffer {
     /// Get the memory of the Memory Buffer.
-    fn memory(&mut self) -> &mut dyn MemoryData {
+    fn memory(&mut self) -> &mut dyn Prompt {
         &mut self.memory
     }
 
     /// Load a message into the Memory Buffer.
-    fn save_memory(&mut self, msgs: &mut dyn MemoryData) {
-        self.memory = msgs.to_string().unwrap();
+    fn save_memory(&mut self, msgs: &dyn Prompt) -> Result<()> {
+        self.memory = msgs.to_string()?;
+        Ok(())
     }
 }
 
@@ -122,13 +86,14 @@ impl ChatBuffer {
 
 impl Memory for ChatBuffer {
     /// Get the memory of the Memory Buffer.
-    fn memory(&mut self) -> &mut dyn MemoryData {
+    fn memory(&mut self) -> &mut dyn Prompt {
         &mut self.memory
     }
 
     /// Load a message into the Memory Buffer.
-    fn save_memory(&mut self, msgs: &mut dyn MemoryData) {
-        self.memory = msgs.to_vec().unwrap();
+    fn save_memory(&mut self, msgs: &dyn Prompt) -> Result<()> {
+        self.memory = msgs.to_chat()?;
+        Ok(())
     }
 }
 

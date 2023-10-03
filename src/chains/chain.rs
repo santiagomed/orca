@@ -6,6 +6,7 @@ use crate::prompt::PromptEngine;
 
 use anyhow::Result;
 use std::collections::HashMap;
+use std::ops::Deref;
 
 /// Simple LLM chain that formats a prompt and calls an LLM.
 ///
@@ -89,11 +90,11 @@ impl<'llm> Chain for LLMChain<'llm> {
         let prompt = self.prompt.render(&self.context)?;
         let response = if let Some(memory) = &mut self.memory {
             let mem = memory.memory();
-            mem.save(&prompt)?;
+            mem.save(prompt.deref())?;
             self.llm.generate(&mem.to_string()?).await?
         } else {
             // Fix this to deal with string and chat messages
-            self.llm.generate(&prompt).await?
+            self.llm.generate(prompt.deref()).await?
         };
         Ok(ChainResult::new(self.name.clone()).with_llm_response(response))
     }
@@ -189,7 +190,7 @@ mod test {
         let client = OpenAIClient::new();
 
         let prompt = "{{#user}}My name is Orca{{/user}}";
-        let mut chain = LLMChain::new(&client, prompt).with_memory(memory::ChatBuffer::new());
+        let mut chain = LLMChain::new(&client, prompt).with_memory(memory::Buffer::new());
         chain.execute().await.unwrap();
         let mut chain = chain.with_prompt(prompt!("{{#user}}What is my name?{{/user}}"));
         let res = chain.execute().await.unwrap().content();

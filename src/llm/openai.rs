@@ -2,8 +2,8 @@ use super::request::RequestMessages;
 use crate::{
     llm::LLM,
     prompt::{
-        chat::{clean_json_string, Message},
-        clean_prompt,
+        chat::{remove_last_comma, Message},
+        clean_prompt, Prompt,
     },
 };
 use anyhow::Result;
@@ -113,18 +113,8 @@ impl OpenAIClient {
 
 #[async_trait::async_trait(?Send)]
 impl LLM for OpenAIClient {
-    async fn generate(&self, prompt: &str) -> Result<LLMResponse> {
-        let prompt = &clean_prompt(prompt, false);
-        let messages = match from_str::<Vec<Message>>(prompt) {
-            Ok(messages) => messages,
-            Err(_) => {
-                let prompt = format!("[{}]", clean_json_string(prompt));
-                match serde_json::from_str::<Vec<Message>>(&prompt) {
-                    Ok(messages) => messages,
-                    Err(e) => return Err(anyhow::anyhow!("Unable to parse prompt: {}", e)),
-                }
-            }
-        };
+    async fn generate(&self, prompt: &dyn Prompt) -> Result<LLMResponse> {
+        let messages = prompt.to_chat()?;
         let req = self.generate_request(&messages)?;
         let res = self.client.chat().create(req).await?;
         Ok(res.into())
@@ -157,8 +147,8 @@ mod test {
             {{/user}}
             "#
         );
-        let prompt = prompt.render(&context).unwrap();
-        let response = client.generate(prompt.as_str()).await.unwrap();
+        let prompt = prompt.render(&context).unwrap().to_chat().unwrap();
+        let response = client.generate(&prompt).await.unwrap();
         assert!(response.to_string().to_lowercase().contains("berlin"));
     }
 }

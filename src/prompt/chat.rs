@@ -7,6 +7,8 @@ use std::fmt::{self, Display, Formatter};
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Role(pub R);
 
+pub type ChatPrompt = Vec<Message>;
+
 impl From<&str> for Role {
     fn from(role: &str) -> Self {
         match role {
@@ -86,7 +88,7 @@ impl HelperDef for ChatHelper {
         out: &mut dyn Output,
     ) -> HelperResult {
         let content = h.template().map_or(Ok(String::new()), |t| t.renders(_r, ctx, rc))?;
-        let content = clean_json_string(content.as_str());
+        let content = remove_last_comma(content.as_str());
         let json = format!(r#"[{}]"#, content);
         out.write(&json)?;
         Ok(())
@@ -96,7 +98,7 @@ impl HelperDef for ChatHelper {
 impl Copy for RoleHelper {}
 impl Copy for ChatHelper {}
 
-pub fn clean_json_string(content: &str) -> String {
+pub fn remove_last_comma(content: &str) -> String {
     content.trim().trim_end_matches(',').to_string()
 }
 

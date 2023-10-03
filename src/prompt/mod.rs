@@ -3,10 +3,9 @@ use serde;
 use serde::Serialize;
 
 use anyhow::Result;
-use chat::Message;
 use handlebars::Handlebars;
 
-use self::chat::{clean_json_string, RoleHelper};
+use self::chat::{remove_last_comma, RoleHelper, ChatPrompt};
 
 pub mod chat;
 
@@ -86,12 +85,12 @@ impl<'p> PromptEngine<'p> {
     ///
     /// assert_eq!(result.unwrap(), "Hello, world!".to_string());
     /// ```
-    pub fn render<T>(&self, data: &T) -> Result<String>
+    pub fn render<T>(&self, data: &T) -> Result<Box<dyn Prompt>>
     where
         T: Serialize,
     {
         let rendered = self.handlebars.render_template(&self.template, &data)?;
-        Ok(rendered)
+        Ok(Box::new(rendered))
     }
 
     /// Renders a Handlebars template with the given data and returns the result as a vector of `Message`s.
@@ -114,14 +113,15 @@ impl<'p> PromptEngine<'p> {
     /// let result = prompt.render_chat(&data);
     /// assert_eq!(result.unwrap(), vec![Message::new(Role(R::System), "Hello, world!")]);
     /// ```
-    pub fn render_chat<T>(&self, data: &T) -> Result<Vec<Message>>
+    pub fn render_chat<T>(&self, data: &T) -> Result<ChatPrompt>
     where
         T: Serialize,
     {
-        let rendered = self.render(data)?;
-        let rendered_json = format!("[{}]", clean_json_string(rendered.as_str()));
-        let messages: Vec<Message> = serde_json::from_str(&rendered_json)?;
-        Ok(messages)
+        // let rendered = self.render(data)?;
+        // let rendered_json = format!("[{}]", remove_last_comma(rendered.as_str()));
+        // let messages: ChatPrompt = serde_json::from_str(&rendered_json)?;
+        // Ok(messages)
+        todo!()
     }
 }
 
@@ -132,6 +132,52 @@ impl<'p> Clone for PromptEngine<'p> {
             template: self.template.clone(),
             handlebars: self.handlebars.clone(),
         }
+    }
+}
+
+pub trait Prompt {
+    fn save(&mut self, data: &dyn Prompt) -> Result<()>;
+    fn to_string(&self) -> Result<String>;
+    fn as_str(&self) -> Result<&str>;
+    fn to_chat(&self) -> Result<ChatPrompt>;
+}
+
+impl Prompt for ChatPrompt {
+    fn save(&mut self, data: &dyn Prompt) -> Result<()> {
+        // let msgs = serde_json::from_str::<ChatPrompt>(&format!("[{}]", &remove_last_comma(data)))?;
+        let msgs = data.to_chat()?;
+        self.extend(msgs);
+        Ok(())
+    }
+
+    fn to_string(&self) -> Result<String> {
+        Ok(serde_json::to_string(self)?)
+    }
+
+    fn as_str(&self) -> Result<&str> {
+        Err(anyhow::anyhow!("Unable to convert ChatPrompt to &str"))
+    }
+
+    fn to_chat(&self) -> Result<ChatPrompt> {
+        Ok(self.clone())
+    }
+}
+impl Prompt for String {
+    fn save(&mut self, data: &dyn Prompt) -> Result<()> {
+        self.push_str(data.as_str()?);
+        Ok(())
+    }
+
+    fn to_string(&self) -> Result<String> {
+        Ok(self.clone())
+    }
+
+    fn as_str(&self) -> Result<&str> {
+        Ok(self.as_str())
+    }
+
+    fn to_chat(&self) -> Result<ChatPrompt> {
+        Err(anyhow::anyhow!("Unable to convert String to ChatPrompt"))
     }
 }
 
@@ -155,7 +201,7 @@ macro_rules! prompt {
 #[cfg(test)]
 mod test {
 
-    use crate::prompt::chat::Role;
+    use crate::prompt::chat::{Role, Message};
     use async_openai::types::Role as R;
     use std::collections::HashMap;
 
@@ -167,7 +213,7 @@ mod test {
         let mut context = HashMap::new();
         context.insert("country", "France");
         let prompt = prompt_template.render(&context).unwrap();
-        assert_eq!(prompt, "What is the capital of France");
+        assert_eq!(prompt.to_string().unwrap(), "What is the capital of France");
     }
 
     #[test]
@@ -187,9 +233,9 @@ mod test {
         );
         let mut context = HashMap::new();
         context.insert("subject", "math");
-        let prompt = prompt_template.render_chat(&context).unwrap();
+        let prompt = prompt_template.render(&context).unwrap();
         assert_eq!(
-            prompt,
+            prompt.to_chat().unwrap(),
             vec![
                 Message::new(
                     Role(R::System),
@@ -220,9 +266,9 @@ mod test {
             age: 5,
         };
 
-        let prompt = prompt_template.render_chat(&data).unwrap();
+        let prompt = prompt_template.render(&data).unwrap();
         assert_eq!(
-            prompt,
+            prompt.to_chat().unwrap(),
             vec![Message::new(Role(R::Assistant), "My name is gpt and I am 5 years old.")]
         );
     }
