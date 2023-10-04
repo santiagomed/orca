@@ -1,7 +1,7 @@
 <div align="center">
   <h1>Orca</h1>
   <p>
-    <strong>Orca is a LLM Orchestrator Framework written in Rust. It is designed to be a simple, easy to use, and easy to extend framework for creating LLM Orchestrators. It is currently in development and it's functionality is limited.</strong>
+    <strong>Orca is a LLM Orchestrator Framework written in Rust. It is designed to be a simple, easy to use, and easy to extend framework for creating LLM Orchestrators. It is currently in development so it may contain bugs and it's functionality is limited.</strong>
   </p>
   <p>
 
