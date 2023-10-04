@@ -5,13 +5,14 @@ use serde::Serialize;
 use anyhow::Result;
 use handlebars::Handlebars;
 
-use self::chat::{remove_last_comma, RoleHelper, ChatPrompt};
+use chat::{remove_last_comma, ChatHelper, ChatPrompt, RoleHelper};
 
 pub mod chat;
 
 static SYSTEM_HELPER: RoleHelper = RoleHelper;
 static USER_HELPER: RoleHelper = RoleHelper;
 static ASSISTANT_HELPER: RoleHelper = RoleHelper;
+static CHAT_HELPER: ChatHelper = ChatHelper;
 
 /// Represents a prompt engine that uses handlebars templates to render strings.
 pub struct PromptEngine<'p> {
@@ -40,6 +41,7 @@ impl<'p> PromptEngine<'p> {
         handlebars.register_helper("system", Box::new(SYSTEM_HELPER));
         handlebars.register_helper("user", Box::new(USER_HELPER));
         handlebars.register_helper("assistant", Box::new(ASSISTANT_HELPER));
+        handlebars.register_helper("chat", Box::new(CHAT_HELPER));
 
         PromptEngine { template, handlebars }
     }
@@ -61,8 +63,19 @@ impl<'p> PromptEngine<'p> {
     /// prompt.add_to_prompt("Hello, world!");
     /// assert_eq!(prompt.template, "Welcome!\nHello, world!");
     /// ```
-    pub fn add_to_prompt(&mut self, template: &str) {
-        self.template.push_str(format!("\n{}", template).as_str());
+    pub fn add_to_template(&mut self, template: &str) {
+        // TODO: Remove this temporary hack to add a new prompt to template
+        //       where we remove the chat tags from the template and add them
+        //       back after appending the new template.
+        let mut chat = false;
+        if self.template.contains("{{#chat}}") && self.template.contains("{{/chat}}") {
+            chat = true;
+            self.template = self.template.replace("{{#chat}}", "").replace("{{/chat}}", "");
+        }
+        self.template.push_str(template);
+        if chat {
+            self.template = format!("{{{{#chat}}}}{}{{{{/chat}}}}", self.template);
+        }
     }
 
     /// Renders a Handlebars template with the given data and returns the result as a String.
@@ -90,7 +103,10 @@ impl<'p> PromptEngine<'p> {
         T: Serialize,
     {
         let rendered = self.handlebars.render_template(&self.template, &data)?;
-        Ok(Box::new(rendered))
+        match serde_json::from_str::<ChatPrompt>(&rendered) {
+            Ok(chat) => return Ok(Box::new(chat)),
+            Err(_) => return Ok(Box::new(rendered)),
+        }
     }
 
     /// Renders a Handlebars template with the given data and returns the result as a vector of `Message`s.
@@ -117,11 +133,10 @@ impl<'p> PromptEngine<'p> {
     where
         T: Serialize,
     {
-        // let rendered = self.render(data)?;
-        // let rendered_json = format!("[{}]", remove_last_comma(rendered.as_str()));
-        // let messages: ChatPrompt = serde_json::from_str(&rendered_json)?;
-        // Ok(messages)
-        todo!()
+        let rendered = self.render(data)?;
+        let rendered_json = format!("[{}]", remove_last_comma(rendered.as_str()?));
+        let messages: ChatPrompt = serde_json::from_str(&rendered_json)?;
+        Ok(messages)
     }
 }
 
@@ -201,7 +216,7 @@ macro_rules! prompt {
 #[cfg(test)]
 mod test {
 
-    use crate::prompt::chat::{Role, Message};
+    use crate::prompt::chat::{Message, Role};
     use async_openai::types::Role as R;
     use std::collections::HashMap;
 
@@ -220,6 +235,7 @@ mod test {
     fn test_chat() {
         let prompt_template = prompt!(
             r#"
+                {{#chat}}
                 {{#system}}
                 You are NOT a master at {{subject}}. You know nothing about it.
                 {{/system}}
@@ -229,6 +245,7 @@ mod test {
                 {{#assistant}}
                 I don't know anything about {{subject}}.
                 {{/assistant}}
+                {{/chat}}
             "#
         );
         let mut context = HashMap::new();
@@ -256,9 +273,11 @@ mod test {
         }
 
         let prompt_template = prompt!(
-            "{{#assistant}}
+            "{{#chat}}
+            {{#assistant}}
             My name is {{name}} and I am {{#if (eq age 1)}}1 year{{else}}{{age}} years{{/if}} old.
-            {{/assistant}}"
+            {{/assistant}}
+            {{/chat}}"
         );
 
         let data = Data {

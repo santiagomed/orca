@@ -186,6 +186,7 @@ impl LLM for Bert {
     }
 }
 
+#[cfg(test)]
 mod test {
     use super::*;
 

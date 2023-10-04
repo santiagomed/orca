@@ -1,15 +1,11 @@
 use super::request::RequestMessages;
 use crate::{
     llm::LLM,
-    prompt::{
-        chat::{remove_last_comma, Message},
-        clean_prompt, Prompt,
-    },
+    prompt::{chat::Message, Prompt},
 };
 use anyhow::Result;
 pub use async_openai::config::{Config, OpenAIConfig};
 use async_openai::types::{CreateChatCompletionRequest, CreateChatCompletionRequestArgs};
-use serde_json::from_str;
 
 use super::LLMResponse;
 
@@ -115,6 +111,7 @@ impl OpenAIClient {
 impl LLM for OpenAIClient {
     async fn generate(&self, prompt: &dyn Prompt) -> Result<LLMResponse> {
         let messages = prompt.to_chat()?;
+        println!("MESSAGES: {:?}", messages);
         let req = self.generate_request(&messages)?;
         let res = self.client.chat().create(req).await?;
         Ok(res.into())
@@ -136,6 +133,7 @@ mod test {
         context.insert("country2", "Germany");
         let prompt = prompt!(
             r#"
+            {{#chat}}
             {{#user}}
             What is the capital of {{country1}}?
             {{/user}}
@@ -145,6 +143,7 @@ mod test {
             {{#user}}
             What is the capital of {{country2}}?
             {{/user}}
+            {{/chat}}
             "#
         );
         let prompt = prompt.render(&context).unwrap().to_chat().unwrap();

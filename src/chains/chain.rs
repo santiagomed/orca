@@ -91,9 +91,8 @@ impl<'llm> Chain for LLMChain<'llm> {
         let response = if let Some(memory) = &mut self.memory {
             let mem = memory.memory();
             mem.save(prompt.deref())?;
-            self.llm.generate(&mem.to_string()?).await?
+            self.llm.generate(mem).await?
         } else {
-            // Fix this to deal with string and chat messages
             self.llm.generate(prompt.deref()).await?
         };
         Ok(ChainResult::new(self.name.clone()).with_llm_response(response))
@@ -142,6 +141,7 @@ mod test {
     async fn test_generate() {
         let client = OpenAIClient::new();
         let prompt = r#"
+            {{#chat}}
             {{#user}}
             What is the capital of {{country1}}?
             {{/user}}
@@ -151,6 +151,7 @@ mod test {
             {{#user}}
             What is the capital of {{country2}}?
             {{/user}}
+            {{/chat}}
             "#;
         let mut chain = LLMChain::new(&client, prompt);
         chain.load_context(&DataOne {
@@ -173,9 +174,11 @@ mod test {
             .unwrap();
 
         let prompt = r#"
+            {{#chat}}
             {{#user}}
             Give a long summary of the following story: {{story}}
             {{/user}}
+            {{/chat}}
             "#;
 
         let mut chain = LLMChain::new(&client, prompt);
@@ -189,10 +192,10 @@ mod test {
     async fn test_generate_with_memory() {
         let client = OpenAIClient::new();
 
-        let prompt = "{{#user}}My name is Orca{{/user}}";
-        let mut chain = LLMChain::new(&client, prompt).with_memory(memory::Buffer::new());
+        let prompt = "{{#chat}}{{#user}}My name is Orca{{/user}}{{/chat}}";
+        let mut chain = LLMChain::new(&client, prompt).with_memory(memory::ChatBuffer::new());
         chain.execute().await.unwrap();
-        let mut chain = chain.with_prompt(prompt!("{{#user}}What is my name?{{/user}}"));
+        let mut chain = chain.with_prompt(prompt!("{{#chat}}{{#user}}What is my name?{{/user}}{{/chat}}"));
         let res = chain.execute().await.unwrap().content();
 
         assert!(res.to_lowercase().contains("orca"));

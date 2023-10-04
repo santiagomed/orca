@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use crate::prompt::clean_prompt;
+
 use super::chain::LLMChain;
 use super::{Chain, ChainResult};
 use anyhow::Result;
@@ -39,7 +41,7 @@ impl<'llm> SequentialChain<'llm> {
 }
 
 pub fn format_prompt_as_user(prompt: &mut str) -> String {
-    format!("{{{{#user}}}}{}{{{{/user}}}}", prompt)
+    format!("{{{{#user}}}}{}{{{{/user}}}}", clean_prompt(prompt, true))
 }
 
 #[async_trait::async_trait(?Send)]
@@ -49,7 +51,7 @@ impl<'llm> Chain for SequentialChain<'llm> {
         let mut result: ChainResult = ChainResult::new(self.name.to_string()); // initialize result to a default value
         for chain in &mut self.chains {
             if !response.is_empty() {
-                chain.prompt.add_to_prompt(&format_prompt_as_user(&mut response));
+                chain.prompt.add_to_template(&format_prompt_as_user(&mut response));
             }
             result = chain.execute().await?;
             response = result.content();
@@ -87,8 +89,8 @@ mod test {
     async fn test_generate() {
         let client = OpenAIClient::new();
 
-        let first = "{{#user}}Give me a summary of {{play}}'s plot.{{/user}}";
-        let second = "{{#system}}You are a professional critic. When given a summary of a play, you must write a review of it. Here is a summary of {{play}}'s plot:{{/system}}";
+        let first = "{{#chat}}{{#user}}Give me a summary of {{play}}'s plot.{{/user}}{{/chat}}";
+        let second = "{{#chat}}{{#system}}You are a professional critic. When given a summary of a play, you must write a review of it. Here is a summary of {{play}}'s plot:{{/system}}{{/chat}}";
 
         let mut chain = SequentialChain::new().link(LLMChain::new(&client, first)).link(LLMChain::new(&client, second));
         chain.load_context(&Data {
