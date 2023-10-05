@@ -86,7 +86,6 @@ async fn main() {
         assert!(res.contains("Berlin") || res.contains("berlin"));
 }
 ```
-## Bert
 
 # Contributing
 Contributors are welcome! If you would like to contribute, please open an issue or a pull request. If you would like to add a new feature, please open an issue first so we can discuss it. 
