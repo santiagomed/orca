@@ -16,6 +16,12 @@
   </p>
 </div>
 
+# About Orca
+Orca is currently in development. It is hard to say what the future of Orca looks like, as I am currently learning about LLM orchestrations and its extensive applications. These are some ideas I want to explore. Suggestions are welcome!
+ * [WebAssembly]("https://webassembly.org") to create simple, portable, yet powerful LLM applications that can run serverless across platforms.
+ * Taking advantage of Rust for fast memory safe distributed LLM applications.
+ * Deploying LLMs to the edge (think IOT devices, mobile devices, etc.)
+
 # Set up
 To set up Orca, you will need to install Rust. You can do this by following the instructions [here](https://www.rust-lang.org/tools/install). Once you have Rust installed, you can add Orca to your Cargo.toml file as a dependency:
 ```toml
@@ -23,13 +29,28 @@ To set up Orca, you will need to install Rust. You can do this by following the 
 orca = { git = "https://github.com/scrippt-tech/orca" }
 ```
 
+# Features
+* Prompt templating using handlebars-like syntax (see example below)
+* Loading records (documents)
+  * HTML from URLs or local files
+  * PDF from bytes or local files
+* Vector store support with [Qdrant]("https://qdrant.tech")
+* Current LLM support:
+  * [OpenAI Chat]("https://openai.com")
+  * Limited [Bert]("https://huggingface.co/docs/transformers/model_doc/bert) support using the [Candle]("https://github.com/huggingface/candle") ML framework
+* Chains:
+  * Simple chains
+  * Sequential chains
+
 # Examples
-Orca supports simple LLM chains and sequential chains. It also supports reading PDF and HTML records (documents). Following is a simple example on how to use Orca.
+Orca supports simple LLM chains and sequential chains. It also supports reading PDF and HTML records (documents).
+
+## OpenAI Chat
 ```rust
 use orca::chains::chain::LLMChain;
 use orca::chains::Chain;
-use orca::prompts;
-use orca::prompt::PromptEngine;
+use orca::templates;
+use orca::template::TemplateEngine;
 use orca::llm::openai::OpenAIClient;
 use serde::Serialize;
 
@@ -42,19 +63,41 @@ pub struct Data {
 #[tokio::main]
 async fn main() {
         let client = OpenAIClient::new();
-
-        let mut chain = LLMChain::new(&client).with_prompt(prompts!(
-            ("user", "What is the capital of {{country1}}"),
-            ("ai", "Paris"),
-            ("user", "What is the capital of {{country2}}")
-        ));
+        let prompt = r#"
+            {{#chat}}
+            {{#user}}
+            What is the capital of {{country1}}?
+            {{/user}}
+            {{#assistant}}
+            Paris
+            {{/assistant}}
+            {{#user}}
+            What is the capital of {{country2}}?
+            {{/user}}
+            {{/chat}}
+            "#;
+        let mut chain = LLMChain::new(&client, prompt);
         chain.load_context(&Data {
             country1: "France".to_string(),
             country2: "Germany".to_string(),
         });
-        let res = chain.execute().await.unwrap();
+        let res = chain.execute().await.unwrap().content();
 
         assert!(res.contains("Berlin") || res.contains("berlin"));
 }
 ```
+## Bert
 
+# Contributing
+Contributors are welcome! If you would like to contribute, please open an issue or a pull request. If you would like to add a new feature, please open an issue first so we can discuss it. 
+
+## Running locally
+We use `[cargo-make](https://github.com/sagiegurari/cargo-make)`` to run Orca locally. To install it run:
+```bash
+cargo install cargo-make
+```
+Once you have cargo-make installed, you can build or test Orca by running:
+```bash
+$ cargo make build # Build Orca
+$ cargo make test # Test Orca
+```

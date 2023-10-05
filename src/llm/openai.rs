@@ -109,7 +109,7 @@ impl OpenAIClient {
 
 #[async_trait::async_trait(?Send)]
 impl LLM for OpenAIClient {
-    async fn generate(&self, prompt: &dyn Prompt) -> Result<LLMResponse> {
+    async fn generate(&self, prompt: Box<dyn Prompt>) -> Result<LLMResponse> {
         let messages = prompt.to_chat()?;
         println!("MESSAGES: {:?}", messages);
         let req = self.generate_request(&messages)?;
@@ -121,8 +121,8 @@ impl LLM for OpenAIClient {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::prompt;
-    use crate::prompt::PromptEngine;
+    use crate::prompt::TemplateEngine;
+    use crate::template;
     use std::collections::HashMap;
 
     #[tokio::test]
@@ -131,7 +131,7 @@ mod test {
         let mut context = HashMap::new();
         context.insert("country1", "France");
         context.insert("country2", "Germany");
-        let prompt = prompt!(
+        let prompt = template!(
             r#"
             {{#chat}}
             {{#user}}
@@ -146,8 +146,8 @@ mod test {
             {{/chat}}
             "#
         );
-        let prompt = prompt.render(&context).unwrap().to_chat().unwrap();
-        let response = client.generate(&prompt).await.unwrap();
+        let prompt = prompt.render_context(&context).unwrap().to_chat().unwrap();
+        let response = client.generate(Box::new(prompt)).await.unwrap();
         assert!(response.to_string().to_lowercase().contains("berlin"));
     }
 }

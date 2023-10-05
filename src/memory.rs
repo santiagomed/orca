@@ -1,8 +1,8 @@
 use crate::prompt::chat::Message;
 use crate::prompt::Prompt;
 
-use std::fmt::{Display, Formatter};
 use anyhow::Result;
+use std::fmt::{Display, Formatter};
 
 pub trait Memory: MemoryClone {
     /// Get the memory of the Memory Buffer.

@@ -2,5 +2,5 @@
 /Cargo.lock
 .idea
 .DS_Store
-.env
+*.env
 to_fix.md

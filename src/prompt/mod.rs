@@ -1,4 +1,6 @@
 pub mod context;
+use std::collections::HashMap;
+
 use serde;
 use serde::Serialize;
 
@@ -15,7 +17,7 @@ static ASSISTANT_HELPER: RoleHelper = RoleHelper;
 static CHAT_HELPER: ChatHelper = ChatHelper;
 
 /// Represents a prompt engine that uses handlebars templates to render strings.
-pub struct PromptEngine<'p> {
+pub struct TemplateEngine<'p> {
     /// A vector of template strings
     pub template: String,
 
@@ -23,17 +25,17 @@ pub struct PromptEngine<'p> {
     handlebars: Handlebars<'p>,
 }
 
-impl<'p> PromptEngine<'p> {
-    /// Creates a new `PromptEngine` with the given prompt string.
+impl<'p> TemplateEngine<'p> {
+    /// Creates a new `TemplateEngine` with the given prompt string.
     /// # Arguments
     /// * `prompt` - A string slice that holds the prompt template.
     ///
     /// # Example
     /// ```
-    /// use orca::prompt::PromptEngine;
-    /// let prompt = PromptEngine::new("Welcome, {{user}}!");
+    /// use orca::prompt::TemplateEngine;
+    /// let prompt = TemplateEngine::new("Welcome, {{user}}!");
     /// ```
-    pub fn new(prompt: &str) -> PromptEngine<'p> {
+    pub fn new(prompt: &str) -> TemplateEngine<'p> {
         let mut handlebars = Handlebars::new();
         let template = prompt.to_string();
         handlebars.register_escape_fn(handlebars::no_escape);
@@ -43,7 +45,7 @@ impl<'p> PromptEngine<'p> {
         handlebars.register_helper("assistant", Box::new(ASSISTANT_HELPER));
         handlebars.register_helper("chat", Box::new(CHAT_HELPER));
 
-        PromptEngine { template, handlebars }
+        TemplateEngine { template, handlebars }
     }
 
     /// Adds a new template to the prompt.
@@ -57,11 +59,11 @@ impl<'p> PromptEngine<'p> {
     ///
     /// # Example
     /// ```
-    /// use orca::prompt::PromptEngine;
+    /// use orca::prompt::TemplateEngine;
     ///
-    /// let mut prompt = PromptEngine::new("Welcome!");
-    /// prompt.add_to_prompt("Hello, world!");
-    /// assert_eq!(prompt.template, "Welcome!\nHello, world!");
+    /// let mut prompt = TemplateEngine::new("Welcome!");
+    /// prompt.add_to_template("Hello, world!");
+    /// assert_eq!(prompt.template, "Welcome!Hello, world!");
     /// ```
     pub fn add_to_template(&mut self, template: &str) {
         // TODO: Remove this temporary hack to add a new prompt to template
@@ -78,27 +80,52 @@ impl<'p> PromptEngine<'p> {
         }
     }
 
-    /// Renders a Handlebars template with the given data and returns the result as a String.
+    /// Renders a Handlebars template and returns the result as a Boxed trait object.
     ///
     /// # Arguments
     /// * `data` - A reference to the data to be used in the template rendering.
     ///
     /// # Returns
-    /// Returns a `Result` containing the rendered template as a `String` if successful, or an error if the rendering fails.
+    /// Returns a Boxed trait object that implements the `Prompt` trait.
     ///
     /// # Example
     /// ```
     /// use serde_json::json;
-    /// use orca::prompt::PromptEngine;
-    /// use async_openai::types::Role as R;
+    /// use orca::prompt::TemplateEngine;
     ///
-    /// let prompt = PromptEngine::new("Hello, {{name}}!");
-    /// let data = json!({"name": "world"});
-    /// let result = prompt.render(&data);
+    /// let prompt = TemplateEngine::new("{{#if true}}Hello, world!{{/if}}");
+    /// let result = prompt.render().unwrap();
     ///
-    /// assert_eq!(result.unwrap(), "Hello, world!".to_string());
+    /// assert_eq!(result.to_string().unwrap(), "Hello, world!".to_string());
     /// ```
-    pub fn render<T>(&self, data: &T) -> Result<Box<dyn Prompt>>
+    pub fn render(&self) -> Result<Box<dyn Prompt>> {
+        let rendered = self.handlebars.render_template(&self.template, &HashMap::<String, String>::new())?;
+        match serde_json::from_str::<ChatPrompt>(&rendered) {
+            Ok(chat) => return Ok(Box::new(chat)),
+            Err(_) => return Ok(Box::new(rendered)),
+        }
+    }
+
+    /// Renders a Handlebars template with the given data and returns the result as a Boxed trait object.
+    ///
+    /// # Arguments
+    /// * `data` - A reference to the data to be used in the template rendering.
+    ///
+    /// # Returns
+    /// Returns a `Result` containing the rendered template as a Boxed trait object.
+    ///
+    /// # Example
+    /// ```
+    /// use serde_json::json;
+    /// use orca::prompt::TemplateEngine;
+    ///
+    /// let prompt = TemplateEngine::new("Hello, {{name}}!");
+    /// let data = json!({"name": "world"});
+    /// let result = prompt.render_context(&data).unwrap();
+    ///
+    /// assert_eq!(result.to_string().unwrap(), "Hello, world!".to_string());
+    /// ```
+    pub fn render_context<T>(&self, data: &T) -> Result<Box<dyn Prompt>>
     where
         T: Serialize,
     {
@@ -120,46 +147,108 @@ impl<'p> PromptEngine<'p> {
     /// # Example
     /// ```
     /// use serde_json::json;
-    /// use orca::prompt::{PromptEngine};
+    /// use orca::prompt::TemplateEngine;
     /// use orca::prompt::chat::{Role, Message};
     /// use async_openai::types::Role as R;
     ///
-    /// let prompt = PromptEngine::new("{{#system}}Hello, {{name}}!{{/system}}");
+    /// let prompt = TemplateEngine::new("{{#system}}Hello, {{name}}!{{/system}}");
     /// let data = json!({"name": "world"});
-    /// let result = prompt.render_chat(&data);
+    /// let result = prompt.render_chat(Some(&data));
     /// assert_eq!(result.unwrap(), vec![Message::new(Role(R::System), "Hello, world!")]);
     /// ```
-    pub fn render_chat<T>(&self, data: &T) -> Result<ChatPrompt>
+    pub fn render_chat<T>(&self, data: Option<&T>) -> Result<ChatPrompt>
     where
         T: Serialize,
     {
-        let rendered = self.render(data)?;
+        let rendered = match data {
+            Some(data) => self.render_context(&data)?,
+            None => self.render()?,
+        };
         let rendered_json = format!("[{}]", remove_last_comma(rendered.as_str()?));
         let messages: ChatPrompt = serde_json::from_str(&rendered_json)?;
         Ok(messages)
     }
 }
 
-impl<'p> Clone for PromptEngine<'p> {
+impl<'p> Clone for TemplateEngine<'p> {
     /// Clone a prompt template
     fn clone(&self) -> Self {
-        PromptEngine {
+        TemplateEngine {
             template: self.template.clone(),
             handlebars: self.handlebars.clone(),
         }
     }
 }
 
+/// A trait representing a prompt for a Large Language Model.
+///
+/// The `Prompt` trait provides methods to transform, clone, save, and represent prompts in various formats.
 pub trait Prompt {
-    fn save(&mut self, data: &dyn Prompt) -> Result<()>;
+    /// Save the data from another `Prompt` into the current one.
+    ///
+    /// # Arguments
+    /// * `data` - A boxed trait object implementing the `Prompt` trait.
+    ///
+    /// # Returns
+    /// * `Result<()>` - An empty result indicating success or an error.
+    ///
+    /// # Examples
+    /// ```
+    /// use orca::prompt;
+    /// use orca::prompt::Prompt;
+    ///
+    /// let mut my_prompt = prompt!("Some prompt");
+    /// let another_prompt = prompt!("Some other prompt");
+    /// my_prompt.save(another_prompt).unwrap();
+    /// ```
+    fn save(&mut self, data: Box<dyn Prompt>) -> Result<()>;
+
+    /// Convert the current prompt to a `String`.
+    ///
+    /// # Returns
+    /// * `Result<String>` - The `String` representation of the prompt or an error.
+    ///
+    /// # Examples
+    /// ```
+    /// use orca::prompt;
+    /// use orca::prompt::Prompt;
+    ///
+    /// let my_prompt = prompt!("Some prompt");
+    /// assert_eq!(my_prompt.to_string(), "Some prompt".to_string());
+    /// ```
     fn to_string(&self) -> Result<String>;
+
+    /// Get the current prompt as a string slice.
+    ///
+    /// # Returns
+    /// * `Result<&str>` - The string slice representation of the prompt or an error.
     fn as_str(&self) -> Result<&str>;
+
+    /// Convert the current prompt to a `ChatPrompt`.
+    ///
+    /// # Returns
+    /// * `Result<ChatPrompt>` - The `ChatPrompt` representation of the prompt or an error.
     fn to_chat(&self) -> Result<ChatPrompt>;
+
+    /// Clone the current prompt into a Boxed trait object.
+    ///
+    /// # Returns
+    ///
+    /// * `Box<dyn Prompt>` - The cloned prompt.
+    ///
+    /// # Examples
+    /// ```
+    /// use orca::prompt;
+    /// use orca::prompt::Prompt;
+    ///
+    /// let my_prompt = prompt!("Some prompt");
+    /// let cloned_prompt = my_prompt.clone_prompt();
+    /// ```
+    fn clone_prompt(&self) -> Box<dyn Prompt>;
 }
 
 impl Prompt for ChatPrompt {
-    fn save(&mut self, data: &dyn Prompt) -> Result<()> {
-        // let msgs = serde_json::from_str::<ChatPrompt>(&format!("[{}]", &remove_last_comma(data)))?;
+    fn save(&mut self, data: Box<dyn Prompt>) -> Result<()> {
         let msgs = data.to_chat()?;
         self.extend(msgs);
         Ok(())
@@ -176,9 +265,13 @@ impl Prompt for ChatPrompt {
     fn to_chat(&self) -> Result<ChatPrompt> {
         Ok(self.clone())
     }
+
+    fn clone_prompt(&self) -> Box<dyn Prompt> {
+        Box::new(self.clone())
+    }
 }
 impl Prompt for String {
-    fn save(&mut self, data: &dyn Prompt) -> Result<()> {
+    fn save(&mut self, data: Box<dyn Prompt>) -> Result<()> {
         self.push_str(data.as_str()?);
         Ok(())
     }
@@ -194,6 +287,10 @@ impl Prompt for String {
     fn to_chat(&self) -> Result<ChatPrompt> {
         Err(anyhow::anyhow!("Unable to convert String to ChatPrompt"))
     }
+
+    fn clone_prompt(&self) -> Box<dyn Prompt> {
+        Box::new(self.clone())
+    }
 }
 
 /// Cleans the prompt by removing unparsable characters and quotations.
@@ -208,8 +305,15 @@ pub fn clean_prompt(content: &str, quotes: bool) -> String {
 
 #[macro_export]
 macro_rules! prompt {
+    ($e:expr) => {
+        Box::new($e.to_string())
+    };
+}
+
+#[macro_export]
+macro_rules! template {
     ($template:expr) => {
-        PromptEngine::new($template)
+        TemplateEngine::new($template)
     };
 }
 
@@ -224,16 +328,16 @@ mod test {
 
     #[test]
     fn test_prompt() {
-        let prompt_template = prompt!("What is the capital of {{country}}");
+        let prompt_template = template!("What is the capital of {{country}}");
         let mut context = HashMap::new();
         context.insert("country", "France");
-        let prompt = prompt_template.render(&context).unwrap();
+        let prompt = prompt_template.render_context(&context).unwrap();
         assert_eq!(prompt.to_string().unwrap(), "What is the capital of France");
     }
 
     #[test]
     fn test_chat() {
-        let prompt_template = prompt!(
+        let prompt_template = template!(
             r#"
                 {{#chat}}
                 {{#system}}
@@ -250,7 +354,7 @@ mod test {
         );
         let mut context = HashMap::new();
         context.insert("subject", "math");
-        let prompt = prompt_template.render(&context).unwrap();
+        let prompt = prompt_template.render_context(&context).unwrap();
         assert_eq!(
             prompt.to_chat().unwrap(),
             vec![
@@ -272,7 +376,7 @@ mod test {
             age: u8,
         }
 
-        let prompt_template = prompt!(
+        let prompt_template = template!(
             "{{#chat}}
             {{#assistant}}
             My name is {{name}} and I am {{#if (eq age 1)}}1 year{{else}}{{age}} years{{/if}} old.
@@ -285,7 +389,7 @@ mod test {
             age: 5,
         };
 
-        let prompt = prompt_template.render(&data).unwrap();
+        let prompt = prompt_template.render_context(&data).unwrap();
         assert_eq!(
             prompt.to_chat().unwrap(),
             vec![Message::new(Role(R::Assistant), "My name is gpt and I am 5 years old.")]

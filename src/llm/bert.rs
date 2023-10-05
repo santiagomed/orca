@@ -150,7 +150,7 @@ impl Bert {
 
 #[async_trait::async_trait(?Send)]
 impl LLM for Bert {
-    async fn generate(&self, prompt: &dyn Prompt) -> Result<LLMResponse> {
+    async fn generate(&self, prompt: Box<dyn Prompt>) -> Result<LLMResponse> {
         use tracing_chrome::ChromeLayerBuilder;
         use tracing_subscriber::prelude::*;
 
@@ -189,11 +189,12 @@ impl LLM for Bert {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::prompt;
 
     #[tokio::test]
     async fn test_generate() {
         let bert = Bert::new();
-        let response = bert.generate(&"Hello, world".to_string()).await;
+        let response = bert.generate(prompt!("Hello, world")).await;
         assert!(response.is_ok());
     }
 }

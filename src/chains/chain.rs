@@ -2,82 +2,100 @@ use super::Chain;
 use super::ChainResult;
 use crate::llm::LLM;
 use crate::memory::Memory;
-use crate::prompt::PromptEngine;
+use crate::prompt::TemplateEngine;
 
 use anyhow::Result;
 use std::collections::HashMap;
-use std::ops::Deref;
 
-/// Simple LLM chain that formats a prompt and calls an LLM.
+/// Represents the simples chain for a Large Language Model (LLM).
 ///
-/// # Example
-/// ```rust
-/// use orca::chains::chain::LLMChain;
-/// use orca::chains::Chain;
-/// use orca::prompts;
-/// use orca::prompt::prompt::PromptEngine;
-/// use orca::llm::openai::OpenAIClient;
-/// use serde::Serialize;
-/// use tokio;
-///
-/// #[derive(Serialize)]
-/// pub struct Data {
-///     country1: String,
-///     country2: String,
-/// }
-///
-/// #[tokio::main]
-/// async fn main() {
-///     let client = OpenAIClient::new();
-///
-///     let mut chain = LLMChain::new(&client).with_prompt(prompts!(
-///         ("user", "What is the capital of {{country1}}"),
-///         ("ai", "Paris"),
-///         ("user", "What is the capital of {{country2}}")
-///     ));
-///     chain.load_context(&Data {
-///         country1: "France".to_string(),
-///         country2: "Germany".to_string(),
-///     });
-///     let res = chain.execute().await.unwrap();
-///     assert!(res.content().to_lowercase().contains("berlin"));
-/// }
-/// ```
+/// This simple chain just takes a prompt/template and generates a response using the LLM.
+/// It can make use of context, memory, and a prompt template.
 pub struct LLMChain<'llm> {
-    /// The name of the LLMChain.
+    /// The unique identifier for this LLMChain.
     pub name: String,
 
-    /// The prompt template instance used by the LLMChain.
-    pub prompt: PromptEngine<'llm>,
+    /// The prompt template engine instance that is used by the LLMChain
+    /// to generate the actual prompts based on the given context.
+    pub prompt: TemplateEngine<'llm>,
 
-    /// The LLM used by the LLMChain.
+    /// A reference to the LLM that this chain will use to process the prompts.
     llm: &'llm (dyn LLM),
 
-    /// Memory of the LLMChain.
+    /// Memory associated with the LLMChain. It can be used to persist
+    /// state or data across different executions of the chain.
     memory: Option<Box<dyn Memory>>,
 
+    /// The context containing key-value pairs which the `prompt`
+    /// template engine might use to render the final prompt.
     context: HashMap<String, String>,
 }
 
 impl<'llm> LLMChain<'llm> {
-    /// Initialize a new LLMChain with an LLM. The LLM must implement the LLM trait.
+    /// Creates a new LLMChain given an LLM and a prompt template.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use orca::llm::openai::OpenAIClient;
+    /// use orca::llm::LLM;
+    /// use orca::prompt::TemplateEngine;
+    /// use orca::chains::chain::LLMChain;
+    ///
+    /// let client = OpenAIClient::new();
+    /// let prompt = "Hello, LLM!";
+    /// let chain = LLMChain::new(&client, prompt);
+    /// ```
     pub fn new(llm: &'llm impl LLM, prompt: &str) -> LLMChain<'llm> {
         LLMChain {
             name: uuid::Uuid::new_v4().to_string(),
             llm,
-            prompt: PromptEngine::new(prompt),
+            prompt: TemplateEngine::new(prompt),
             memory: None,
             context: HashMap::new(),
         }
     }
 
-    /// Change the prompt template used by the LLMChain.
-    pub fn with_prompt(mut self, prompt: PromptEngine<'llm>) -> Self {
+    /// Modifies the LLMChain's prompt template.
+    ///
+    /// This is a builder-style method that returns a mutable reference to `self`.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use orca::llm::openai::OpenAIClient;
+    /// use orca::llm::LLM;
+    /// use orca::prompt::TemplateEngine;
+    /// use orca::chains::chain::LLMChain;
+    /// use orca::template;
+    ///
+    /// let client = OpenAIClient::new();
+    /// let prompt = "Hello, LLM!";
+    /// let mut chain = LLMChain::new(&client, prompt);
+    /// let new_prompt = "Hello, LLM! How are you?";
+    /// let chain = chain.with_prompt(template!(new_prompt));
+    /// ```
+    pub fn with_prompt(mut self, prompt: TemplateEngine<'llm>) -> Self {
         self.prompt = prompt;
         self
     }
 
     /// Change the memory used by the LLMChain.
+    ///
+    /// This is a builder-style method that returns a mutable reference to `self`.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use orca::llm::openai::OpenAIClient;
+    /// use orca::llm::LLM;
+    /// use orca::prompt::TemplateEngine;
+    /// use orca::chains::chain::LLMChain;
+    /// use orca::memory::ChatBuffer;
+    ///
+    /// let client = OpenAIClient::new();
+    /// let prompt = "Hello, LLM!";
+    /// let mut chain = LLMChain::new(&client, prompt);
+    /// let memory = ChatBuffer::new();
+    /// let chain = chain.with_memory(memory);
+    /// ```
     pub fn with_memory(mut self, memory: impl Memory + 'static) -> Self {
         self.memory = Some(Box::new(memory));
         self
@@ -87,13 +105,13 @@ impl<'llm> LLMChain<'llm> {
 #[async_trait::async_trait(?Send)]
 impl<'llm> Chain for LLMChain<'llm> {
     async fn execute(&mut self) -> Result<ChainResult> {
-        let prompt = self.prompt.render(&self.context)?;
+        let prompt = self.prompt.render_context(&self.context)?;
         let response = if let Some(memory) = &mut self.memory {
             let mem = memory.memory();
-            mem.save(prompt.deref())?;
-            self.llm.generate(mem).await?
+            mem.save(prompt)?;
+            self.llm.generate(mem.clone_prompt()).await?
         } else {
-            self.llm.generate(prompt.deref()).await?
+            self.llm.generate(prompt.clone_prompt()).await?
         };
         Ok(ChainResult::new(self.name.clone()).with_llm_response(response))
     }
@@ -121,8 +139,9 @@ mod test {
     use super::*;
     use crate::{
         llm::openai::OpenAIClient,
-        memory, prompt,
+        memory,
         record::{self, Spin},
+        template,
     };
     use serde::Serialize;
 
@@ -195,7 +214,7 @@ mod test {
         let prompt = "{{#chat}}{{#user}}My name is Orca{{/user}}{{/chat}}";
         let mut chain = LLMChain::new(&client, prompt).with_memory(memory::ChatBuffer::new());
         chain.execute().await.unwrap();
-        let mut chain = chain.with_prompt(prompt!("{{#chat}}{{#user}}What is my name?{{/user}}{{/chat}}"));
+        let mut chain = chain.with_prompt(template!("{{#chat}}{{#user}}What is my name?{{/user}}{{/chat}}"));
         let res = chain.execute().await.unwrap().content();
 
         assert!(res.to_lowercase().contains("orca"));

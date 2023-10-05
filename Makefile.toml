@@ -1,0 +1,54 @@
+[config]
+skip_core_tasks = true
+
+env_secrets = [
+	{ path = ".secrets.env" },
+]
+
+[tasks.format-check]
+description = "Format code using rustfmt"
+command = "cargo"
+args = ["fmt", "--all", "--", "--check"]
+
+[tasks.lint]
+description = "Lint code using clippy"
+command = "cargo"
+args = ["clippy"]
+
+[tasks.qdrant-pull]
+description = "Spin up a qdrant instance on Docker. Make sure you have Docker running"
+command = "docker"
+args = ["pull", "qdrant/qdrant"]
+
+[tasks.qdrant-clean]
+description = "Remove qdrant instance on Docker. Make sure you have Docker running"
+command = "docker"
+args = ["rm", "qdrant_test_instance", "-f"]
+
+[tasks.qdrant]
+description = "Run qdrant instance on Docker. Make sure you have Docker running"
+command = "docker"
+args = ["run", "-d", "--name", "qdrant_test_instance", "-p", "6333:6333", "-p", "6334:6334", "-e", "QDRANT__SERVICE__GRPC_PORT=6334", "qdrant/qdrant"]
+
+[tasks.test-all]
+description = "Run tests"
+command = "cargo"
+args = ["test"]
+
+[tasks.test]
+run_task = { name = ["qdrant-pull", "qdrant", "test-all"], fork = true, cleanup_task = "qdrant-clean" }
+
+[tasks.build]
+description = "Build project"
+command = "cargo"
+args = ["build", "--release"]
+
+[tasks.clean]
+description = "Remove all generated files"
+command = "cargo"
+args = ["clean"]
+dependencies = ["qdrant-clean"]
+
+[tasks.ci]
+description = "Run all CI checks"
+dependencies = ["format-check", "lint", "test"]
