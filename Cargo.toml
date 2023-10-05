@@ -1,5 +1,11 @@
 [package]
 name = "orca"
+description = "Orca is an LLM orchestration framework built in Rust"
+homepage = "https://orca.scrippt.tech"
+documentation = "https://docs.rs/orca"
+readme = "README.md"
+license-file = "LICENSE"
+repository = "https://github.com/scrippt-tech/orca"
 version = "0.1.0"
 edition = "2021"
 
