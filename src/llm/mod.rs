@@ -2,6 +2,8 @@ pub mod bert;
 pub mod openai;
 pub mod request;
 
+use std::fmt::Display;
+
 use anyhow::Result;
 use async_openai::types::CreateChatCompletionResponse;
 use candle_core::{Device, Result as CandleResult, Tensor};
@@ -67,23 +69,31 @@ impl From<CreateChatCompletionResponse> for LLMResponse {
 }
 
 impl LLMResponse {
-    /// Get the response content from an LLMResponse
-    pub fn to_string(&self) -> String {
-        match self {
-            LLMResponse::OpenAI(response) => {
-                ToString::to_string(&response.choices[0].message.content.as_ref().unwrap())
-            }
-            LLMResponse::Bert(response) => response.iter().map(|x| x.to_string()).collect::<Vec<String>>().join(", "),
-            LLMResponse::Empty => "".to_string(),
-        }
-    }
-
     /// Get the role of the response from an LLMResponse, if supported by the LLM.
     pub fn get_role(&self) -> String {
         match self {
             LLMResponse::OpenAI(response) => response.choices[0].message.role.to_string(),
             LLMResponse::Bert(_) => "ai".to_string(),
             LLMResponse::Empty => "".to_string(),
+        }
+    }
+}
+
+impl Display for LLMResponse {
+    /// Display the response content from an LLMResponse
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LLMResponse::OpenAI(response) => {
+                write!(f, "{}", response.choices[0].message.content.as_ref().unwrap())
+            }
+            LLMResponse::Bert(response) => {
+                write!(
+                    f,
+                    "{}",
+                    response.iter().map(|x| x.to_string()).collect::<Vec<String>>().join(", ")
+                )
+            }
+            LLMResponse::Empty => write!(f, ""),
         }
     }
 }

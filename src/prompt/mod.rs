@@ -101,8 +101,8 @@ impl<'p> TemplateEngine<'p> {
     pub fn render(&self) -> Result<Box<dyn Prompt>> {
         let rendered = self.handlebars.render_template(&self.template, &HashMap::<String, String>::new())?;
         match serde_json::from_str::<ChatPrompt>(&rendered) {
-            Ok(chat) => return Ok(Box::new(chat)),
-            Err(_) => return Ok(Box::new(rendered)),
+            Ok(chat) => Ok(Box::new(chat)),
+            Err(_) => Ok(Box::new(rendered)),
         }
     }
 
@@ -131,8 +131,8 @@ impl<'p> TemplateEngine<'p> {
     {
         let rendered = self.handlebars.render_template(&self.template, &data)?;
         match serde_json::from_str::<ChatPrompt>(&rendered) {
-            Ok(chat) => return Ok(Box::new(chat)),
-            Err(_) => return Ok(Box::new(rendered)),
+            Ok(chat) => Ok(Box::new(chat)),
+            Err(_) => Ok(Box::new(rendered)),
         }
     }
 
