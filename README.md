@@ -3,7 +3,7 @@
   <img src="https://github.com/scrippt-tech/orca/assets/30184543/0b57b399-bea9-4e31-85aa-8f27ddbdbcf8" width="300" height="300"/>
 
   <p>
-    <strong>Orca is a LLM Orchestrator Framework written in Rust. It is designed to be a simple, easy to use, and easy to extend framework for creating LLM Orchestrators. It is currently in development so it may contain bugs and it's functionality is limited.</strong>
+    <strong>Orca is a LLM Orchestration Framework written in Rust. It is designed to be a simple, easy to use, and easy to extend framework for creating LLM Orchestration. It is currently in development so it may contain bugs and it's functionality is limited.</strong>
   </p>
   <p>
 
@@ -91,7 +91,7 @@ async fn main() {
 Contributors are welcome! If you would like to contribute, please open an issue or a pull request. If you would like to add a new feature, please open an issue first so we can discuss it. 
 
 ## Running locally
-We use `[cargo-make](https://github.com/sagiegurari/cargo-make)`` to run Orca locally. To install it run:
+We use `[cargo-make](https://github.com/sagiegurari/cargo-make)` to run Orca locally. To install it run:
 ```bash
 cargo install cargo-make
 ```
