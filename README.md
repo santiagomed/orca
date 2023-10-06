@@ -1,6 +1,6 @@
 <div align="center">
   <h1>Orca</h1>
-  <img src="https://github.com/scrippt-tech/orca/assets/30184543/1d146eaf-6eba-48a4-bc8f-06f9cbabbcda" width="640" height="360"/>
+  <img src="https://github.com/scrippt-tech/orca/assets/30184543/1dc482c2-48cd-4982-ab23-b2fed6c492d5" width="640" height="360"/>
 
   <p>
     <strong>Orca is a LLM Orchestration Framework written in Rust. It is designed to be a simple, easy to use, and easy to extend framework for creating LLM Orchestration. It is currently in development so it may contain bugs and it's functionality is limited.</strong>
