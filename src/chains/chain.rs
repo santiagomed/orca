@@ -46,10 +46,10 @@ impl<'llm> LLMChain<'llm> {
     /// let prompt = "Hello, LLM!";
     /// let chain = LLMChain::new(&client, prompt);
     /// ```
-    pub fn new<T: LLM + 'static>(llm: T, prompt: &str) -> LLMChain<'llm> {
+    pub fn new(llm: Arc<dyn LLM>, prompt: &str) -> LLMChain<'llm> {
         LLMChain {
             name: uuid::Uuid::new_v4().to_string(),
-            llm: llm.into_arc(),
+            llm,
             prompt: TemplateEngine::new(prompt),
             memory: None,
             context: HashMap::new(),
@@ -159,7 +159,7 @@ mod test {
 
     #[tokio::test]
     async fn test_generate() {
-        let client = OpenAIClient::new();
+        let client = Arc::new(OpenAIClient::new());
         let prompt = r#"
             {{#chat}}
             {{#user}}
@@ -185,7 +185,7 @@ mod test {
 
     #[tokio::test]
     async fn test_generate_with_record() {
-        let client = OpenAIClient::new().with_model("gpt-3.5-turbo-16k");
+        let client = Arc::new(OpenAIClient::new().with_model("gpt-3.5-turbo-16k"));
         let record = record::html::HTML::from_url("https://www.orwellfoundation.com/the-orwell-foundation/orwell/essays-and-other-works/shooting-an-elephant/")
             .await
             .unwrap()
@@ -210,7 +210,7 @@ mod test {
 
     #[tokio::test]
     async fn test_generate_with_memory() {
-        let client = OpenAIClient::new();
+        let client = Arc::new(OpenAIClient::new());
 
         let prompt = "{{#chat}}{{#user}}My name is Orca{{/user}}{{/chat}}";
         let mut chain = LLMChain::new(client, prompt).with_memory(memory::ChatBuffer::new());

@@ -7,15 +7,12 @@ use std::thread;
 
 pub struct Worker {
     receiver: Receiver<Task>,
-    chain: Arc<Mutex<Box<dyn Chain>>>,
+    chain: Arc<Mutex<dyn Chain>>,
 }
 
 impl Worker {
-    pub fn new<'llm>(receiver: Receiver<Task>, chain: Box<dyn Chain>) -> Self {
-        Worker {
-            receiver,
-            chain: Arc::new(Mutex::new(chain)),
-        }
+    pub fn new<'llm>(receiver: Receiver<Task>, chain: Arc<Mutex<dyn Chain>>) -> Self {
+        Worker { receiver, chain }
     }
 
     pub fn spawn(self) {

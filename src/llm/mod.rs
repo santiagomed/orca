@@ -2,7 +2,7 @@ pub mod bert;
 pub mod openai;
 pub mod request;
 
-use std::{fmt::Display, sync::Arc};
+use std::fmt::Display;
 
 use anyhow::Result;
 use async_openai::types::CreateChatCompletionResponse;
@@ -46,22 +46,6 @@ pub trait LLM: Sync + Send {
     /// }
     /// ```
     async fn generate(&self, prompt: Box<dyn Prompt>) -> Result<LLMResponse>;
-
-    /// Convert an LLM into an Arc<dyn LLM> trait object.
-    /// # Arguments
-    /// * `self` - The LLM object to convert.
-    ///
-    /// # Returns
-    /// * An `Arc<dyn LLM>` trait object.
-    ///
-    /// # Bounds
-    /// * `Self: Sized` - The LLM object must be sized.
-    fn into_arc(self) -> Arc<dyn LLM>
-    where
-        Self: Sized + 'static,
-    {
-        Arc::new(self)
-    }
 }
 
 #[derive(Debug)]
