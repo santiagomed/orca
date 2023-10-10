@@ -111,7 +111,6 @@ impl OpenAIClient {
 impl LLM for OpenAIClient {
     async fn generate(&self, prompt: Box<dyn Prompt>) -> Result<LLMResponse> {
         let messages = prompt.to_chat()?;
-        println!("MESSAGES: {:?}", messages);
         let req = self.generate_request(&messages)?;
         let res = self.client.chat().create(req).await?;
         Ok(res.into())

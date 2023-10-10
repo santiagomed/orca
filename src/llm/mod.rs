@@ -2,7 +2,7 @@ pub mod bert;
 pub mod openai;
 pub mod request;
 
-use std::fmt::Display;
+use std::{fmt::Display, sync::Arc};
 
 use anyhow::Result;
 use async_openai::types::CreateChatCompletionResponse;
@@ -14,7 +14,7 @@ use crate::prompt::Prompt;
 /// The context is a previously created context using the Context struct. The prompt template
 /// is a previously created prompt template using the template! macro.
 #[async_trait::async_trait(?Send)]
-pub trait LLM {
+pub trait LLM: Sync + Send {
     /// Generate a response from an LLM using a context and a prompt template.
     /// # Arguments
     /// * `prompt` - A prompt trait object.
@@ -46,6 +46,22 @@ pub trait LLM {
     /// }
     /// ```
     async fn generate(&self, prompt: Box<dyn Prompt>) -> Result<LLMResponse>;
+
+    /// Convert an LLM into an Arc<dyn LLM> trait object.
+    /// # Arguments
+    /// * `self` - The LLM object to convert.
+    ///
+    /// # Returns
+    /// * An `Arc<dyn LLM>` trait object.
+    ///
+    /// # Bounds
+    /// * `Self: Sized` - The LLM object must be sized.
+    fn into_arc(self) -> Arc<dyn LLM>
+    where
+        Self: Sized + 'static,
+    {
+        Arc::new(self)
+    }
 }
 
 #[derive(Debug)]

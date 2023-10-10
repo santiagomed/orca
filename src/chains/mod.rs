@@ -1,4 +1,5 @@
 pub mod chain;
+pub mod mapreduce;
 pub mod sequential;
 use crate::prompt::clean_prompt;
 use crate::{llm::LLMResponse, record::Record};
@@ -9,7 +10,7 @@ use std::collections::HashMap;
 
 /// Provides an interface for executing and managing chains in an LLM (Large Language Model) setting.
 #[async_trait::async_trait(?Send)]
-pub trait Chain {
+pub trait Chain: Send + Sync {
     /// Executes a given chain and produces an LLM response.
     ///
     /// # Returns
@@ -39,6 +40,7 @@ pub trait Chain {
     fn load_context<T>(&mut self, context: &T)
     where
         T: Serialize,
+        Self: Sized,
     {
         let context = serde_json::to_value(context).unwrap_or(serde_json::Value::Null);
         if let serde_json::Value::Object(map) = context {

@@ -92,7 +92,7 @@ mod test {
         let first = "{{#chat}}{{#user}}Give me a summary of {{play}}'s plot.{{/user}}{{/chat}}";
         let second = "{{#chat}}{{#system}}You are a professional critic. When given a summary of a play, you must write a review of it. Here is a summary of {{play}}'s plot:{{/system}}{{/chat}}";
 
-        let mut chain = SequentialChain::new().link(LLMChain::new(&client, first)).link(LLMChain::new(&client, second));
+        let mut chain = SequentialChain::new().link(LLMChain::new(client, first)).link(LLMChain::new(client, second));
         chain.load_context(&Data {
             play: "Hamlet".to_string(),
         });

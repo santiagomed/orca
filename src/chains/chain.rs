@@ -6,6 +6,7 @@ use crate::prompt::TemplateEngine;
 
 use anyhow::Result;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// Represents the simples chain for a Large Language Model (LLM).
 ///
@@ -20,7 +21,7 @@ pub struct LLMChain<'llm> {
     pub prompt: TemplateEngine<'llm>,
 
     /// A reference to the LLM that this chain will use to process the prompts.
-    llm: &'llm (dyn LLM),
+    llm: Arc<dyn LLM>,
 
     /// Memory associated with the LLMChain. It can be used to persist
     /// state or data across different executions of the chain.
@@ -45,10 +46,10 @@ impl<'llm> LLMChain<'llm> {
     /// let prompt = "Hello, LLM!";
     /// let chain = LLMChain::new(&client, prompt);
     /// ```
-    pub fn new(llm: &'llm impl LLM, prompt: &str) -> LLMChain<'llm> {
+    pub fn new<T: LLM + 'static>(llm: T, prompt: &str) -> LLMChain<'llm> {
         LLMChain {
             name: uuid::Uuid::new_v4().to_string(),
-            llm,
+            llm: llm.into_arc(),
             prompt: TemplateEngine::new(prompt),
             memory: None,
             context: HashMap::new(),
@@ -172,7 +173,7 @@ mod test {
             {{/user}}
             {{/chat}}
             "#;
-        let mut chain = LLMChain::new(&client, prompt);
+        let mut chain = LLMChain::new(client, prompt);
         chain.load_context(&DataOne {
             country1: "France".to_string(),
             country2: "Germany".to_string(),
@@ -200,7 +201,7 @@ mod test {
             {{/chat}}
             "#;
 
-        let mut chain = LLMChain::new(&client, prompt);
+        let mut chain = LLMChain::new(client, prompt);
 
         chain.load_record("story", record);
         let res = chain.execute().await.unwrap().content();
@@ -212,7 +213,7 @@ mod test {
         let client = OpenAIClient::new();
 
         let prompt = "{{#chat}}{{#user}}My name is Orca{{/user}}{{/chat}}";
-        let mut chain = LLMChain::new(&client, prompt).with_memory(memory::ChatBuffer::new());
+        let mut chain = LLMChain::new(client, prompt).with_memory(memory::ChatBuffer::new());
         chain.execute().await.unwrap();
         let mut chain = chain.with_prompt(template!("{{#chat}}{{#user}}What is my name?{{/user}}{{/chat}}"));
         let res = chain.execute().await.unwrap().content();

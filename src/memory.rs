@@ -4,7 +4,7 @@ use crate::prompt::Prompt;
 use anyhow::Result;
 use std::fmt::{Display, Formatter};
 
-pub trait Memory: MemoryClone {
+pub trait Memory: MemoryClone + Send + Sync {
     /// Get the memory of the Memory Buffer.
     fn memory(&mut self) -> &mut dyn Prompt;
 
