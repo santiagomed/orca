@@ -8,14 +8,12 @@ use anyhow::Result;
 use serde::Serialize;
 use std::collections::HashMap;
 
-/// Provides an interface for executing and managing chains in an LLM (Large Language Model) setting.
-#[async_trait::async_trait(?Send)]
 pub trait Chain: Send + Sync {
     /// Executes a given chain and produces an LLM response.
     ///
     /// # Returns
     /// - A `Result` containing a `ChainResult` if successful or an error otherwise.
-    async fn execute(&mut self) -> Result<ChainResult>;
+    fn execute(&mut self) -> Result<ChainResult>;
 
     /// Sets the context for the current chain execution using a given data structure.
     ///

@@ -46,14 +46,14 @@ pub fn format_prompt_as_user(prompt: &mut str) -> String {
 
 #[async_trait::async_trait(?Send)]
 impl<'llm> Chain for SequentialChain<'llm> {
-    async fn execute(&mut self) -> Result<ChainResult> {
+    fn execute(&mut self) -> Result<ChainResult> {
         let mut response = String::new();
         let mut result: ChainResult = ChainResult::new(self.name.to_string()); // initialize result to a default value
         for chain in &mut self.chains {
             if !response.is_empty() {
                 chain.prompt.add_to_template(&format_prompt_as_user(&mut response));
             }
-            result = chain.execute().await?;
+            result = chain.execute()?;
             response = result.content();
         }
         Ok(result)
@@ -100,7 +100,7 @@ mod test {
         chain.load_context(&Data {
             play: "Hamlet".to_string(),
         });
-        let res = chain.execute().await;
+        let res = chain.execute();
         assert!(res.is_ok());
     }
 }

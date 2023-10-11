@@ -1,3 +1,5 @@
+#![cfg(feature = "openai")]
+
 use super::request::RequestMessages;
 use crate::{
     llm::LLM,
@@ -107,12 +109,11 @@ impl OpenAIClient {
     }
 }
 
-#[async_trait::async_trait(?Send)]
 impl LLM for OpenAIClient {
-    async fn generate(&self, prompt: Box<dyn Prompt>) -> Result<LLMResponse> {
+    fn generate(&self, prompt: Box<dyn Prompt>) -> Result<LLMResponse> {
         let messages = prompt.to_chat()?;
         let req = self.generate_request(&messages)?;
-        let res = self.client.chat().create(req).await?;
+        let res = self.client.chat().create(req);
         Ok(res.into())
     }
 }
@@ -146,7 +147,7 @@ mod test {
             "#
         );
         let prompt = prompt.render_context(&context).unwrap().to_chat().unwrap();
-        let response = client.generate(Box::new(prompt)).await.unwrap();
+        let response = client.generate(Box::new(prompt)).unwrap();
         assert!(response.to_string().to_lowercase().contains("berlin"));
     }
 }

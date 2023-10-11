@@ -1,5 +1,6 @@
 pub mod bert;
 pub mod openai;
+pub mod quantized_llama;
 pub mod request;
 
 use std::fmt::Display;
@@ -13,7 +14,6 @@ use crate::prompt::Prompt;
 /// Generate with context trait is used to execute an LLM using a context and a prompt template.
 /// The context is a previously created context using the Context struct. The prompt template
 /// is a previously created prompt template using the template! macro.
-#[async_trait::async_trait(?Send)]
 pub trait LLM: Sync + Send {
     /// Generate a response from an LLM using a context and a prompt template.
     /// # Arguments
@@ -45,7 +45,7 @@ pub trait LLM: Sync + Send {
     ///    assert!(response.to_string().to_lowercase().contains("paris"));
     /// }
     /// ```
-    async fn generate(&self, prompt: Box<dyn Prompt>) -> Result<LLMResponse>;
+    fn generate(&self, prompt: Box<dyn Prompt>) -> Result<LLMResponse>;
 }
 
 #[derive(Debug)]

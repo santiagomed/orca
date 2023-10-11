@@ -103,16 +103,15 @@ impl<'llm> LLMChain<'llm> {
     }
 }
 
-#[async_trait::async_trait(?Send)]
 impl<'llm> Chain for LLMChain<'llm> {
-    async fn execute(&mut self) -> Result<ChainResult> {
+    fn execute(&mut self) -> Result<ChainResult> {
         let prompt = self.prompt.render_context(&self.context)?;
         let response = if let Some(memory) = &mut self.memory {
             let mem = memory.memory();
             mem.save(prompt)?;
-            self.llm.generate(mem.clone_prompt()).await?
+            self.llm.generate(mem.clone_prompt())?
         } else {
-            self.llm.generate(prompt.clone_prompt()).await?
+            self.llm.generate(prompt.clone_prompt())?
         };
         Ok(ChainResult::new(self.name.clone()).with_llm_response(response))
     }
@@ -157,8 +156,7 @@ mod test {
         story: String,
     }
 
-    #[tokio::test]
-    async fn test_generate() {
+    fn test_generate() {
         let client = Arc::new(OpenAIClient::new());
         let prompt = r#"
             {{#chat}}
@@ -178,7 +176,7 @@ mod test {
             country1: "France".to_string(),
             country2: "Germany".to_string(),
         });
-        let res = chain.execute().await.unwrap().content();
+        let res = chain.execute().unwrap().content();
 
         assert!(res.contains("Berlin") || res.contains("berlin"));
     }
@@ -204,19 +202,18 @@ mod test {
         let mut chain = LLMChain::new(client, prompt);
 
         chain.load_record("story", record);
-        let res = chain.execute().await.unwrap().content();
+        let res = chain.execute().unwrap().content();
         assert!(res.contains("elephant") || res.contains("burma"));
     }
 
-    #[tokio::test]
-    async fn test_generate_with_memory() {
+    fn test_generate_with_memory() {
         let client = Arc::new(OpenAIClient::new());
 
         let prompt = "{{#chat}}{{#user}}My name is Orca{{/user}}{{/chat}}";
         let mut chain = LLMChain::new(client, prompt).with_memory(memory::ChatBuffer::new());
-        chain.execute().await.unwrap();
+        chain.execute().unwrap();
         let mut chain = chain.with_prompt(template!("{{#chat}}{{#user}}What is my name?{{/user}}{{/chat}}"));
-        let res = chain.execute().await.unwrap().content();
+        let res = chain.execute().unwrap().content();
 
         assert!(res.to_lowercase().contains("orca"));
     }

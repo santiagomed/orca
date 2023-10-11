@@ -148,9 +148,8 @@ impl Bert {
     }
 }
 
-#[async_trait::async_trait(?Send)]
 impl LLM for Bert {
-    async fn generate(&self, prompt: Box<dyn Prompt>) -> Result<LLMResponse> {
+    fn generate(&self, prompt: Box<dyn Prompt>) -> Result<LLMResponse> {
         use tracing_chrome::ChromeLayerBuilder;
         use tracing_subscriber::prelude::*;
 
@@ -164,7 +163,7 @@ impl LLM for Bert {
         };
 
         let cloned = self.clone();
-        let (model, mut tokenizer) = tokio::task::spawn_blocking(move || cloned.build_model_and_tokenizer()).await??;
+        let (model, mut tokenizer) = cloned.build_model_and_tokenizer()?;
         let model = Arc::new(model);
         let device = &model.device;
         let prompt = prompt.to_string()?;
@@ -178,7 +177,7 @@ impl LLM for Bert {
             let model = model.clone();
             let token_ids = token_ids.clone();
             let token_type_ids = token_type_ids.clone();
-            let ys = tokio::task::spawn_blocking(move || model.forward(&token_ids, &token_type_ids)).await??;
+            let ys = model.forward(&token_ids, &token_type_ids)?;
             out_tensors.push(ys);
             println!("Took {:?}", start.elapsed());
         }
@@ -194,7 +193,7 @@ mod test {
     #[tokio::test]
     async fn test_generate() {
         let bert = Bert::new();
-        let response = bert.generate(prompt!("Hello, world")).await;
+        let response = bert.generate(prompt!("Hello, world"));
         assert!(response.is_ok());
     }
 }
