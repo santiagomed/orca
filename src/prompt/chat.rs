@@ -1,33 +1,35 @@
-use async_openai::types::Role as R;
 use handlebars::{Context, Handlebars as Registry, Helper, HelperDef, HelperResult, Output, RenderContext, Renderable};
 use serde::{Deserialize, Serialize};
 
 use std::fmt::{self, Display, Formatter};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct Role(pub R);
+#[serde(rename_all = "lowercase")]
+pub enum Role {
+    System,
+    User,
+    Assistant,
+}
 
 pub type ChatPrompt = Vec<Message>;
 
 impl From<&str> for Role {
     fn from(role: &str) -> Self {
         match role {
-            "system" => Role(R::System),
-            "user" => Role(R::User),
-            "assistant" => Role(R::Assistant),
-            "function" => Role(R::Function),
-            _ => Role(R::System),
+            "system" => Role::System,
+            "user" => Role::User,
+            "assistant" => Role::Assistant,
+            _ => Role::System,
         }
     }
 }
 
 impl Display for Role {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match self.0 {
-            R::System => write!(f, "system"),
-            R::User => write!(f, "user"),
-            R::Assistant => write!(f, "assistant"),
-            R::Function => write!(f, "function"),
+        match self {
+            Role::System => write!(f, "system"),
+            Role::User => write!(f, "user"),
+            Role::Assistant => write!(f, "assistant"),
         }
     }
 }

@@ -1,12 +1,11 @@
 pub mod bert;
 pub mod openai;
-pub mod quantized_llama;
+pub mod quantized;
 pub mod request;
 
 use std::fmt::Display;
 
 use anyhow::Result;
-use async_openai::types::CreateChatCompletionResponse;
 use candle_core::{Device, Result as CandleResult, Tensor};
 
 use crate::prompt::Prompt;
@@ -14,6 +13,7 @@ use crate::prompt::Prompt;
 /// Generate with context trait is used to execute an LLM using a context and a prompt template.
 /// The context is a previously created context using the Context struct. The prompt template
 /// is a previously created prompt template using the template! macro.
+#[async_trait::async_trait]
 pub trait LLM: Sync + Send {
     /// Generate a response from an LLM using a context and a prompt template.
     /// # Arguments
@@ -25,7 +25,7 @@ pub trait LLM: Sync + Send {
     /// use orca::llm::LLM;
     /// use orca::prompt::Prompt;
     /// use orca::template;
-    /// use orca::llm::openai::OpenAIClient;
+    /// use orca::llm::openai::OpenAI;
     /// use orca::prompt::TemplateEngine;
     ///
     /// #[tokio::main]
@@ -39,19 +39,19 @@ pub trait LLM: Sync + Send {
     ///       {{/chat}}
     ///       "#
     ///    );
-    ///    let client = OpenAIClient::new();
+    ///    let client = OpenAI::new();
     ///    let prompt = prompt.render().unwrap();
     ///    let response = client.generate(prompt).await.unwrap();
     ///    assert!(response.to_string().to_lowercase().contains("paris"));
     /// }
     /// ```
-    fn generate(&self, prompt: Box<dyn Prompt>) -> Result<LLMResponse>;
+    async fn generate(&self, prompt: Box<dyn Prompt>) -> Result<LLMResponse>;
 }
 
 #[derive(Debug)]
 pub enum LLMResponse {
     /// OpenAI response
-    OpenAI(CreateChatCompletionResponse),
+    OpenAI(openai::Response),
 
     /// Bert response
     Bert(Vec<Tensor>),
@@ -61,9 +61,9 @@ pub enum LLMResponse {
     Empty,
 }
 
-impl From<CreateChatCompletionResponse> for LLMResponse {
+impl From<openai::Response> for LLMResponse {
     /// Convert an OpenAI response to an LLMResponse
-    fn from(response: CreateChatCompletionResponse) -> Self {
+    fn from(response: openai::Response) -> Self {
         LLMResponse::OpenAI(response)
     }
 }
@@ -72,7 +72,7 @@ impl LLMResponse {
     /// Get the role of the response from an LLMResponse, if supported by the LLM.
     pub fn get_role(&self) -> String {
         match self {
-            LLMResponse::OpenAI(response) => response.choices[0].message.role.to_string(),
+            LLMResponse::OpenAI(response) => response.to_string(),
             LLMResponse::Bert(_) => "ai".to_string(),
             LLMResponse::Empty => "".to_string(),
         }
@@ -84,7 +84,7 @@ impl Display for LLMResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             LLMResponse::OpenAI(response) => {
-                write!(f, "{}", response.choices[0].message.content.as_ref().unwrap())
+                write!(f, "{}", response.to_string())
             }
             LLMResponse::Bert(response) => {
                 write!(
@@ -129,5 +129,90 @@ pub fn device(cpu: bool) -> CandleResult<Device> {
             println!("Running on CPU, to run on GPU, specify it using the llm.with_gpu() method.");
         }
         Ok(device)
+    }
+}
+
+/// This is a wrapper around a tokenizer to ensure that tokens can be returned to the user in a
+/// streaming way rather than having to wait for the full decoding.
+pub struct TokenOutputStream {
+    tokenizer: tokenizers::Tokenizer,
+    tokens: Vec<u32>,
+    prev_index: usize,
+    current_index: usize,
+}
+
+impl TokenOutputStream {
+    pub fn new(tokenizer: tokenizers::Tokenizer) -> Self {
+        Self {
+            tokenizer,
+            tokens: Vec::new(),
+            prev_index: 0,
+            current_index: 0,
+        }
+    }
+
+    pub fn into_inner(self) -> tokenizers::Tokenizer {
+        self.tokenizer
+    }
+
+    fn decode(&self, tokens: &[u32]) -> candle_core::Result<String> {
+        match self.tokenizer.decode(tokens, true) {
+            Ok(str) => Ok(str),
+            Err(err) => candle_core::bail!("cannot decode: {err}"),
+        }
+    }
+
+    // https://github.com/huggingface/text-generation-inference/blob/5ba53d44a18983a4de32d122f4cb46f4a17d9ef6/server/text_generation_server/models/model.py#L68
+    pub fn next_token(&mut self, token: u32) -> candle_core::Result<Option<String>> {
+        let prev_text = if self.tokens.is_empty() {
+            String::new()
+        } else {
+            let tokens = &self.tokens[self.prev_index..self.current_index];
+            self.decode(tokens)?
+        };
+        self.tokens.push(token);
+        let text = self.decode(&self.tokens[self.prev_index..])?;
+        if text.len() > prev_text.len() && text.chars().last().unwrap().is_ascii() {
+            let text = text.split_at(prev_text.len());
+            self.prev_index = self.current_index;
+            self.current_index = self.tokens.len();
+            Ok(Some(text.1.to_string()))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn decode_rest(&self) -> Result<Option<String>> {
+        let prev_text = if self.tokens.is_empty() {
+            String::new()
+        } else {
+            let tokens = &self.tokens[self.prev_index..self.current_index];
+            self.decode(tokens)?
+        };
+        let text = self.decode(&self.tokens[self.prev_index..])?;
+        if text.len() > prev_text.len() {
+            let text = text.split_at(prev_text.len());
+            Ok(Some(text.1.to_string()))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn decode_all(&self) -> candle_core::Result<String> {
+        self.decode(&self.tokens)
+    }
+
+    pub fn get_token(&self, token_s: &str) -> Option<u32> {
+        self.tokenizer.get_vocab(true).get(token_s).copied()
+    }
+
+    pub fn tokenizer(&self) -> &tokenizers::Tokenizer {
+        &self.tokenizer
+    }
+
+    pub fn clear(&mut self) {
+        self.tokens.clear();
+        self.prev_index = 0;
+        self.current_index = 0;
     }
 }

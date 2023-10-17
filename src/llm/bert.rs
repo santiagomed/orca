@@ -148,8 +148,9 @@ impl Bert {
     }
 }
 
+#[async_trait::async_trait]
 impl LLM for Bert {
-    fn generate(&self, prompt: Box<dyn Prompt>) -> Result<LLMResponse> {
+    async fn generate(&self, prompt: Box<dyn Prompt>) -> Result<LLMResponse> {
         use tracing_chrome::ChromeLayerBuilder;
         use tracing_subscriber::prelude::*;
 
@@ -193,7 +194,7 @@ mod test {
     #[tokio::test]
     async fn test_generate() {
         let bert = Bert::new();
-        let response = bert.generate(prompt!("Hello, world"));
+        let response = bert.generate(prompt!("Hello, world")).await;
         assert!(response.is_ok());
     }
 }

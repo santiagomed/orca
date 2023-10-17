@@ -130,9 +130,16 @@ impl<'p> TemplateEngine<'p> {
         T: Serialize,
     {
         let rendered = self.handlebars.render_template(&self.template, &data)?;
+        println!("{}", rendered);
         match serde_json::from_str::<ChatPrompt>(&rendered) {
-            Ok(chat) => Ok(Box::new(chat)),
-            Err(_) => Ok(Box::new(rendered)),
+            Ok(chat) => {
+                log::info!("Parsed as chat: {:?}", chat);
+                Ok(Box::new(chat))
+            }
+            Err(e) => {
+                log::info!("Parsed as string: {:?}", e);
+                Ok(Box::new(rendered))
+            }
         }
     }
 
@@ -183,7 +190,7 @@ impl<'p> Clone for TemplateEngine<'p> {
 /// A trait representing a prompt for a Large Language Model.
 ///
 /// The `Prompt` trait provides methods to transform, clone, save, and represent prompts in various formats.
-pub trait Prompt {
+pub trait Prompt: Sync + Send {
     /// Save the data from another `Prompt` into the current one.
     ///
     /// # Arguments
@@ -255,7 +262,7 @@ impl Prompt for ChatPrompt {
     }
 
     fn to_string(&self) -> Result<String> {
-        Ok(serde_json::to_string(self)?)
+        Err(anyhow::anyhow!("Unable to convert ChatPrompt to String"))
     }
 
     fn as_str(&self) -> Result<&str> {
@@ -321,7 +328,6 @@ macro_rules! template {
 mod test {
 
     use crate::prompt::chat::{Message, Role};
-    use async_openai::types::Role as R;
     use std::collections::HashMap;
 
     use super::*;
@@ -358,12 +364,9 @@ mod test {
         assert_eq!(
             prompt.to_chat().unwrap(),
             vec![
-                Message::new(
-                    Role(R::System),
-                    "You are NOT a master at math. You know nothing about it."
-                ),
-                Message::new(Role(R::User), "What is your favorite aspect of math?"),
-                Message::new(Role(R::Assistant), "I don't know anything about math."),
+                Message::new(Role::System, "You are NOT a master at math. You know nothing about it."),
+                Message::new(Role::User, "What is your favorite aspect of math?"),
+                Message::new(Role::Assistant, "I don't know anything about math."),
             ]
         );
     }
@@ -392,7 +395,7 @@ mod test {
         let prompt = prompt_template.render_context(&data).unwrap();
         assert_eq!(
             prompt.to_chat().unwrap(),
-            vec![Message::new(Role(R::Assistant), "My name is gpt and I am 5 years old.")]
+            vec![Message::new(Role::Assistant, "My name is gpt and I am 5 years old.")]
         );
     }
 }

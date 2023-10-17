@@ -1,20 +1,72 @@
-#![cfg(feature = "openai")]
+use std::fmt::Display;
 
-use super::request::RequestMessages;
 use crate::{
     llm::LLM,
     prompt::{chat::Message, Prompt},
 };
 use anyhow::Result;
-pub use async_openai::config::{Config, OpenAIConfig};
-use async_openai::types::{CreateChatCompletionRequest, CreateChatCompletionRequestArgs};
+use reqwest::Client;
+use serde::{Deserialize, Serialize};
 
 use super::LLMResponse;
 
-pub struct OpenAIClient {
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Payload {
+    model: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    prompt: Option<String>,
+    max_tokens: i32,
+    temperature: f32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    stop: Option<Vec<String>>,
+    messages: Vec<Message>,
+    stream: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Response {
+    id: String,
+    object: String,
+    created: i32,
+    model: String,
+    usage: Usage,
+    choices: Vec<Choice>,
+}
+
+impl Display for Response {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = String::new();
+        for choice in &self.choices {
+            s.push_str(&choice.message.content);
+        }
+        write!(f, "{}", s)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Usage {
+    prompt_tokens: i32,
+    completion_tokens: i32,
+    total_tokens: i32,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Choice {
+    index: i32,
+    message: Message,
+    finish_reason: String,
+}
+
+static OPENAI_COMPLETIONS_URL: &str = "https://api.openai.com/v1/chat/completions";
+
+pub struct OpenAI {
     /// Client member for the OpenAI API. This client is a wrapper around the async-openai crate, with additional functionality to
     /// support LLM orchestration.
-    client: async_openai::Client<OpenAIConfig>,
+    client: Client,
+
+    url: String,
+
+    api_key: String,
 
     /// ID of the model to use.
     /// See the [model endpoint compatibility](https://platform.openai.com/docs/models/model-endpoint-compatibility) table for details on which models work with the Chat API.
@@ -44,10 +96,12 @@ pub struct OpenAIClient {
     max_tokens: u16,
 }
 
-impl Default for OpenAIClient {
+impl Default for OpenAI {
     fn default() -> Self {
         Self {
-            client: async_openai::Client::new(),
+            client: Client::new(),
+            url: OPENAI_COMPLETIONS_URL.to_string(),
+            api_key: std::env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY not set"),
             model: "gpt-3.5-turbo".to_string(),
             temperature: 1.0,
             top_p: 1.0,
@@ -57,7 +111,7 @@ impl Default for OpenAIClient {
     }
 }
 
-impl OpenAIClient {
+impl OpenAI {
     /// Create a new OpenAI client
     pub fn new() -> Self {
         Self::default()
@@ -97,23 +151,33 @@ impl OpenAIClient {
     }
 
     /// Generate a request for the OpenAI API and set the parameters
-    pub fn generate_request(&self, messages: &[Message]) -> Result<CreateChatCompletionRequest> {
-        Ok(CreateChatCompletionRequestArgs::default()
-            .model(self.model.clone())
-            .max_tokens(self.max_tokens)
-            .temperature(self.temperature)
-            .top_p(self.top_p)
-            .stream(self.stream)
-            .messages(RequestMessages::from(messages.to_owned()))
-            .build()?)
+    pub fn generate_request(&self, messages: &[Message]) -> Result<reqwest::Request> {
+        let payload = Payload {
+            model: self.model.clone(),
+            prompt: None,
+            max_tokens: self.max_tokens as i32,
+            temperature: self.temperature,
+            stop: None,
+            messages: messages.to_vec(),
+            stream: self.stream,
+        };
+        let req = self
+            .client
+            .post(&self.url)
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .json(&payload)
+            .build()?;
+        Ok(req)
     }
 }
 
-impl LLM for OpenAIClient {
-    fn generate(&self, prompt: Box<dyn Prompt>) -> Result<LLMResponse> {
+#[async_trait::async_trait]
+impl LLM for OpenAI {
+    async fn generate(&self, prompt: Box<dyn Prompt>) -> Result<LLMResponse> {
         let messages = prompt.to_chat()?;
         let req = self.generate_request(&messages)?;
-        let res = self.client.chat().create(req);
+        let res = self.client.execute(req).await?;
+        let res = res.json::<Response>().await?;
         Ok(res.into())
     }
 }
@@ -127,7 +191,7 @@ mod test {
 
     #[tokio::test]
     async fn test_generate() {
-        let client = OpenAIClient::new();
+        let client = OpenAI::new();
         let mut context = HashMap::new();
         context.insert("country1", "France");
         context.insert("country2", "Germany");
@@ -146,8 +210,8 @@ mod test {
             {{/chat}}
             "#
         );
-        let prompt = prompt.render_context(&context).unwrap().to_chat().unwrap();
-        let response = client.generate(Box::new(prompt)).unwrap();
+        let prompt = prompt.render_context(&context).unwrap();
+        let response = client.generate(prompt).await.unwrap();
         assert!(response.to_string().to_lowercase().contains("berlin"));
     }
 }

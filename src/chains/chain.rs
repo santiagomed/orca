@@ -37,12 +37,12 @@ impl<'llm> LLMChain<'llm> {
     ///
     /// # Examples
     /// ```rust
-    /// use orca::llm::openai::OpenAIClient;
+    /// use orca::llm::openai::OpenAI;
     /// use orca::llm::LLM;
     /// use orca::prompt::TemplateEngine;
     /// use orca::chains::chain::LLMChain;
     ///
-    /// let client = OpenAIClient::new();
+    /// let client = OpenAI::new();
     /// let prompt = "Hello, LLM!";
     /// let chain = LLMChain::new(&client, prompt);
     /// ```
@@ -62,13 +62,13 @@ impl<'llm> LLMChain<'llm> {
     ///
     /// # Examples
     /// ```rust
-    /// use orca::llm::openai::OpenAIClient;
+    /// use orca::llm::openai::OpenAI;
     /// use orca::llm::LLM;
     /// use orca::prompt::TemplateEngine;
     /// use orca::chains::chain::LLMChain;
     /// use orca::template;
     ///
-    /// let client = OpenAIClient::new();
+    /// let client = OpenAI::new();
     /// let prompt = "Hello, LLM!";
     /// let mut chain = LLMChain::new(&client, prompt);
     /// let new_prompt = "Hello, LLM! How are you?";
@@ -85,13 +85,13 @@ impl<'llm> LLMChain<'llm> {
     ///
     /// # Examples
     /// ```rust
-    /// use orca::llm::openai::OpenAIClient;
+    /// use orca::llm::openai::OpenAI;
     /// use orca::llm::LLM;
     /// use orca::prompt::TemplateEngine;
     /// use orca::chains::chain::LLMChain;
     /// use orca::memory::ChatBuffer;
     ///
-    /// let client = OpenAIClient::new();
+    /// let client = OpenAI::new();
     /// let prompt = "Hello, LLM!";
     /// let mut chain = LLMChain::new(&client, prompt);
     /// let memory = ChatBuffer::new();
@@ -103,15 +103,16 @@ impl<'llm> LLMChain<'llm> {
     }
 }
 
+#[async_trait::async_trait]
 impl<'llm> Chain for LLMChain<'llm> {
-    fn execute(&mut self) -> Result<ChainResult> {
+    async fn execute(&mut self) -> Result<ChainResult> {
         let prompt = self.prompt.render_context(&self.context)?;
         let response = if let Some(memory) = &mut self.memory {
             let mem = memory.memory();
             mem.save(prompt)?;
-            self.llm.generate(mem.clone_prompt())?
+            self.llm.generate(mem.clone_prompt()).await?
         } else {
-            self.llm.generate(prompt.clone_prompt())?
+            self.llm.generate(prompt.clone_prompt()).await?
         };
         Ok(ChainResult::new(self.name.clone()).with_llm_response(response))
     }
@@ -138,7 +139,7 @@ mod test {
 
     use super::*;
     use crate::{
-        llm::openai::OpenAIClient,
+        llm::openai::OpenAI,
         memory,
         record::{self, Spin},
         template,
@@ -156,8 +157,9 @@ mod test {
         story: String,
     }
 
-    fn test_generate() {
-        let client = Arc::new(OpenAIClient::new());
+    #[tokio::test]
+    async fn test_generate() {
+        let client = Arc::new(OpenAI::new());
         let prompt = r#"
             {{#chat}}
             {{#user}}
@@ -176,14 +178,14 @@ mod test {
             country1: "France".to_string(),
             country2: "Germany".to_string(),
         });
-        let res = chain.execute().unwrap().content();
+        let res = chain.execute().await.unwrap().content();
 
         assert!(res.contains("Berlin") || res.contains("berlin"));
     }
 
     #[tokio::test]
     async fn test_generate_with_record() {
-        let client = Arc::new(OpenAIClient::new().with_model("gpt-3.5-turbo-16k"));
+        let client = Arc::new(OpenAI::new().with_model("gpt-3.5-turbo-16k"));
         let record = record::html::HTML::from_url("https://www.orwellfoundation.com/the-orwell-foundation/orwell/essays-and-other-works/shooting-an-elephant/")
             .await
             .unwrap()
@@ -202,18 +204,19 @@ mod test {
         let mut chain = LLMChain::new(client, prompt);
 
         chain.load_record("story", record);
-        let res = chain.execute().unwrap().content();
+        let res = chain.execute().await.unwrap().content();
         assert!(res.contains("elephant") || res.contains("burma"));
     }
 
-    fn test_generate_with_memory() {
-        let client = Arc::new(OpenAIClient::new());
+    #[tokio::test]
+    async fn test_generate_with_memory() {
+        let client = Arc::new(OpenAI::new());
 
         let prompt = "{{#chat}}{{#user}}My name is Orca{{/user}}{{/chat}}";
         let mut chain = LLMChain::new(client, prompt).with_memory(memory::ChatBuffer::new());
-        chain.execute().unwrap();
+        chain.execute().await.unwrap();
         let mut chain = chain.with_prompt(template!("{{#chat}}{{#user}}What is my name?{{/user}}{{/chat}}"));
-        let res = chain.execute().unwrap().content();
+        let res = chain.execute().await.unwrap().content();
 
         assert!(res.to_lowercase().contains("orca"));
     }

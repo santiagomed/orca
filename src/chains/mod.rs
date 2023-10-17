@@ -8,12 +8,13 @@ use anyhow::Result;
 use serde::Serialize;
 use std::collections::HashMap;
 
+#[async_trait::async_trait]
 pub trait Chain: Send + Sync {
     /// Executes a given chain and produces an LLM response.
     ///
     /// # Returns
     /// - A `Result` containing a `ChainResult` if successful or an error otherwise.
-    fn execute(&mut self) -> Result<ChainResult>;
+    async fn execute(&mut self) -> Result<ChainResult>;
 
     /// Sets the context for the current chain execution using a given data structure.
     ///
@@ -25,11 +26,11 @@ pub trait Chain: Send + Sync {
     ///
     /// ```
     /// use orca::chains::Chain;
-    /// use orca::llm::openai::OpenAIClient;
+    /// use orca::llm::openai::OpenAI;
     /// use orca::chains::chain::LLMChain;
     /// use std::collections::HashMap;
     ///
-    /// let client = OpenAIClient::new();
+    /// let client = OpenAI::new();
     /// let mut chain = LLMChain::new(&client, "Hello, {name}!");
     /// let mut data = HashMap::new();
     /// data.insert("name", "LLM");

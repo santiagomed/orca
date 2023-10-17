@@ -51,7 +51,7 @@ use orca::chains::chain::LLMChain;
 use orca::chains::Chain;
 use orca::templates;
 use orca::template::TemplateEngine;
-use orca::llm::openai::OpenAIClient;
+use orca::llm::openai::OpenAI;
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -62,7 +62,7 @@ pub struct Data {
 
 #[tokio::main]
 async fn main() {
-        let client = OpenAIClient::new();
+        let client = OpenAI::new();
         let prompt = r#"
             {{#chat}}
             {{#user}}

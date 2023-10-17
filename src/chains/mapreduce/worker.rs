@@ -17,7 +17,7 @@ impl Worker {
 
     pub fn spawn(self) {
         let chain = self.chain.clone();
-        thread::spawn(async move {
+        tokio::spawn(async move {
             for task in self.receiver.iter() {
                 match task {
                     Task::Map {
@@ -27,12 +27,12 @@ impl Worker {
                     } => {
                         let mut locked_chain = chain.lock().unwrap();
                         locked_chain.load_record(&record_name, record);
-                        let chain_result = locked_chain.execute();
+                        let chain_result = locked_chain.execute().await;
                     }
                     Task::Reduce { prompt, data } => {
                         // TODO: Execute the reduce function using data
                         let mut locked_chain = chain.lock().unwrap();
-                        let chain_result = locked_chain.execute();
+                        let chain_result = locked_chain.execute().await;
                     }
                 }
             }

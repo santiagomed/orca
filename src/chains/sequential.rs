@@ -44,16 +44,16 @@ pub fn format_prompt_as_user(prompt: &mut str) -> String {
     format!("{{{{#user}}}}{}{{{{/user}}}}", clean_prompt(prompt, true))
 }
 
-#[async_trait::async_trait(?Send)]
+#[async_trait::async_trait]
 impl<'llm> Chain for SequentialChain<'llm> {
-    fn execute(&mut self) -> Result<ChainResult> {
+    async fn execute(&mut self) -> Result<ChainResult> {
         let mut response = String::new();
         let mut result: ChainResult = ChainResult::new(self.name.to_string()); // initialize result to a default value
         for chain in &mut self.chains {
             if !response.is_empty() {
                 chain.prompt.add_to_template(&format_prompt_as_user(&mut response));
             }
-            result = chain.execute()?;
+            result = chain.execute().await?;
             response = result.content();
         }
         Ok(result)
@@ -79,7 +79,7 @@ mod test {
     use std::sync::Arc;
 
     use super::*;
-    use crate::llm::openai::OpenAIClient;
+    use crate::llm::openai::OpenAI;
     use serde::Serialize;
 
     #[derive(Serialize)]
@@ -89,7 +89,7 @@ mod test {
 
     #[tokio::test]
     async fn test_generate() {
-        let client = Arc::new(OpenAIClient::new());
+        let client = Arc::new(OpenAI::new());
 
         let first = "{{#chat}}{{#user}}Give me a summary of {{play}}'s plot.{{/user}}{{/chat}}";
         let second = "{{#chat}}{{#system}}You are a professional critic. When given a summary of a play, you must write a review of it. Here is a summary of {{play}}'s plot:{{/system}}{{/chat}}";
@@ -100,7 +100,7 @@ mod test {
         chain.load_context(&Data {
             play: "Hamlet".to_string(),
         });
-        let res = chain.execute();
+        let res = chain.execute().await;
         assert!(res.is_ok());
     }
 }
