@@ -9,7 +9,7 @@ use serde::Serialize;
 use std::collections::HashMap;
 
 #[async_trait::async_trait]
-pub trait Chain: Send + Sync {
+pub trait Chain: Sync + Send {
     /// Executes a given chain and produces an LLM response.
     ///
     /// # Returns

@@ -1,9 +1,8 @@
 use super::task::Task;
 use crate::chains::Chain;
-use crate::record::Record;
-use std::sync::mpsc::Receiver;
-use std::sync::{Arc, Mutex};
-use std::thread;
+use std::sync::Arc;
+use tokio::sync::mpsc::Receiver;
+use tokio::sync::Mutex;
 
 pub struct Worker {
     receiver: Receiver<Task>,
@@ -18,20 +17,21 @@ impl Worker {
     pub fn spawn(self) {
         let chain = self.chain.clone();
         tokio::spawn(async move {
-            for task in self.receiver.iter() {
+            let mut receiver = self.receiver;
+            while let Some(task) = receiver.recv().await {
                 match task {
                     Task::Map {
                         prompt,
                         record_name,
                         record,
                     } => {
-                        let mut locked_chain = chain.lock().unwrap();
+                        let mut locked_chain = chain.lock().await;
                         locked_chain.load_record(&record_name, record);
                         let chain_result = locked_chain.execute().await;
                     }
                     Task::Reduce { prompt, data } => {
                         // TODO: Execute the reduce function using data
-                        let mut locked_chain = chain.lock().unwrap();
+                        let mut locked_chain = chain.lock().await;
                         let chain_result = locked_chain.execute().await;
                     }
                 }

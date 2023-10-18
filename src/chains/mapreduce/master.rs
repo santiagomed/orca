@@ -1,10 +1,10 @@
 use super::task::Task;
 use super::worker::Worker;
-use crate::chains::{chain::LLMChain, Chain};
-use crate::record::Record;
-use std::sync::{
+use crate::chains::Chain;
+use std::sync::Arc;
+use tokio::sync::{
     mpsc::{channel, Sender},
-    Arc, Mutex,
+    Mutex,
 };
 
 pub struct Master {
@@ -12,20 +12,21 @@ pub struct Master {
 }
 
 impl Master {
-    pub fn new<'llm, C>(worker_count: usize, record: Record, chain: Arc<Mutex<dyn Chain>>, prompt: &str) -> Self {
-        let mut worker_channels = Vec::with_capacity(worker_count);
-
-        for _ in 0..worker_count {
-            let (tx, rx) = channel();
-            worker_channels.push(tx);
-            Worker::new(rx, chain.clone()).spawn();
-        }
-
+    pub fn new<'llm, C>() -> Self {
+        let worker_channels = Vec::new();
         Master { worker_channels }
     }
 
-    pub fn assign_task(&self, task: Task, record: Record) {
+    pub fn init_worker(mut self, chain: Arc<Mutex<dyn Chain>>) -> Self {
+        let (tx, rx) = channel::<Task>(100);
+        self.worker_channels.push(tx);
+        let worker = Worker::new(rx, chain);
+        worker.spawn();
+        self
+    }
+
+    pub async fn assign_task(&self, task: Task) {
         let worker_id = task.get_id() % self.worker_channels.len();
-        self.worker_channels[worker_id].send(task).unwrap();
+        self.worker_channels[worker_id].send(task).await.unwrap();
     }
 }
