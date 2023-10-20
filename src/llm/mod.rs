@@ -56,6 +56,9 @@ pub enum LLMResponse {
     /// Bert response
     Bert(Vec<Tensor>),
 
+    /// Quantized model response
+    Quantized(String),
+
     /// Empty response; usually used to initialize a chain result when
     /// no response is available.
     Empty,
@@ -73,6 +76,7 @@ impl LLMResponse {
     pub fn get_role(&self) -> String {
         match self {
             LLMResponse::OpenAI(response) => response.to_string(),
+            LLMResponse::Quantized(_) => "ai".to_string(),
             LLMResponse::Bert(_) => "ai".to_string(),
             LLMResponse::Empty => "".to_string(),
         }
@@ -85,6 +89,9 @@ impl Display for LLMResponse {
         match self {
             LLMResponse::OpenAI(response) => {
                 write!(f, "{}", response.to_string())
+            }
+            LLMResponse::Quantized(response) => {
+                write!(f, "{}", response)
             }
             LLMResponse::Bert(response) => {
                 write!(

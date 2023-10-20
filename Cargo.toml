@@ -29,7 +29,7 @@ serial_test = "2.0.0"
 rand = "0.8.5"
 text-splitter = {version = "0.4.4", features = ["tokenizers", "tiktoken-rs"]}
 tokenizers = {version = "0.14.0", features = ["http"]}
-hf-hub = "0.3.0"
+hf-hub = {version = "0.3.0", features = ["tokio"]}
 candle-core = { git = "https://github.com/huggingface/candle" }
 candle-transformers = { git = "https://github.com/huggingface/candle" }
 candle-nn = { git = "https://github.com/huggingface/candle" }

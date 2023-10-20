@@ -10,7 +10,7 @@ use anyhow::{anyhow, Error as E, Result};
 use candle_core::Tensor;
 use candle_nn::VarBuilder;
 use candle_transformers::models::bert::{BertModel, Config, DTYPE};
-use hf_hub::{api::sync::Api, Cache, Repo, RepoType};
+use hf_hub::{api::tokio::Api, Cache, Repo, RepoType};
 use tokenizers::Tokenizer;
 
 use crate::prompt::Prompt;
@@ -110,7 +110,7 @@ impl Bert {
     }
 
     /// Builds the model and tokenizer.
-    fn build_model_and_tokenizer(&self) -> Result<(BertModel, Tokenizer)> {
+    async fn build_model_and_tokenizer(&self) -> Result<(BertModel, Tokenizer)> {
         let device = super::device(self.cpu)?;
         let default_model = "sentence-transformers/all-MiniLM-L6-v2".to_string();
         let default_revision = "refs/pr/21".to_string();
@@ -133,9 +133,9 @@ impl Bert {
             let api = Api::new()?;
             let api = api.repo(repo);
             (
-                api.get("config.json")?,
-                api.get("tokenizer.json")?,
-                api.get("model.safetensors")?,
+                api.get("config.json").await?,
+                api.get("tokenizer.json").await?,
+                api.get("model.safetensors").await?,
             )
         };
         let config = std::fs::read_to_string(config_filename)?;
@@ -164,7 +164,7 @@ impl LLM for Bert {
         };
 
         let cloned = self.clone();
-        let (model, mut tokenizer) = cloned.build_model_and_tokenizer()?;
+        let (model, mut tokenizer) = cloned.build_model_and_tokenizer().await?;
         let model = Arc::new(model);
         let device = &model.device;
         let prompt = prompt.to_string()?;
