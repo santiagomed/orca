@@ -8,6 +8,7 @@ use crate::record::Record;
 use self::task::Task;
 
 use super::{Chain, ChainResult};
+use crate::record;
 use anyhow::Result;
 
 pub mod master;
@@ -41,10 +42,30 @@ impl MapReduceChain {
 impl Chain for MapReduceChain {
     async fn execute(&mut self) -> Result<ChainResult> {
         let task = Task::new(self.records.clone());
-        Ok(Master::new(2, self.map_chain.clone(), self.reduce_chain.clone()).map(task).await.reduce().await)
+        Ok(
+            Master::new(self.records.len(), self.map_chain.clone(), self.reduce_chain.clone())
+                .map(task)
+                .await
+                .reduce()
+                .await,
+        )
     }
 
     fn context(&mut self) -> &mut HashMap<String, String> {
         &mut self.context
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{chains::chain::LLMChain, llm::openai::OpenAI};
+
+    use super::*;
+
+    #[tokio::test]
+    #[ignore = "wip"]
+    async fn test_mapreduce() {
+        let client = Arc::new(OpenAI::new());
+        let map_chain = Arc::new(Mutex::new(LLMChain::new(client.clone(), "Hello, {name}!")));
     }
 }

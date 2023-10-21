@@ -162,15 +162,15 @@ impl Record {
     }
 }
 
-pub enum Tokenizer<'t> {
+pub enum Tokenizer {
     // Huggingface tokenizer
     Huggingface(String),
 
     // File tokenizer
-    File(&'t Path),
+    File(&'static Path),
 
     // Bytes tokenizer
-    Bytes(&'t [u8]),
+    Bytes(Vec<u8>),
 }
 
 pub trait Spin {

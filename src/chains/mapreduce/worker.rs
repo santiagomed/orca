@@ -33,6 +33,10 @@ impl Worker {
         tokio::spawn(async move {
             let mut receiver = self.receiver;
             while let Some(task) = receiver.recv().await {
+                // TODO: This will not be truly parallel since we are locking the chain.
+                //       This will prevent other workers from executing their tasks since
+                //       they all share the same chain so they will all be waiting on the
+                //       same lock.
                 let mut locked_chain = match task.task_type {
                     TaskType::Map => map_chain.lock().await,
                     TaskType::Reduce => reduce_chain.lock().await,

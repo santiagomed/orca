@@ -41,10 +41,11 @@ impl<'llm> LLMChain<'llm> {
     /// use orca::llm::LLM;
     /// use orca::prompt::TemplateEngine;
     /// use orca::chains::chain::LLMChain;
+    /// use std::sync::Arc;
     ///
-    /// let client = OpenAI::new();
+    /// let client = Arc::new(OpenAI::new());
     /// let prompt = "Hello, LLM!";
-    /// let chain = LLMChain::new(&client, prompt);
+    /// let chain = LLMChain::new(client.clone(), prompt);
     /// ```
     pub fn new(llm: Arc<dyn LLM>, prompt: &str) -> LLMChain<'llm> {
         LLMChain {
@@ -67,10 +68,11 @@ impl<'llm> LLMChain<'llm> {
     /// use orca::prompt::TemplateEngine;
     /// use orca::chains::chain::LLMChain;
     /// use orca::template;
+    /// use std::sync::Arc;
     ///
-    /// let client = OpenAI::new();
+    /// let client = Arc::new(OpenAI::new());
     /// let prompt = "Hello, LLM!";
-    /// let mut chain = LLMChain::new(&client, prompt);
+    /// let mut chain = LLMChain::new(client.clone(), prompt);
     /// let new_prompt = "Hello, LLM! How are you?";
     /// let chain = chain.with_prompt(template!(new_prompt));
     /// ```
@@ -90,10 +92,11 @@ impl<'llm> LLMChain<'llm> {
     /// use orca::prompt::TemplateEngine;
     /// use orca::chains::chain::LLMChain;
     /// use orca::memory::ChatBuffer;
+    /// use std::sync::Arc;
     ///
-    /// let client = OpenAI::new();
+    /// let client = Arc::new(OpenAI::new());
     /// let prompt = "Hello, LLM!";
-    /// let mut chain = LLMChain::new(&client, prompt);
+    /// let mut chain = LLMChain::new(client.clone(), prompt);
     /// let memory = ChatBuffer::new();
     /// let chain = chain.with_memory(memory);
     /// ```

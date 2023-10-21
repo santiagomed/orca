@@ -156,12 +156,11 @@ impl<'p> TemplateEngine<'p> {
     /// use serde_json::json;
     /// use orca::prompt::TemplateEngine;
     /// use orca::prompt::chat::{Role, Message};
-    /// use async_openai::types::Role as R;
     ///
     /// let prompt = TemplateEngine::new("{{#system}}Hello, {{name}}!{{/system}}");
     /// let data = json!({"name": "world"});
     /// let result = prompt.render_chat(Some(&data));
-    /// assert_eq!(result.unwrap(), vec![Message::new(Role(R::System), "Hello, world!")]);
+    /// assert_eq!(result.unwrap(), vec![Message::new(Role::System, "Hello, world!")]);
     /// ```
     pub fn render_chat<T>(&self, data: Option<&T>) -> Result<ChatPrompt>
     where

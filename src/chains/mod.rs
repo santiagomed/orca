@@ -29,9 +29,10 @@ pub trait Chain: Sync + Send {
     /// use orca::llm::openai::OpenAI;
     /// use orca::chains::chain::LLMChain;
     /// use std::collections::HashMap;
+    /// use std::sync::Arc;
     ///
-    /// let client = OpenAI::new();
-    /// let mut chain = LLMChain::new(&client, "Hello, {name}!");
+    /// let client = Arc::new(OpenAI::new());
+    /// let mut chain = LLMChain::new(client.clone(), "Hello, {name}!");
     /// let mut data = HashMap::new();
     /// data.insert("name", "LLM");
     /// chain.load_context(&data);
