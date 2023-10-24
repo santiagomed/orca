@@ -42,6 +42,7 @@ impl MapReduceChain {
 impl Chain for MapReduceChain {
     async fn execute(&mut self) -> Result<ChainResult> {
         let task = Task::new(self.records.clone());
+        self.map_chain.lock().await.load_context(self.context);
         Ok(
             Master::new(self.records.len(), self.map_chain.clone(), self.reduce_chain.clone())
                 .map(task)

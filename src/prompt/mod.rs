@@ -17,15 +17,15 @@ static ASSISTANT_HELPER: RoleHelper = RoleHelper;
 static CHAT_HELPER: ChatHelper = ChatHelper;
 
 /// Represents a prompt engine that uses handlebars templates to render strings.
-pub struct TemplateEngine<'p> {
+pub struct TemplateEngine {
     /// A vector of template strings
     pub template: String,
 
     /// The handlebars template engine
-    handlebars: Handlebars<'p>,
+    handlebars: Handlebars<'static>,
 }
 
-impl<'p> TemplateEngine<'p> {
+impl TemplateEngine {
     /// Creates a new `TemplateEngine` with the given prompt string.
     /// # Arguments
     /// * `prompt` - A string slice that holds the prompt template.
@@ -35,7 +35,7 @@ impl<'p> TemplateEngine<'p> {
     /// use orca::prompt::TemplateEngine;
     /// let prompt = TemplateEngine::new("Welcome, {{user}}!");
     /// ```
-    pub fn new(prompt: &str) -> TemplateEngine<'p> {
+    pub fn new(prompt: &str) -> TemplateEngine {
         let mut handlebars = Handlebars::new();
         let template = prompt.to_string();
         handlebars.register_escape_fn(handlebars::no_escape);
@@ -176,7 +176,7 @@ impl<'p> TemplateEngine<'p> {
     }
 }
 
-impl<'p> Clone for TemplateEngine<'p> {
+impl Clone for TemplateEngine {
     /// Clone a prompt template
     fn clone(&self) -> Self {
         TemplateEngine {

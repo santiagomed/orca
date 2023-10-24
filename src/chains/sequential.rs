@@ -6,18 +6,18 @@ use super::chain::LLMChain;
 use super::{Chain, ChainResult};
 use anyhow::Result;
 
-pub struct SequentialChain<'llm> {
+pub struct SequentialChain {
     /// The name of the LLMChain.
     name: String,
 
     /// Vector of LLM chains used by the SequentialChain.
-    chains: Vec<LLMChain<'llm>>,
+    chains: Vec<LLMChain>,
 
     /// The context for for the templates used by the SequentialChain.
     context: HashMap<String, String>,
 }
 
-impl<'llm> Default for SequentialChain<'llm> {
+impl Default for SequentialChain {
     fn default() -> Self {
         Self {
             name: uuid::Uuid::new_v4().to_string(),
@@ -27,14 +27,14 @@ impl<'llm> Default for SequentialChain<'llm> {
     }
 }
 
-impl<'llm> SequentialChain<'llm> {
+impl SequentialChain {
     /// Initialize a new sequential chain.
-    pub fn new() -> SequentialChain<'llm> {
+    pub fn new() -> SequentialChain {
         SequentialChain::default()
     }
 
     /// Add a simple LLM Chain to the sequential chain.
-    pub fn link(mut self, chain: LLMChain<'llm>) -> SequentialChain<'llm> {
+    pub fn link(mut self, chain: LLMChain) -> SequentialChain {
         self.chains.push(chain);
         self
     }
@@ -45,7 +45,7 @@ pub fn format_prompt_as_user(prompt: &mut str) -> String {
 }
 
 #[async_trait::async_trait]
-impl<'llm> Chain for SequentialChain<'llm> {
+impl Chain for SequentialChain {
     async fn execute(&mut self) -> Result<ChainResult> {
         let mut response = String::new();
         let mut result: ChainResult = ChainResult::new(self.name.to_string()); // initialize result to a default value

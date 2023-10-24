@@ -12,13 +12,13 @@ use std::sync::Arc;
 ///
 /// This simple chain just takes a prompt/template and generates a response using the LLM.
 /// It can make use of context, memory, and a prompt template.
-pub struct LLMChain<'llm> {
+pub struct LLMChain {
     /// The unique identifier for this LLMChain.
     pub name: String,
 
     /// The prompt template engine instance that is used by the LLMChain
     /// to generate the actual prompts based on the given context.
-    pub prompt: TemplateEngine<'llm>,
+    pub prompt: TemplateEngine,
 
     /// A reference to the LLM that this chain will use to process the prompts.
     llm: Arc<dyn LLM>,
@@ -32,7 +32,7 @@ pub struct LLMChain<'llm> {
     context: HashMap<String, String>,
 }
 
-impl<'llm> LLMChain<'llm> {
+impl LLMChain {
     /// Creates a new LLMChain given an LLM and a prompt template.
     ///
     /// # Examples
@@ -47,7 +47,7 @@ impl<'llm> LLMChain<'llm> {
     /// let prompt = "Hello, LLM!";
     /// let chain = LLMChain::new(client.clone(), prompt);
     /// ```
-    pub fn new(llm: Arc<dyn LLM>, prompt: &str) -> LLMChain<'llm> {
+    pub fn new(llm: Arc<dyn LLM>, prompt: &str) -> LLMChain {
         LLMChain {
             name: uuid::Uuid::new_v4().to_string(),
             llm,
@@ -76,7 +76,7 @@ impl<'llm> LLMChain<'llm> {
     /// let new_prompt = "Hello, LLM! How are you?";
     /// let chain = chain.with_prompt(template!(new_prompt));
     /// ```
-    pub fn with_prompt(mut self, prompt: TemplateEngine<'llm>) -> Self {
+    pub fn with_prompt(mut self, prompt: TemplateEngine) -> Self {
         self.prompt = prompt;
         self
     }
@@ -107,7 +107,7 @@ impl<'llm> LLMChain<'llm> {
 }
 
 #[async_trait::async_trait]
-impl<'llm> Chain for LLMChain<'llm> {
+impl Chain for LLMChain {
     async fn execute(&mut self) -> Result<ChainResult> {
         let prompt = self.prompt.render_context(&self.context)?;
         let response = if let Some(memory) = &mut self.memory {
@@ -125,7 +125,7 @@ impl<'llm> Chain for LLMChain<'llm> {
     }
 }
 
-impl<'llm> Clone for LLMChain<'llm> {
+impl Clone for LLMChain {
     fn clone(&self) -> Self {
         LLMChain {
             name: self.name.clone(),

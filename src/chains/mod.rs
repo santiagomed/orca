@@ -1,7 +1,8 @@
 pub mod chain;
 pub mod mapreduce;
 pub mod sequential;
-use crate::prompt::clean_prompt;
+use crate::memory::Memory;
+use crate::prompt::{clean_prompt, TemplateEngine};
 use crate::{llm::LLMResponse, record::Record};
 
 use anyhow::Result;
