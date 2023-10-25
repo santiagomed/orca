@@ -7,8 +7,7 @@ use crate::record::Record;
 
 use self::task::Task;
 
-use super::{Chain, ChainResult};
-use crate::record;
+use super::{chain::LLMChain, Chain, ChainResult};
 use anyhow::Result;
 
 pub mod master;
@@ -17,13 +16,13 @@ pub mod worker;
 
 pub struct MapReduceChain {
     context: HashMap<String, String>,
-    map_chain: Arc<Mutex<dyn Chain>>,
-    reduce_chain: Arc<Mutex<dyn Chain>>,
+    map_chain: Arc<Mutex<LLMChain>>,
+    reduce_chain: Arc<Mutex<LLMChain>>,
     records: Vec<(String, Record)>,
 }
 
 impl MapReduceChain {
-    pub fn new(map_chain: Arc<Mutex<dyn Chain>>, reduce_chain: Arc<Mutex<dyn Chain>>) -> Self {
+    pub fn new(map_chain: Arc<Mutex<LLMChain>>, reduce_chain: Arc<Mutex<LLMChain>>) -> Self {
         Self {
             context: HashMap::new(),
             map_chain,
@@ -42,7 +41,6 @@ impl MapReduceChain {
 impl Chain for MapReduceChain {
     async fn execute(&mut self) -> Result<ChainResult> {
         let task = Task::new(self.records.clone());
-        self.map_chain.lock().await.load_context(self.context);
         Ok(
             Master::new(self.records.len(), self.map_chain.clone(), self.reduce_chain.clone())
                 .map(task)
@@ -54,6 +52,14 @@ impl Chain for MapReduceChain {
 
     fn context(&mut self) -> &mut HashMap<String, String> {
         &mut self.context
+    }
+
+    async fn load_context<T>(&mut self, context: &T)
+    where
+        T: serde::Serialize + Sync,
+    {
+        self.map_chain.lock().await.load_context(context).await;
+        self.reduce_chain.lock().await.load_context(context).await;
     }
 }
 

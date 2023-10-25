@@ -177,10 +177,12 @@ mod test {
             {{/chat}}
             "#;
         let mut chain = LLMChain::new(client, prompt);
-        chain.load_context(&DataOne {
-            country1: "France".to_string(),
-            country2: "Germany".to_string(),
-        });
+        chain
+            .load_context(&DataOne {
+                country1: "France".to_string(),
+                country2: "Germany".to_string(),
+            })
+            .await;
         let res = chain.execute().await.unwrap().content();
 
         assert!(res.contains("Berlin") || res.contains("berlin"));

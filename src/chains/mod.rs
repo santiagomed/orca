@@ -1,8 +1,7 @@
 pub mod chain;
 pub mod mapreduce;
 pub mod sequential;
-use crate::memory::Memory;
-use crate::prompt::{clean_prompt, TemplateEngine};
+use crate::prompt::clean_prompt;
 use crate::{llm::LLMResponse, record::Record};
 
 use anyhow::Result;
@@ -32,15 +31,18 @@ pub trait Chain: Sync + Send {
     /// use std::collections::HashMap;
     /// use std::sync::Arc;
     ///
+    /// # #[tokio::main]
+    /// # async fn main() {
     /// let client = Arc::new(OpenAI::new());
     /// let mut chain = LLMChain::new(client.clone(), "Hello, {name}!");
     /// let mut data = HashMap::new();
     /// data.insert("name", "LLM");
-    /// chain.load_context(&data);
+    /// chain.load_context(&data).await;
+    /// # }
     /// ```
-    fn load_context<T>(&mut self, context: &T)
+    async fn load_context<T>(&mut self, context: &T)
     where
-        T: Serialize,
+        T: Serialize + Sync,
         Self: Sized,
     {
         let context = serde_json::to_value(context).unwrap_or(serde_json::Value::Null);

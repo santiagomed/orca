@@ -63,12 +63,12 @@ impl Chain for SequentialChain {
         &mut self.context
     }
 
-    fn load_context<T>(&mut self, context: &T)
+    async fn load_context<T>(&mut self, context: &T)
     where
-        T: serde::Serialize,
+        T: serde::Serialize + Sync,
     {
         for chain in &mut self.chains {
-            chain.load_context(context);
+            chain.load_context(context).await;
         }
     }
 }
@@ -97,9 +97,11 @@ mod test {
         let mut chain = SequentialChain::new()
             .link(LLMChain::new(client.clone(), first))
             .link(LLMChain::new(client, second));
-        chain.load_context(&Data {
-            play: "Hamlet".to_string(),
-        });
+        chain
+            .load_context(&Data {
+                play: "Hamlet".to_string(),
+            })
+            .await;
         let res = chain.execute().await;
         assert!(res.is_ok());
     }
