@@ -1,13 +1,15 @@
 use std::fmt::Display;
 
 use crate::{
-    llm::LLM,
+    llm::{EMBEDDING, LLM},
     prompt::{chat::Message, Prompt},
+    record::{Content, Record},
 };
 use anyhow::Result;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
+use super::EmbeddingResponse;
 use super::LLMResponse;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -24,6 +26,12 @@ pub struct Payload {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct EmbeddingPayload {
+    input: String,
+    model: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Response {
     id: String,
     object: String,
@@ -31,6 +39,39 @@ pub struct Response {
     model: String,
     usage: Usage,
     choices: Vec<Choice>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct OpenAIEmbeddingResponse {
+    id: String,
+    object: String,
+    model: String,
+    data: Embedding,
+    usage: Usage,
+}
+
+impl OpenAIEmbeddingResponse {
+    /// Convert the embedding response to a vector of f32 values
+    pub fn to_vec(&self) -> Vec<f32> {
+        self.data.embedding.clone()
+    }
+
+    pub fn to_string(&self) -> String {
+        self.data.object.clone()
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+pub struct Embedding {
+    pub index: u32,
+    pub object: String,
+    pub embedding: Vec<f32>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+pub struct EmbeddingUsage {
+    pub prompt_tokens: u32,
+    pub total_tokens: u32,
 }
 
 impl Display for Response {
@@ -58,6 +99,7 @@ pub struct Choice {
 }
 
 static OPENAI_COMPLETIONS_URL: &str = "https://api.openai.com/v1/chat/completions";
+static OPENAI_EMBEDDING_URL: &str = " https://api.openai.com/v1/embeddings";
 
 pub struct OpenAI {
     /// Client member for the OpenAI API. This client is a wrapper around the async-openai crate, with additional functionality to
@@ -71,6 +113,10 @@ pub struct OpenAI {
     /// ID of the model to use.
     /// See the [model endpoint compatibility](https://platform.openai.com/docs/models/model-endpoint-compatibility) table for details on which models work with the Chat API.
     model: String,
+
+    /// ID of the emedding model to use.
+    emedding_model: String,
+    /// See the [model endpoint compatibility](https://platform.openai.com/docs/models/model-endpoint-compatibility) table for details on which models work with the Chat API.
 
     /// What sampling temperature to use, between 0 and 2. Higher values like 0.8 will make the output more random,
     /// while lower values like 0.2 will make it more focused and deterministic.
@@ -103,6 +149,7 @@ impl Default for OpenAI {
             url: OPENAI_COMPLETIONS_URL.to_string(),
             api_key: std::env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY not set"),
             model: "gpt-3.5-turbo".to_string(),
+            emedding_model: "text-embedding-ada-002".to_string(),
             temperature: 1.0,
             top_p: 1.0,
             stream: false,
@@ -121,6 +168,13 @@ impl OpenAI {
     /// e.g. "davinci", "gpt-3.5-turbo"
     pub fn with_model(mut self, model: &str) -> Self {
         self.model = model.to_string();
+        self
+    }
+
+    /// Set emedding model to use
+    /// e.g. "text-embedding-ada-002"
+    pub fn with_emedding_model(mut self, emedding_model: &str) -> Self {
+        self.emedding_model = emedding_model.to_string();
         self
     }
 
@@ -169,6 +223,28 @@ impl OpenAI {
             .build()?;
         Ok(req)
     }
+
+    /// Generate a request for the OpenAI API to create embeddings
+    pub fn generate_embedding_request(&self, input: &Record) -> Result<reqwest::Request> {
+        let payload = EmbeddingPayload {
+            model: self.emedding_model.clone(),
+            input: input.content.to_string(),
+        };
+
+        println!("payload: {}", serde_json::to_string(&payload).unwrap());
+
+        let req = self
+            .client
+            .post(OPENAI_EMBEDDING_URL)
+            .header("Content-Type", "application/json")
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .json(&payload)
+            .build()?;
+
+        println!("req: {:?}", req);
+
+        Ok(req)
+    }
 }
 
 #[async_trait::async_trait]
@@ -178,6 +254,19 @@ impl LLM for OpenAI {
         let req = self.generate_request(&messages)?;
         let res = self.client.execute(req).await?;
         let res = res.json::<Response>().await?;
+        Ok(res.into())
+    }
+}
+
+#[async_trait::async_trait]
+impl EMBEDDING for OpenAI {
+    async fn generate_embedding<'a>(&'a self, input: &'a Record) -> Result<OpenAIEmbeddingResponse> {
+        println!("generate_embedding");
+        let req = self.generate_embedding_request(input)?;
+        println!("req: {:?}", req);
+        let res = self.client.execute(req).await?;
+        let res = res.json::<OpenAIEmbeddingResponse>().await?;
+
         Ok(res.into())
     }
 }
@@ -213,5 +302,15 @@ mod test {
         let prompt = prompt.render_context(&context).unwrap();
         let response = client.generate(prompt).await.unwrap();
         assert!(response.to_string().to_lowercase().contains("berlin"));
+    }
+
+    #[tokio::test]
+    async fn test_embeddings() {
+        println!("test_embeddings");
+        let client = OpenAI::new();
+        let content: Content = Content::String("This is a test".to_string());
+        let record = Record::new(content);
+        let res = client.generate_embedding(&record).await.unwrap();
+        assert!(res.data.embedding.len() > 0);
     }
 }
