@@ -8,7 +8,7 @@ use anyhow::Result;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
-use super::LLMResponse;
+use super::{EmbeddingResponse, LLMResponse};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Payload {
@@ -254,7 +254,7 @@ impl LLM for OpenAI {
 
 #[async_trait::async_trait]
 impl EmbeddingTrait for OpenAI {
-    async fn generate_embedding<'a>(&'a self, prompt: Box<dyn Prompt>) -> Result<OpenAIEmbeddingResponse> {
+    async fn generate_embedding<'a>(&'a self, prompt: Box<dyn Prompt>) -> Result<EmbeddingResponse> {
         let req = self.generate_embedding_request(prompt.as_str()?)?;
         let res = self.client.execute(req).await?;
         let res = res.json::<OpenAIEmbeddingResponse>().await?;
@@ -302,6 +302,6 @@ mod test {
         let client = OpenAI::new();
         let content = prompt!("This is a test");
         let res = client.generate_embedding(content).await.unwrap();
-        assert!(res.data[0].embedding.len() > 0);
+        assert!(res.get_embedding().len() > 0);
     }
 }

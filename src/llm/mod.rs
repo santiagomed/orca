@@ -8,7 +8,6 @@ use std::fmt::Display;
 use anyhow::Result;
 use candle_core::{Device, Result as CandleResult, Tensor};
 
-use self::openai::OpenAIEmbeddingResponse;
 use crate::prompt::Prompt;
 
 /// Generate with context trait is used to execute an LLM using a context and a prompt template.
@@ -59,6 +58,7 @@ pub trait Embedding: Sync + Send {
     /// # Examples
     /// This example uses the OpenAI chat models.
     /// ```
+    /// use orca::prompt;
     /// use orca::llm::Embedding;
     /// use orca::record::Record;
     /// use orca::llm::openai::OpenAI;
@@ -66,12 +66,12 @@ pub trait Embedding: Sync + Send {
     /// #[tokio::main]
     /// async fn main() {
     ///    let client = OpenAI::new();
-    ///    let input = Record::new("Hello, world");
-    ///    let response = client.generate_embedding(&input).await.unwrap();
-    ///    assert!(response.to_string().to_lowercase().contains("paris"));
+    ///    let input = prompt!("Hello, world");
+    ///    let response = client.generate_embedding(input).await.unwrap();
+    ///    assert!(response.get_embedding().len() > 0);
     /// }
     /// ```
-    async fn generate_embedding(&self, prompt: Box<dyn Prompt>) -> Result<OpenAIEmbeddingResponse>;
+    async fn generate_embedding(&self, prompt: Box<dyn Prompt>) -> Result<EmbeddingResponse>;
 }
 
 #[derive(Debug)]
