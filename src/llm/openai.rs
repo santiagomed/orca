@@ -266,6 +266,7 @@ impl EmbeddingTrait for OpenAI {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::prompt;
     use crate::prompt::TemplateEngine;
     use crate::template;
     use std::collections::HashMap;
@@ -299,8 +300,8 @@ mod test {
     #[tokio::test]
     async fn test_embeddings() {
         let client = OpenAI::new();
-        let content = "This is a test".to_string();
-        let res = client.generate_embedding(Box::new(content)).await.unwrap();
+        let content = prompt!("This is a test");
+        let res = client.generate_embedding(content).await.unwrap();
         assert!(res.data[0].embedding.len() > 0);
     }
 }

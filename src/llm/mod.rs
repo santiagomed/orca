@@ -8,8 +8,8 @@ use std::fmt::Display;
 use anyhow::Result;
 use candle_core::{Device, Result as CandleResult, Tensor};
 
-use crate::prompt::Prompt;
 use self::openai::OpenAIEmbeddingResponse;
+use crate::prompt::Prompt;
 
 /// Generate with context trait is used to execute an LLM using a context and a prompt template.
 /// The context is a previously created context using the Context struct. The prompt template
