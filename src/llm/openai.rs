@@ -144,7 +144,7 @@ impl Default for OpenAI {
         Self {
             client: Client::new(),
             url: OPENAI_COMPLETIONS_URL.to_string(),
-            api_key: "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".to_string(),
+            api_key: std::env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY not set"),
             model: "gpt-3.5-turbo".to_string(),
             emedding_model: "text-embedding-ada-002".to_string(),
             temperature: 1.0,
