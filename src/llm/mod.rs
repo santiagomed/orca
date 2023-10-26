@@ -48,6 +48,49 @@ pub trait LLM: Sync + Send {
     async fn generate(&self, prompt: Box<dyn Prompt>) -> Result<LLMResponse>;
 }
 
+/// Embedding trait is used to generate an embedding from an Online Service.
+#[async_trait::async_trait]
+pub trait Embedding: Sync + Send {
+    /// Generate an embedding from an Online Service.
+    /// # Arguments
+    /// * `input` - A Record trait object.
+    ///
+    /// # Examples
+    /// This example uses the OpenAI chat models.
+    /// ```
+    /// use orca::prompt;
+    /// use orca::llm::Embedding;
+    /// use orca::record::Record;
+    /// use orca::llm::openai::OpenAI;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///    let client = OpenAI::new();
+    ///    let input = prompt!("Hello, world");
+    ///    let response = client.generate_embedding(input).await.unwrap();
+    ///    assert!(response.get_embedding().len() > 0);
+    /// }
+    /// ```
+    async fn generate_embedding(&self, prompt: Box<dyn Prompt>) -> Result<EmbeddingResponse>;
+}
+
+#[derive(Debug)]
+pub enum EmbeddingResponse {
+    /// OpenAI embedding response
+    OpenAI(openai::OpenAIEmbeddingResponse),
+
+    /// Empty response; usually used to initialize a chain result when
+    /// no response is available.
+    Empty,
+}
+
+impl From<openai::OpenAIEmbeddingResponse> for EmbeddingResponse {
+    /// Convert an OpenAI embedding response to an EmbeddingResponse
+    fn from(response: openai::OpenAIEmbeddingResponse) -> Self {
+        EmbeddingResponse::OpenAI(response)
+    }
+}
+
 #[derive(Debug)]
 pub enum LLMResponse {
     /// OpenAI response
@@ -71,6 +114,16 @@ impl From<openai::Response> for LLMResponse {
     }
 }
 
+impl EmbeddingResponse {
+    /// Get the embedding from an OpenAIEmbeddingResponse
+    pub fn get_embedding(&self) -> Vec<f32> {
+        match self {
+            EmbeddingResponse::OpenAI(response) => response.to_vec(),
+            EmbeddingResponse::Empty => Vec::new(),
+        }
+    }
+}
+
 impl LLMResponse {
     /// Get the role of the response from an LLMResponse, if supported by the LLM.
     pub fn get_role(&self) -> String {
@@ -88,7 +141,7 @@ impl Display for LLMResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             LLMResponse::OpenAI(response) => {
-                write!(f, "{}", response.to_string())
+                write!(f, "{}", response)
             }
             LLMResponse::Quantized(response) => {
                 write!(f, "{}", response)
@@ -105,10 +158,29 @@ impl Display for LLMResponse {
     }
 }
 
+impl Display for EmbeddingResponse {
+    /// Display the response content from an EmbeddingResponse
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EmbeddingResponse::OpenAI(response) => {
+                write!(f, "{}", response.to_string())
+            }
+            EmbeddingResponse::Empty => write!(f, ""),
+        }
+    }
+}
+
 impl Default for LLMResponse {
     /// Default LLMResponse is Empty
     fn default() -> Self {
         LLMResponse::Empty
+    }
+}
+
+impl Default for EmbeddingResponse {
+    /// Default EmbeddingResponse is Empty
+    fn default() -> Self {
+        EmbeddingResponse::Empty
     }
 }
 
