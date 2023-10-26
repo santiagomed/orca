@@ -1,15 +1,13 @@
 use std::fmt::Display;
 
 use crate::{
-    llm::{EMBEDDING, LLM},
+    llm::{Embedding as EmbeddingTrait, LLM},
     prompt::{chat::Message, Prompt},
-    record::{Content, Record},
 };
 use anyhow::Result;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
-use super::EmbeddingResponse;
 use super::LLMResponse;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -43,21 +41,20 @@ pub struct Response {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct OpenAIEmbeddingResponse {
-    id: String,
     object: String,
     model: String,
-    data: Embedding,
+    data: Vec<Embedding>,
     usage: Usage,
 }
 
 impl OpenAIEmbeddingResponse {
     /// Convert the embedding response to a vector of f32 values
     pub fn to_vec(&self) -> Vec<f32> {
-        self.data.embedding.clone()
+        self.data.first().unwrap().embedding.clone()
     }
 
     pub fn to_string(&self) -> String {
-        self.data.object.clone()
+        self.data.first().unwrap().object.clone()
     }
 }
 
@@ -87,7 +84,7 @@ impl Display for Response {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Usage {
     prompt_tokens: i32,
-    completion_tokens: i32,
+    completion_tokens: Option<i32>,
     total_tokens: i32,
 }
 
@@ -147,7 +144,7 @@ impl Default for OpenAI {
         Self {
             client: Client::new(),
             url: OPENAI_COMPLETIONS_URL.to_string(),
-            api_key: std::env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY not set"),
+            api_key: "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".to_string(),
             model: "gpt-3.5-turbo".to_string(),
             emedding_model: "text-embedding-ada-002".to_string(),
             temperature: 1.0,
@@ -225,13 +222,12 @@ impl OpenAI {
     }
 
     /// Generate a request for the OpenAI API to create embeddings
-    pub fn generate_embedding_request(&self, input: &Record) -> Result<reqwest::Request> {
+
+    pub fn generate_embedding_request(&self, prompt: &str) -> Result<reqwest::Request> {
         let payload = EmbeddingPayload {
             model: self.emedding_model.clone(),
-            input: input.content.to_string(),
+            input: prompt.to_string(),
         };
-
-        println!("payload: {}", serde_json::to_string(&payload).unwrap());
 
         let req = self
             .client
@@ -240,8 +236,6 @@ impl OpenAI {
             .header("Authorization", format!("Bearer {}", self.api_key))
             .json(&payload)
             .build()?;
-
-        println!("req: {:?}", req);
 
         Ok(req)
     }
@@ -259,11 +253,9 @@ impl LLM for OpenAI {
 }
 
 #[async_trait::async_trait]
-impl EMBEDDING for OpenAI {
-    async fn generate_embedding<'a>(&'a self, input: &'a Record) -> Result<OpenAIEmbeddingResponse> {
-        println!("generate_embedding");
-        let req = self.generate_embedding_request(input)?;
-        println!("req: {:?}", req);
+impl EmbeddingTrait for OpenAI {
+    async fn generate_embedding<'a>(&'a self, prompt: Box<dyn Prompt>) -> Result<OpenAIEmbeddingResponse> {
+        let req = self.generate_embedding_request(prompt.as_str()?)?;
         let res = self.client.execute(req).await?;
         let res = res.json::<OpenAIEmbeddingResponse>().await?;
 
@@ -306,11 +298,9 @@ mod test {
 
     #[tokio::test]
     async fn test_embeddings() {
-        println!("test_embeddings");
         let client = OpenAI::new();
-        let content: Content = Content::String("This is a test".to_string());
-        let record = Record::new(content);
-        let res = client.generate_embedding(&record).await.unwrap();
-        assert!(res.data.embedding.len() > 0);
+        let content = "This is a test".to_string();
+        let res = client.generate_embedding(Box::new(content)).await.unwrap();
+        assert!(res.data[0].embedding.len() > 0);
     }
 }

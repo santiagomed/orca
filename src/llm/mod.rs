@@ -9,9 +9,7 @@ use anyhow::Result;
 use candle_core::{Device, Result as CandleResult, Tensor};
 
 use crate::prompt::Prompt;
-use crate::record::Record;
-
-use self::openai::{OpenAI, OpenAIEmbeddingResponse};
+use self::openai::OpenAIEmbeddingResponse;
 
 /// Generate with context trait is used to execute an LLM using a context and a prompt template.
 /// The context is a previously created context using the Context struct. The prompt template
@@ -53,7 +51,7 @@ pub trait LLM: Sync + Send {
 
 /// Embedding trait is used to generate an embedding from an Online Service.
 #[async_trait::async_trait]
-pub trait EMBEDDING: Sync + Send {
+pub trait Embedding: Sync + Send {
     /// Generate an embedding from an Online Service.
     /// # Arguments
     /// * `input` - A Record trait object.
@@ -73,7 +71,7 @@ pub trait EMBEDDING: Sync + Send {
     ///    assert!(response.to_string().to_lowercase().contains("paris"));
     /// }
     /// ```
-    async fn generate_embedding<'a>(&'a self, input: &'a Record) -> Result<OpenAIEmbeddingResponse>;
+    async fn generate_embedding(&self, prompt: Box<dyn Prompt>) -> Result<OpenAIEmbeddingResponse>;
 }
 
 #[derive(Debug)]
