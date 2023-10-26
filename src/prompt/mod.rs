@@ -154,13 +154,14 @@ impl TemplateEngine {
     {
         let rendered = self.reg.render(name, &data)?;
         println!("{}", rendered);
-        match serde_json::from_str::<ChatPrompt>(&rendered) {
+        match serde_json::from_str::<ChatPrompt>(&clean_prompt(&rendered, false)) {
             Ok(chat) => {
                 log::info!("Parsed as chat: {:?}", chat);
                 Ok(Box::new(chat))
             }
             Err(e) => {
                 log::info!("Parsed as string: {:?}", e);
+                println!("Parsed as string: {:?}", e);
                 Ok(Box::new(rendered))
             }
         }

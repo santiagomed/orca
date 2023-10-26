@@ -87,7 +87,9 @@ impl LLMChain {
     pub fn duplicate_template(&mut self, name: &str) -> Option<String> {
         let template_name = format!("{}-{}", name, uuid::Uuid::new_v4().to_string());
         if let Some(template) = self.prompt.get_template(name) {
-            (*self.prompt).register_template_string(template_name.as_str(), &template);
+            let mut prompt_clone = self.prompt.clone();
+            prompt_clone = prompt_clone.register_template(template_name.as_str(), &template);
+            self.prompt = prompt_clone;
         } else {
             return None;
         }

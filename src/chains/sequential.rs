@@ -52,9 +52,9 @@ impl Chain for SequentialChain {
         let mut result: ChainResult = ChainResult::new(self.name.to_string()); // initialize result to a default value
         for chain in &self.chains {
             if !response.is_empty() {
-                chain.blocking_write().prompt.add_to_template(target, &format_prompt_as_user(&mut response));
+                chain.write().await.prompt.add_to_template(target, &format_prompt_as_user(&mut response));
             }
-            result = chain.blocking_read().execute(target).await?;
+            result = chain.read().await.execute(target).await?;
             response = result.content();
         }
         Ok(result)
@@ -69,7 +69,7 @@ impl Chain for SequentialChain {
         T: serde::Serialize + Sync,
     {
         for chain in &mut self.chains {
-            chain.blocking_write().load_context(context).await;
+            chain.write().await.load_context(context).await;
         }
     }
 }

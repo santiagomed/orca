@@ -35,27 +35,36 @@ impl Worker {
         tokio::spawn(async move {
             let mut receiver = self.receiver;
             while let Some(task) = receiver.recv().await {
+                let mut template_name = task.template_name;
                 {
                     let mut locked_chain = match task.task_type {
-                        TaskType::Map => map_chain.blocking_write(),
-                        TaskType::Reduce => reduce_chain.blocking_write(),
+                        TaskType::Map => map_chain.write().await,
+                        TaskType::Reduce => reduce_chain.write().await,
                     };
+                    template_name = locked_chain.duplicate_template(&template_name).unwrap_or_else(|| {
+                        log::error!("{}", format!("Template [{}] does not exist", template_name));
+                        panic!("{}", format!("Template [{}] does not exist", template_name));
+                    });
                     locked_chain.load_record(&task.record_name, task.record);
                 }
                 {
                     let locked_chain = match task.task_type {
-                        TaskType::Map => map_chain.blocking_read(),
-                        TaskType::Reduce => reduce_chain.blocking_read(),
+                        TaskType::Map => map_chain.read().await,
+                        TaskType::Reduce => reduce_chain.read().await,
                     };
-                    let chain_result = locked_chain.execute("temp").await.unwrap_or_else(|e| {
+                    let chain_result = locked_chain.execute(&template_name).await.unwrap_or_else(|e| {
                         log::error!(
                             "{}",
                             format!("Error while executing chain [{}]: {}", locked_chain.name, e)
                         );
-                        panic!();
+                        panic!(
+                            "{}",
+                            format!("Error while executing chain [{}]: {}", locked_chain.name, e)
+                        );
                     });
                     sender
-                        .blocking_read()
+                        .read()
+                        .await
                         .send(WorkerMsg {
                             task_completed: task.task_type,
                             chain_result,

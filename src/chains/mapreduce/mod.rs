@@ -58,28 +58,57 @@ impl Chain for MapReduceChain {
     where
         T: serde::Serialize + Sync,
     {
-        self.map_chain.blocking_write().load_context(context).await;
-        self.reduce_chain.blocking_write().load_context(context).await;
+        self.map_chain.write().await.load_context(context).await;
+        self.reduce_chain.write().await.load_context(context).await;
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{chains::chain::LLMChain, llm::openai::OpenAI};
+    use crate::{
+        chains::chain::LLMChain,
+        llm::openai::OpenAI,
+        record::{pdf::PDF, Spin},
+    };
 
     use super::*;
 
     #[tokio::test]
     #[ignore = "wip"]
     async fn test_mapreduce() {
+        std::env::set_var("STANDARD_FONTS", "./assets/pdf_fonts");
+        let rec = PDF::from_file("./tests/memgpt.pdf", false).spin().unwrap();
+        let split_rec = rec.split(5);
+
         let client = Arc::new(OpenAI::new());
-        let map_chain = Arc::new(RwLock::new(
-            LLMChain::new(client.clone()).with_prompt("mapreduce", "Hello, {name}!"),
-        ));
-        let reduce_chain = Arc::new(RwLock::new(
-            LLMChain::new(client.clone()).with_prompt("mapreduce", "Hello, {name}!"),
-        ));
-        let mp_chain = MapReduceChain::new(map_chain, reduce_chain).execute("mapreduce").await;
+        let map_chain = Arc::new(RwLock::new(LLMChain::new(client.clone()).with_prompt(
+            "mapreduce",
+            r#"{{#chat}}
+                {{#user}}
+                Get me a summary of the following:
+                {{rec}}
+                {{/user}}
+                {{/chat}}
+                "#,
+        )));
+        let reduce_chain = Arc::new(RwLock::new(LLMChain::new(client.clone()).with_prompt(
+            "mapreduce",
+            r#"{{#chat}}
+            {{#user}}
+            Get me a summary of the following:
+            {{rec}}
+            {{/user}}
+            {{/chat}}
+            "#,
+        )));
+        let mp_chain = MapReduceChain::new(map_chain, reduce_chain)
+            .with_record("rec".to_string(), split_rec[0].clone())
+            .with_record("rec".to_string(), split_rec[1].clone())
+            .with_record("rec".to_string(), split_rec[2].clone())
+            .with_record("rec".to_string(), split_rec[3].clone())
+            .with_record("rec".to_string(), split_rec[4].clone())
+            .execute("mapreduce")
+            .await;
         assert!(mp_chain.is_ok())
     }
 }
