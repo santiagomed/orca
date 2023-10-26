@@ -73,6 +73,7 @@ mod tests {
     #[ignore = "wip"]
     async fn test_mapreduce() {
         let client = Arc::new(OpenAI::new());
+        #[allow(unused_variables)]
         let map_chain = Arc::new(Mutex::new(LLMChain::new(client.clone(), "Hello, {name}!")));
     }
 }
