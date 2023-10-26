@@ -5,13 +5,14 @@ use crate::prompt::clean_prompt;
 use super::chain::LLMChain;
 use super::{Chain, ChainResult};
 use anyhow::Result;
+use tokio::sync::RwLock;
 
 pub struct SequentialChain {
     /// The name of the LLMChain.
     name: String,
 
     /// Vector of LLM chains used by the SequentialChain.
-    chains: Vec<LLMChain>,
+    chains: Vec<RwLock<LLMChain>>,
 
     /// The context for for the templates used by the SequentialChain.
     context: HashMap<String, String>,
@@ -35,7 +36,7 @@ impl SequentialChain {
 
     /// Add a simple LLM Chain to the sequential chain.
     pub fn link(mut self, chain: LLMChain) -> SequentialChain {
-        self.chains.push(chain);
+        self.chains.push(RwLock::new(chain));
         self
     }
 }
@@ -46,14 +47,14 @@ pub fn format_prompt_as_user(prompt: &mut str) -> String {
 
 #[async_trait::async_trait]
 impl Chain for SequentialChain {
-    async fn execute(&mut self) -> Result<ChainResult> {
+    async fn execute(&self, target: &str) -> Result<ChainResult> {
         let mut response = String::new();
         let mut result: ChainResult = ChainResult::new(self.name.to_string()); // initialize result to a default value
-        for chain in &mut self.chains {
+        for chain in &self.chains {
             if !response.is_empty() {
-                chain.prompt.add_to_template(&format_prompt_as_user(&mut response));
+                chain.blocking_write().prompt.add_to_template(target, &format_prompt_as_user(&mut response));
             }
-            result = chain.execute().await?;
+            result = chain.blocking_read().execute(target).await?;
             response = result.content();
         }
         Ok(result)
@@ -68,7 +69,7 @@ impl Chain for SequentialChain {
         T: serde::Serialize + Sync,
     {
         for chain in &mut self.chains {
-            chain.load_context(context).await;
+            chain.blocking_write().load_context(context).await;
         }
     }
 }
@@ -95,14 +96,14 @@ mod test {
         let second = "{{#chat}}{{#system}}You are a professional critic. When given a summary of a play, you must write a review of it. Here is a summary of {{play}}'s plot:{{/system}}{{/chat}}";
 
         let mut chain = SequentialChain::new()
-            .link(LLMChain::new(client.clone(), first))
-            .link(LLMChain::new(client, second));
+            .link(LLMChain::new(client.clone()).with_prompt("review", first))
+            .link(LLMChain::new(client).with_prompt("review", second));
         chain
             .load_context(&Data {
                 play: "Hamlet".to_string(),
             })
             .await;
-        let res = chain.execute().await;
+        let res = chain.execute("review").await;
         assert!(res.is_ok());
     }
 }

@@ -14,7 +14,7 @@ pub trait Chain: Sync + Send {
     ///
     /// # Returns
     /// - A `Result` containing a `ChainResult` if successful or an error otherwise.
-    async fn execute(&mut self) -> Result<ChainResult>;
+    async fn execute(&self, target: &str) -> Result<ChainResult>;
 
     /// Sets the context for the current chain execution using a given data structure.
     ///

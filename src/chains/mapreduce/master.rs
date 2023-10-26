@@ -1,11 +1,12 @@
 use super::task::{Task, TaskType, WorkerMsg, WorkerTask};
 use super::worker::Worker;
-use crate::chains::{Chain, ChainResult};
+use crate::chains::chain::LLMChain;
+use crate::chains::ChainResult;
 use crate::record::{self, Record};
 use std::sync::Arc;
 use tokio::sync::{
     mpsc::{channel, Receiver, Sender},
-    Mutex,
+    Mutex, RwLock,
 };
 
 pub(crate) struct Master {
@@ -15,16 +16,16 @@ pub(crate) struct Master {
 }
 
 impl Master {
-    pub fn new(num_workers: usize, map_chain: Arc<Mutex<dyn Chain>>, reduce_chain: Arc<Mutex<dyn Chain>>) -> Self {
+    pub fn new(num_workers: usize, map_chain: Arc<RwLock<LLMChain>>, reduce_chain: Arc<RwLock<LLMChain>>) -> Self {
         let mut worker_channels = Vec::new();
         let (sender, receiver) = channel::<WorkerMsg>(std::mem::size_of::<WorkerMsg>() * num_workers);
-        let sender = Arc::new(Mutex::new(sender));
+        let sender = Arc::new(RwLock::new(sender));
 
         for _ in 0..num_workers {
             let (tx, rx) = channel::<WorkerTask>(std::mem::size_of::<Task>() * num_workers);
             worker_channels.push(tx);
             let worker = Worker::new(rx, map_chain.clone(), reduce_chain.clone(), sender.clone());
-            worker.spawn();
+            worker.spawn().unwrap();
         }
 
         Master {
@@ -54,6 +55,7 @@ impl Master {
             channel
                 .send(WorkerTask {
                     task_type: TaskType::Map,
+                    template_name: task.template_name.clone(),
                     record_name,
                     record,
                 })
@@ -65,7 +67,7 @@ impl Master {
         self
     }
 
-    pub async fn reduce(&self) -> ChainResult {
+    pub async fn reduce(&self, template_name: String) -> ChainResult {
         let receiver_clone = self.receiver.clone();
         let result = tokio::spawn(async move {
             while let Some(msg) = receiver_clone.lock().await.recv().await {
@@ -82,6 +84,7 @@ impl Master {
         channel
             .send(WorkerTask {
                 task_type: TaskType::Reduce,
+                template_name,
                 record_name: "".into(),
                 record: self.group.as_ref().unwrap().clone(),
             })

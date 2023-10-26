@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use master::Master;
-use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 
 use crate::record::Record;
 
@@ -16,13 +16,13 @@ pub mod worker;
 
 pub struct MapReduceChain {
     context: HashMap<String, String>,
-    map_chain: Arc<Mutex<LLMChain>>,
-    reduce_chain: Arc<Mutex<LLMChain>>,
+    map_chain: Arc<RwLock<LLMChain>>,
+    reduce_chain: Arc<RwLock<LLMChain>>,
     records: Vec<(String, Record)>,
 }
 
 impl MapReduceChain {
-    pub fn new(map_chain: Arc<Mutex<LLMChain>>, reduce_chain: Arc<Mutex<LLMChain>>) -> Self {
+    pub fn new(map_chain: Arc<RwLock<LLMChain>>, reduce_chain: Arc<RwLock<LLMChain>>) -> Self {
         Self {
             context: HashMap::new(),
             map_chain,
@@ -39,13 +39,13 @@ impl MapReduceChain {
 
 #[async_trait::async_trait]
 impl Chain for MapReduceChain {
-    async fn execute(&mut self) -> Result<ChainResult> {
-        let task = Task::new(self.records.clone());
+    async fn execute(&self, target: &str) -> Result<ChainResult> {
+        let task = Task::new(target.to_string(), self.records.clone());
         Ok(
             Master::new(self.records.len(), self.map_chain.clone(), self.reduce_chain.clone())
                 .map(task)
                 .await
-                .reduce()
+                .reduce(target.to_string())
                 .await,
         )
     }
@@ -58,8 +58,8 @@ impl Chain for MapReduceChain {
     where
         T: serde::Serialize + Sync,
     {
-        self.map_chain.lock().await.load_context(context).await;
-        self.reduce_chain.lock().await.load_context(context).await;
+        self.map_chain.blocking_write().load_context(context).await;
+        self.reduce_chain.blocking_write().load_context(context).await;
     }
 }
 
@@ -73,6 +73,13 @@ mod tests {
     #[ignore = "wip"]
     async fn test_mapreduce() {
         let client = Arc::new(OpenAI::new());
-        let map_chain = Arc::new(Mutex::new(LLMChain::new(client.clone(), "Hello, {name}!")));
+        let map_chain = Arc::new(RwLock::new(
+            LLMChain::new(client.clone()).with_prompt("mapreduce", "Hello, {name}!"),
+        ));
+        let reduce_chain = Arc::new(RwLock::new(
+            LLMChain::new(client.clone()).with_prompt("mapreduce", "Hello, {name}!"),
+        ));
+        let mp_chain = MapReduceChain::new(map_chain, reduce_chain).execute("mapreduce").await;
+        assert!(mp_chain.is_ok())
     }
 }

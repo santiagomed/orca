@@ -10,17 +10,19 @@ pub(crate) enum TaskType {
 }
 
 pub struct Task {
+    pub template_name: String,
     pub records: Vec<(String, Record)>,
 }
 
 impl Task {
-    pub fn new(records: Vec<(String, Record)>) -> Self {
-        Self { records }
+    pub fn new(template_name: String, records: Vec<(String, Record)>) -> Self {
+        Self { template_name, records }
     }
 }
 
 pub(crate) struct WorkerTask {
     pub task_type: TaskType,
+    pub template_name: String,
     pub record_name: String,
     pub record: Record,
 }

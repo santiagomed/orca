@@ -196,6 +196,7 @@ mod test {
         context.insert("country1", "France");
         context.insert("country2", "Germany");
         let prompt = template!(
+            "my template",
             r#"
             {{#chat}}
             {{#user}}
@@ -210,7 +211,7 @@ mod test {
             {{/chat}}
             "#
         );
-        let prompt = prompt.render_context(&context).unwrap();
+        let prompt = prompt.render_context("my template", &context).unwrap();
         let response = client.generate(prompt).await.unwrap();
         assert!(response.to_string().to_lowercase().contains("berlin"));
     }

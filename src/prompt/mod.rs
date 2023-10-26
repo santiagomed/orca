@@ -18,11 +18,19 @@ static CHAT_HELPER: ChatHelper = ChatHelper;
 
 /// Represents a prompt engine that uses handlebars templates to render strings.
 pub struct TemplateEngine {
-    /// A vector of template strings
-    pub template: String,
-
     /// The handlebars template engine
-    handlebars: Handlebars<'static>,
+    reg: Handlebars<'static>,
+
+    /// Registered templates
+    templates: HashMap<String, String>,
+}
+
+impl std::ops::Deref for TemplateEngine {
+    type Target = Handlebars<'static>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.reg
+    }
 }
 
 impl TemplateEngine {
@@ -35,17 +43,29 @@ impl TemplateEngine {
     /// use orca::prompt::TemplateEngine;
     /// let prompt = TemplateEngine::new("Welcome, {{user}}!");
     /// ```
-    pub fn new(prompt: &str) -> TemplateEngine {
-        let mut handlebars = Handlebars::new();
-        let template = prompt.to_string();
-        handlebars.register_escape_fn(handlebars::no_escape);
+    pub fn new() -> TemplateEngine {
+        let mut reg = Handlebars::new();
+        reg.register_escape_fn(handlebars::no_escape);
 
-        handlebars.register_helper("system", Box::new(SYSTEM_HELPER));
-        handlebars.register_helper("user", Box::new(USER_HELPER));
-        handlebars.register_helper("assistant", Box::new(ASSISTANT_HELPER));
-        handlebars.register_helper("chat", Box::new(CHAT_HELPER));
+        reg.register_helper("system", Box::new(SYSTEM_HELPER));
+        reg.register_helper("user", Box::new(USER_HELPER));
+        reg.register_helper("assistant", Box::new(ASSISTANT_HELPER));
+        reg.register_helper("chat", Box::new(CHAT_HELPER));
 
-        TemplateEngine { template, handlebars }
+        TemplateEngine {
+            reg,
+            templates: HashMap::new(),
+        }
+    }
+
+    pub fn register_template(mut self, name: &str, template: &str) -> Self {
+        self.templates.insert(name.to_string(), template.to_string());
+        self.reg.register_template_string(name, template.to_string()).unwrap();
+        self
+    }
+
+    pub fn get_template(&self, name: &str) -> Option<String> {
+        self.templates.get(name).cloned()
     }
 
     /// Adds a new template to the prompt.
@@ -65,18 +85,21 @@ impl TemplateEngine {
     /// prompt.add_to_template("Hello, world!");
     /// assert_eq!(prompt.template, "Welcome!Hello, world!");
     /// ```
-    pub fn add_to_template(&mut self, template: &str) {
+    pub fn add_to_template(&mut self, name: &str, new_template: &str) {
         // TODO: Remove this temporary hack to add a new prompt to template
         //       where we remove the chat tags from the template and add them
         //       back after appending the new template.
         let mut chat = false;
-        if self.template.contains("{{#chat}}") && self.template.contains("{{/chat}}") {
-            chat = true;
-            self.template = self.template.replace("{{#chat}}", "").replace("{{/chat}}", "");
-        }
-        self.template.push_str(template);
-        if chat {
-            self.template = format!("{{{{#chat}}}}{}{{{{/chat}}}}", self.template);
+        if let Some(template) = self.templates.get_mut(name) {
+            if template.contains("{{#chat}}") && template.contains("{{/chat}}") {
+                chat = true;
+                *template = template.replace("{{#chat}}", "").replace("{{/chat}}", "");
+            }
+            template.push_str(new_template);
+            if chat {
+                *template = format!("{{{{#chat}}}}{}{{{{/chat}}}}", template);
+            }
+            self.reg.register_template_string(name, (*template).clone()).unwrap();
         }
     }
 
@@ -98,8 +121,8 @@ impl TemplateEngine {
     ///
     /// assert_eq!(result.to_string().unwrap(), "Hello, world!".to_string());
     /// ```
-    pub fn render(&self) -> Result<Box<dyn Prompt>> {
-        let rendered = self.handlebars.render_template(&self.template, &HashMap::<String, String>::new())?;
+    pub fn render(&self, name: &str) -> Result<Box<dyn Prompt>> {
+        let rendered = self.reg.render(name, &HashMap::<String, String>::new())?;
         match serde_json::from_str::<ChatPrompt>(&rendered) {
             Ok(chat) => Ok(Box::new(chat)),
             Err(_) => Ok(Box::new(rendered)),
@@ -125,11 +148,11 @@ impl TemplateEngine {
     ///
     /// assert_eq!(result.to_string().unwrap(), "Hello, world!".to_string());
     /// ```
-    pub fn render_context<T>(&self, data: &T) -> Result<Box<dyn Prompt>>
+    pub fn render_context<T>(&self, name: &str, data: &T) -> Result<Box<dyn Prompt>>
     where
         T: Serialize,
     {
-        let rendered = self.handlebars.render_template(&self.template, &data)?;
+        let rendered = self.reg.render(name, &data)?;
         println!("{}", rendered);
         match serde_json::from_str::<ChatPrompt>(&rendered) {
             Ok(chat) => {
@@ -162,13 +185,13 @@ impl TemplateEngine {
     /// let result = prompt.render_chat(Some(&data));
     /// assert_eq!(result.unwrap(), vec![Message::new(Role::System, "Hello, world!")]);
     /// ```
-    pub fn render_chat<T>(&self, data: Option<&T>) -> Result<ChatPrompt>
+    pub fn render_chat<T>(&self, name: &str, data: Option<&T>) -> Result<ChatPrompt>
     where
         T: Serialize,
     {
         let rendered = match data {
-            Some(data) => self.render_context(&data)?,
-            None => self.render()?,
+            Some(data) => self.render_context(&name, &data)?,
+            None => self.render(&name)?,
         };
         let rendered_json = format!("[{}]", remove_last_comma(rendered.as_str()?));
         let messages: ChatPrompt = serde_json::from_str(&rendered_json)?;
@@ -180,8 +203,8 @@ impl Clone for TemplateEngine {
     /// Clone a prompt template
     fn clone(&self) -> Self {
         TemplateEngine {
-            template: self.template.clone(),
-            handlebars: self.handlebars.clone(),
+            reg: self.reg.clone(),
+            templates: self.templates.clone(),
         }
     }
 }
@@ -318,8 +341,14 @@ macro_rules! prompt {
 
 #[macro_export]
 macro_rules! template {
-    ($template:expr) => {
-        TemplateEngine::new($template)
+    ($($name:expr, $template:expr),* $(,)?) => {
+        {
+            let mut engine = TemplateEngine::new();
+            $(
+                engine = engine.register_template($name, $template);
+            )*
+            engine
+        }
     };
 }
 
@@ -333,16 +362,17 @@ mod test {
 
     #[test]
     fn test_prompt() {
-        let prompt_template = template!("What is the capital of {{country}}");
+        let prompt_template = template!("my template", "What is the capital of {{country}}");
         let mut context = HashMap::new();
         context.insert("country", "France");
-        let prompt = prompt_template.render_context(&context).unwrap();
+        let prompt = prompt_template.render_context("my template", &context).unwrap();
         assert_eq!(prompt.to_string().unwrap(), "What is the capital of France");
     }
 
     #[test]
     fn test_chat() {
         let prompt_template = template!(
+            "my template",
             r#"
                 {{#chat}}
                 {{#system}}
@@ -359,7 +389,7 @@ mod test {
         );
         let mut context = HashMap::new();
         context.insert("subject", "math");
-        let prompt = prompt_template.render_context(&context).unwrap();
+        let prompt = prompt_template.render_context("my template", &context).unwrap();
         assert_eq!(
             prompt.to_chat().unwrap(),
             vec![
@@ -379,6 +409,7 @@ mod test {
         }
 
         let prompt_template = template!(
+            "my template",
             "{{#chat}}
             {{#assistant}}
             My name is {{name}} and I am {{#if (eq age 1)}}1 year{{else}}{{age}} years{{/if}} old.
@@ -391,7 +422,7 @@ mod test {
             age: 5,
         };
 
-        let prompt = prompt_template.render_context(&data).unwrap();
+        let prompt = prompt_template.render_context("my template", &data).unwrap();
         assert_eq!(
             prompt.to_chat().unwrap(),
             vec![Message::new(Role::Assistant, "My name is gpt and I am 5 years old.")]

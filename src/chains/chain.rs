@@ -7,6 +7,7 @@ use crate::prompt::TemplateEngine;
 use anyhow::Result;
 use std::collections::HashMap;
 use std::sync::Arc;
+use tokio::sync::Mutex;
 
 /// Represents the simples chain for a Large Language Model (LLM).
 ///
@@ -25,7 +26,7 @@ pub struct LLMChain {
 
     /// Memory associated with the LLMChain. It can be used to persist
     /// state or data across different executions of the chain.
-    memory: Option<Box<dyn Memory>>,
+    memory: Option<Arc<Mutex<dyn Memory>>>,
 
     /// The context containing key-value pairs which the `prompt`
     /// template engine might use to render the final prompt.
@@ -47,11 +48,11 @@ impl LLMChain {
     /// let prompt = "Hello, LLM!";
     /// let chain = LLMChain::new(client.clone(), prompt);
     /// ```
-    pub fn new(llm: Arc<dyn LLM>, prompt: &str) -> LLMChain {
+    pub fn new(llm: Arc<dyn LLM>) -> LLMChain {
         LLMChain {
             name: uuid::Uuid::new_v4().to_string(),
             llm,
-            prompt: TemplateEngine::new(prompt),
+            prompt: TemplateEngine::new(),
             memory: None,
             context: HashMap::new(),
         }
@@ -76,9 +77,21 @@ impl LLMChain {
     /// let new_prompt = "Hello, LLM! How are you?";
     /// let chain = chain.with_prompt(template!(new_prompt));
     /// ```
-    pub fn with_prompt(mut self, prompt: TemplateEngine) -> Self {
-        self.prompt = prompt;
-        self
+    pub fn with_prompt(self, name: &str, prompt: &str) -> Self {
+        Self {
+            prompt: self.prompt.register_template(name, prompt),
+            ..self
+        }
+    }
+
+    pub fn duplicate_template(&mut self, name: &str) -> Option<String> {
+        let template_name = format!("{}-{}", name, uuid::Uuid::new_v4().to_string());
+        if let Some(template) = self.prompt.get_template(name) {
+            (*self.prompt).register_template_string(template_name.as_str(), &template);
+        } else {
+            return None;
+        }
+        Some(template_name)
     }
 
     /// Change the memory used by the LLMChain.
@@ -100,23 +113,26 @@ impl LLMChain {
     /// let memory = ChatBuffer::new();
     /// let chain = chain.with_memory(memory);
     /// ```
-    pub fn with_memory(mut self, memory: impl Memory + 'static) -> Self {
-        self.memory = Some(Box::new(memory));
+    pub fn with_memory<T: Memory + 'static>(mut self, memory: T) -> Self {
+        self.memory = Some(Arc::new(Mutex::new(memory)));
         self
     }
 }
 
 #[async_trait::async_trait]
 impl Chain for LLMChain {
-    async fn execute(&mut self) -> Result<ChainResult> {
-        let prompt = self.prompt.render_context(&self.context)?;
-        let response = if let Some(memory) = &mut self.memory {
-            let mem = memory.memory();
+    async fn execute(&self, target: &str) -> Result<ChainResult> {
+        let prompt = self.prompt.render_context(target, &self.context)?;
+
+        let response = if let Some(memory) = &self.memory {
+            let mut locked_memory = memory.lock().await; // Lock the memory
+            let mem = locked_memory.memory();
             mem.save(prompt)?;
             self.llm.generate(mem.clone_prompt()).await?
         } else {
             self.llm.generate(prompt.clone_prompt()).await?
         };
+
         Ok(ChainResult::new(self.name.clone()).with_llm_response(response))
     }
 
@@ -145,7 +161,6 @@ mod test {
         llm::openai::OpenAI,
         memory,
         record::{self, Spin},
-        template,
     };
     use serde::Serialize;
 
@@ -176,14 +191,14 @@ mod test {
             {{/user}}
             {{/chat}}
             "#;
-        let mut chain = LLMChain::new(client, prompt);
+        let mut chain = LLMChain::new(client).with_prompt("capitals", prompt);
         chain
             .load_context(&DataOne {
                 country1: "France".to_string(),
                 country2: "Germany".to_string(),
             })
             .await;
-        let res = chain.execute().await.unwrap().content();
+        let res = chain.execute("capitals").await.unwrap().content();
 
         assert!(res.contains("Berlin") || res.contains("berlin"));
     }
@@ -206,10 +221,10 @@ mod test {
             {{/chat}}
             "#;
 
-        let mut chain = LLMChain::new(client, prompt);
+        let mut chain = LLMChain::new(client).with_prompt("summary", prompt);
 
         chain.load_record("story", record);
-        let res = chain.execute().await.unwrap().content();
+        let res = chain.execute("summary").await.unwrap().content();
         assert!(res.contains("elephant") || res.contains("burma"));
     }
 
@@ -218,10 +233,10 @@ mod test {
         let client = Arc::new(OpenAI::new());
 
         let prompt = "{{#chat}}{{#user}}My name is Orca{{/user}}{{/chat}}";
-        let mut chain = LLMChain::new(client, prompt).with_memory(memory::ChatBuffer::new());
-        chain.execute().await.unwrap();
-        let mut chain = chain.with_prompt(template!("{{#chat}}{{#user}}What is my name?{{/user}}{{/chat}}"));
-        let res = chain.execute().await.unwrap().content();
+        let chain = LLMChain::new(client).with_prompt("name", prompt).with_memory(memory::ChatBuffer::new());
+        chain.execute("name").await.unwrap();
+        let chain = chain.with_prompt("name", "{{#chat}}{{#user}}What is my name?{{/user}}{{/chat}}");
+        let res = chain.execute("name").await.unwrap().content();
 
         assert!(res.to_lowercase().contains("orca"));
     }
