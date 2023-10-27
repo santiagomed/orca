@@ -19,7 +19,7 @@ impl Master {
     pub fn new(num_workers: usize, map_chain: Arc<RwLock<LLMChain>>, reduce_chain: Arc<RwLock<LLMChain>>) -> Self {
         let mut worker_channels = Vec::new();
         let (sender, receiver) = channel::<WorkerMsg>(std::mem::size_of::<WorkerMsg>() * num_workers);
-        let sender = Arc::new(RwLock::new(sender));
+        let sender = Arc::new(Mutex::new(sender));
 
         for _ in 0..num_workers {
             let (tx, rx) = channel::<WorkerTask>(std::mem::size_of::<Task>() * num_workers);

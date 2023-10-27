@@ -4,13 +4,13 @@ use crate::chains::Chain;
 use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::mpsc::{Receiver, Sender};
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 
 pub(crate) struct Worker {
     receiver: Receiver<WorkerTask>,
     map_chain: Arc<RwLock<LLMChain>>,
     reduce_chain: Arc<RwLock<LLMChain>>,
-    sender: Arc<RwLock<Sender<WorkerMsg>>>,
+    sender: Arc<Mutex<Sender<WorkerMsg>>>,
 }
 
 impl Worker {
@@ -18,7 +18,7 @@ impl Worker {
         receiver: Receiver<WorkerTask>,
         map_chain: Arc<RwLock<LLMChain>>,
         reduce_chain: Arc<RwLock<LLMChain>>,
-        sender: Arc<RwLock<Sender<WorkerMsg>>>,
+        sender: Arc<Mutex<Sender<WorkerMsg>>>,
     ) -> Self {
         Worker {
             receiver,
@@ -47,34 +47,33 @@ impl Worker {
                     });
                     locked_chain.load_record(&task.record_name, task.record);
                 }
-                {
-                    let locked_chain = match task.task_type {
-                        TaskType::Map => map_chain.read().await,
-                        TaskType::Reduce => reduce_chain.read().await,
-                    };
-                    let chain_result = locked_chain.execute(&template_name).await.unwrap_or_else(|e| {
-                        log::error!(
-                            "{}",
-                            format!("Error while executing chain [{}]: {}", locked_chain.name, e)
-                        );
-                        panic!(
-                            "{}",
-                            format!("Error while executing chain [{}]: {}", locked_chain.name, e)
-                        );
-                    });
-                    sender
-                        .read()
-                        .await
-                        .send(WorkerMsg {
-                            task_completed: task.task_type,
-                            chain_result,
-                        })
-                        .await
-                        .unwrap_or_else(|e| {
-                            log::error!("{}", format!("Error while sending message: {}", e));
-                            panic!();
-                        })
-                }
+                let locked_chain = match task.task_type {
+                    TaskType::Map => map_chain.read().await,
+                    TaskType::Reduce => reduce_chain.read().await,
+                };
+                let chain_result = locked_chain.execute(&template_name).await.unwrap_or_else(|e| {
+                    log::error!(
+                        "{}",
+                        format!("Error while executing chain [{}]: {}", locked_chain.name, e)
+                    );
+                    panic!(
+                        "{}",
+                        format!("Error while executing chain [{}]: {}", locked_chain.name, e)
+                    );
+                });
+                println!("{}", chain_result.content());
+                sender
+                    .lock()
+                    .await
+                    .send(WorkerMsg {
+                        task_completed: task.task_type,
+                        chain_result,
+                    })
+                    .await
+                    .unwrap_or_else(|e| {
+                        log::error!("{}", format!("Error while sending message: {}", e));
+                        panic!();
+                    })
             }
         });
         Ok(())
