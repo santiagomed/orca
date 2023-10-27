@@ -5,3 +5,5 @@
 *.env
 to_fix.md
 .vscode
+*.gguf
+*.ggml
