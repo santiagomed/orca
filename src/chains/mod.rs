@@ -1,4 +1,5 @@
 pub mod chain;
+
 pub mod mapreduce;
 pub mod sequential;
 use crate::prompt::clean_prompt;
@@ -9,7 +10,7 @@ use serde::Serialize;
 use std::collections::HashMap;
 
 #[async_trait::async_trait]
-pub trait Chain: Sync + Send {
+pub trait Chain {
     /// Executes a given chain and produces an LLM response.
     ///
     /// # Returns
@@ -34,7 +35,7 @@ pub trait Chain: Sync + Send {
     /// # #[tokio::main]
     /// # async fn main() {
     /// let client = Arc::new(OpenAI::new());
-    /// let mut chain = LLMChain::new(client.clone(), "Hello, {name}!");
+    /// let mut chain = LLMChain::new(client.clone()).with_prompt("my prompt", "Hello, {{name}}!");
     /// let mut data = HashMap::new();
     /// data.insert("name", "LLM");
     /// chain.load_context(&data).await;

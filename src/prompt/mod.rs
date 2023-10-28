@@ -22,7 +22,7 @@ pub struct TemplateEngine {
     reg: Handlebars<'static>,
 
     /// Registered templates
-    templates: HashMap<String, String>,
+    pub templates: HashMap<String, String>,
 }
 
 impl std::ops::Deref for TemplateEngine {
@@ -41,7 +41,7 @@ impl TemplateEngine {
     /// # Example
     /// ```
     /// use orca::prompt::TemplateEngine;
-    /// let prompt = TemplateEngine::new("Welcome, {{user}}!");
+    /// let prompt = TemplateEngine::new();
     /// ```
     pub fn new() -> TemplateEngine {
         let mut reg = Handlebars::new();
@@ -81,9 +81,9 @@ impl TemplateEngine {
     /// ```
     /// use orca::prompt::TemplateEngine;
     ///
-    /// let mut prompt = TemplateEngine::new("Welcome!");
-    /// prompt.add_to_template("Hello, world!");
-    /// assert_eq!(prompt.template, "Welcome!Hello, world!");
+    /// let mut prompt = TemplateEngine::new().register_template("template", "Welcome!");
+    /// prompt.add_to_template("template", "Hello, world!");
+    /// assert_eq!(prompt.templates["template"], "Welcome!Hello, world!");
     /// ```
     pub fn add_to_template(&mut self, name: &str, new_template: &str) {
         // TODO: Remove this temporary hack to add a new prompt to template
@@ -116,8 +116,8 @@ impl TemplateEngine {
     /// use serde_json::json;
     /// use orca::prompt::TemplateEngine;
     ///
-    /// let prompt = TemplateEngine::new("{{#if true}}Hello, world!{{/if}}");
-    /// let result = prompt.render().unwrap();
+    /// let prompt = TemplateEngine::new().register_template("template", "{{#if true}}Hello, world!{{/if}}");
+    /// let result = prompt.render("template").unwrap();
     ///
     /// assert_eq!(result.to_string().unwrap(), "Hello, world!".to_string());
     /// ```
@@ -142,9 +142,9 @@ impl TemplateEngine {
     /// use serde_json::json;
     /// use orca::prompt::TemplateEngine;
     ///
-    /// let prompt = TemplateEngine::new("Hello, {{name}}!");
+    /// let prompt = TemplateEngine::new().register_template("template", "Hello, {{name}}!");
     /// let data = json!({"name": "world"});
-    /// let result = prompt.render_context(&data).unwrap();
+    /// let result = prompt.render_context("template", &data).unwrap();
     ///
     /// assert_eq!(result.to_string().unwrap(), "Hello, world!".to_string());
     /// ```
@@ -181,9 +181,9 @@ impl TemplateEngine {
     /// use orca::prompt::TemplateEngine;
     /// use orca::prompt::chat::{Role, Message};
     ///
-    /// let prompt = TemplateEngine::new("{{#system}}Hello, {{name}}!{{/system}}");
+    /// let prompt = TemplateEngine::new().register_template("template", "{{#system}}Hello, {{name}}!{{/system}}");
     /// let data = json!({"name": "world"});
-    /// let result = prompt.render_chat(Some(&data));
+    /// let result = prompt.render_chat("template", Some(&data));
     /// assert_eq!(result.unwrap(), vec![Message::new(Role::System, "Hello, world!")]);
     /// ```
     pub fn render_chat<T>(&self, name: &str, data: Option<&T>) -> Result<ChatPrompt>

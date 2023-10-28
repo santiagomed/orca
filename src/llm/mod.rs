@@ -31,6 +31,7 @@ pub trait LLM: Sync + Send {
     /// #[tokio::main]
     /// async fn main() {
     ///    let prompt = template!(
+    ///       "my template",
     ///       r#"
     ///       {{#chat}}
     ///       {{#user}}
@@ -40,7 +41,7 @@ pub trait LLM: Sync + Send {
     ///       "#
     ///    );
     ///    let client = OpenAI::new();
-    ///    let prompt = prompt.render().unwrap();
+    ///    let prompt = prompt.render("my template").unwrap();
     ///    let response = client.generate(prompt).await.unwrap();
     ///    assert!(response.to_string().to_lowercase().contains("paris"));
     /// }
@@ -50,7 +51,7 @@ pub trait LLM: Sync + Send {
 
 /// Embedding trait is used to generate an embedding from an Online Service.
 #[async_trait::async_trait]
-pub trait Embedding: Sync + Send {
+pub trait Embedding {
     /// Generate an embedding from an Online Service.
     /// # Arguments
     /// * `input` - A Record trait object.

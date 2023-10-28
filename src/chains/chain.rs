@@ -46,7 +46,7 @@ impl LLMChain {
     ///
     /// let client = Arc::new(OpenAI::new());
     /// let prompt = "Hello, LLM!";
-    /// let chain = LLMChain::new(client.clone(), prompt);
+    /// let chain = LLMChain::new(client.clone()).with_prompt("my prompt", prompt);
     /// ```
     pub fn new(llm: Arc<dyn LLM>) -> LLMChain {
         LLMChain {
@@ -73,9 +73,8 @@ impl LLMChain {
     ///
     /// let client = Arc::new(OpenAI::new());
     /// let prompt = "Hello, LLM!";
-    /// let mut chain = LLMChain::new(client.clone(), prompt);
+    /// let mut chain = LLMChain::new(client.clone()).with_prompt("my prompt", prompt);
     /// let new_prompt = "Hello, LLM! How are you?";
-    /// let chain = chain.with_prompt(template!(new_prompt));
     /// ```
     pub fn with_prompt(self, name: &str, prompt: &str) -> Self {
         Self {
@@ -111,7 +110,7 @@ impl LLMChain {
     ///
     /// let client = Arc::new(OpenAI::new());
     /// let prompt = "Hello, LLM!";
-    /// let mut chain = LLMChain::new(client.clone(), prompt);
+    /// let mut chain = LLMChain::new(client.clone()).with_prompt("my prompt", prompt);
     /// let memory = ChatBuffer::new();
     /// let chain = chain.with_memory(memory);
     /// ```
