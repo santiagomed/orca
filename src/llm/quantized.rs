@@ -4,8 +4,6 @@ extern crate intel_mkl_src;
 #[cfg(feature = "accelerate")]
 extern crate accelerate_src;
 
-use tokio::sync::RwLock;
-
 use tokenizers::Tokenizer;
 
 use candle_core::quantized::{ggml_file, gguf_file};
@@ -56,7 +54,7 @@ impl Model {
 
 pub struct Quantized {
     /// The loaded model weights
-    model: Option<RwLock<ModelWeights>>,
+    model: Option<ModelWeights>,
 
     /// The path to read the model from.
     model_path: Option<std::path::PathBuf>,
@@ -119,6 +117,10 @@ impl Quantized {
 
     pub fn with_sample_len(mut self, sample_len: usize) -> Self {
         self.sample_len = sample_len;
+        self
+    }
+    pub fn with_model(mut self, model: Model) -> Self {
+        self.which = model;
         self
     }
 
@@ -195,7 +197,7 @@ impl Quantized {
                     &format_size(total_size_in_bytes),
                     start.elapsed().as_secs_f32(),
                 );
-                Some(RwLock::new(ModelWeights::from_gguf(model, &mut file)?))
+                Some(ModelWeights::from_gguf(model, &mut file)?)
             }
             Some("ggml" | "bin") | Some(_) | None => {
                 let model = ggml_file::Content::read(&mut file)?;
@@ -221,10 +223,7 @@ impl Quantized {
                     | Model::L34bCode => 1,
                     Model::Mistral7b | Model::Mistral7bInstruct | Model::L70b | Model::L70bChat => 8,
                 };
-                Some(RwLock::new(ModelWeights::from_ggml(
-                    model,
-                    self.gqa.unwrap_or(default_gqa),
-                )?))
+                Some(ModelWeights::from_ggml(model, self.gqa.unwrap_or(default_gqa))?)
             }
         };
         log::info!("model built");
@@ -333,16 +332,12 @@ impl LLM for Quantized {
         let mut all_tokens = vec![];
         let mut logits_processor = LogitsProcessor::new(self.seed, temperature, self.top_p);
 
+        let mut model = self.model.clone().unwrap();
+
         let start_prompt_processing = std::time::Instant::now();
         let mut next_token = {
             let input = Tensor::new(prompt_tokens.as_slice(), &Device::Cpu)?.unsqueeze(0)?;
-            let logits = self
-                .model
-                .as_ref()
-                .ok_or_else(|| anyhow::Error::msg("model not loaded"))?
-                .write()
-                .await
-                .forward(&input, 0)?;
+            let logits = model.forward(&input, 0)?;
             let logits = logits.squeeze(0)?;
             logits_processor.sample(&logits)?
         };
@@ -355,13 +350,7 @@ impl LLM for Quantized {
         let start_post_prompt = std::time::Instant::now();
         for index in 0..to_sample {
             let input = Tensor::new(&[next_token], &Device::Cpu)?.unsqueeze(0)?;
-            let logits = self
-                .model
-                .as_ref()
-                .ok_or_else(|| anyhow::Error::msg("model not loaded"))?
-                .write()
-                .await
-                .forward(&input, prompt_tokens.len() + index)?;
+            let logits = model.forward(&input, prompt_tokens.len() + index)?;
             let logits = logits.squeeze(0)?;
             let logits = if self.repeat_penalty == 1. {
                 logits
@@ -400,12 +389,13 @@ mod test {
     #[ignore = "needs a file to load from"]
     async fn test_generate() {
         let model = Quantized::new()
-            .with_sample_len(1)
+            .with_model(Model::Mistral7bInstruct)
+            .with_sample_len(20)
             .load_model_from_path("./mistral-7b-v0.1.Q4_0.gguf")
             .unwrap()
             .build_model()
             .unwrap();
-        let response = model.generate(Box::new("I am".to_string())).await.unwrap();
+        let response = model.generate(Box::new("Who are you?".to_string())).await.unwrap();
         println!("{:?}", response.to_string());
     }
 }

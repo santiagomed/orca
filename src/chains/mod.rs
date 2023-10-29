@@ -30,12 +30,11 @@ pub trait Chain {
     /// use orca::llm::openai::OpenAI;
     /// use orca::chains::chain::LLMChain;
     /// use std::collections::HashMap;
-    /// use std::sync::Arc;
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let client = Arc::new(OpenAI::new());
-    /// let mut chain = LLMChain::new(client.clone()).with_prompt("my prompt", "Hello, {{name}}!");
+    /// let client = OpenAI::new();
+    /// let mut chain = LLMChain::new(&client).with_prompt("my prompt", "Hello, {{name}}!");
     /// let mut data = HashMap::new();
     /// data.insert("name", "LLM");
     /// chain.load_context(&data).await;

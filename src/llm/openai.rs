@@ -98,13 +98,18 @@ pub struct Choice {
 static OPENAI_COMPLETIONS_URL: &str = "https://api.openai.com/v1/chat/completions";
 static OPENAI_EMBEDDING_URL: &str = " https://api.openai.com/v1/embeddings";
 
+#[derive(Clone)]
 pub struct OpenAI {
     /// Client member for the OpenAI API. This client is a wrapper around the async-openai crate, with additional functionality to
     /// support LLM orchestration.
     client: Client,
 
+    /// URL of the OpenAI API
+    /// This URL is set to https://api.openai.com/v1/chat/completions by default.
     url: String,
 
+    /// API key for the OpenAI API
+    /// This key is stored in the OPENAI_API_KEY environment variable.
     api_key: String,
 
     /// ID of the model to use.
@@ -112,8 +117,8 @@ pub struct OpenAI {
     model: String,
 
     /// ID of the emedding model to use.
-    emedding_model: String,
     /// See the [model endpoint compatibility](https://platform.openai.com/docs/models/model-endpoint-compatibility) table for details on which models work with the Chat API.
+    emedding_model: String,
 
     /// What sampling temperature to use, between 0 and 2. Higher values like 0.8 will make the output more random,
     /// while lower values like 0.2 will make it more focused and deterministic.

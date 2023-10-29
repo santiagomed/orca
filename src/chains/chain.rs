@@ -19,7 +19,7 @@ pub struct LLMChain {
 
     /// The prompt template engine instance that is used by the LLMChain
     /// to generate the actual prompts based on the given context.
-    pub prompt: TemplateEngine,
+    pub template_engine: TemplateEngine,
 
     /// A reference to the LLM that this chain will use to process the prompts.
     llm: Arc<dyn LLM>,
@@ -42,17 +42,16 @@ impl LLMChain {
     /// use orca::llm::LLM;
     /// use orca::prompt::TemplateEngine;
     /// use orca::chains::chain::LLMChain;
-    /// use std::sync::Arc;
     ///
-    /// let client = Arc::new(OpenAI::new());
+    /// let client = OpenAI::new();
     /// let prompt = "Hello, LLM!";
-    /// let chain = LLMChain::new(client.clone()).with_prompt("my prompt", prompt);
+    /// let chain = LLMChain::new(&client).with_template("my prompt", prompt);
     /// ```
-    pub fn new(llm: Arc<dyn LLM>) -> LLMChain {
+    pub fn new<M: LLM + Clone + 'static>(llm: &M) -> LLMChain {
         LLMChain {
             name: uuid::Uuid::new_v4().to_string(),
-            llm,
-            prompt: TemplateEngine::new(),
+            llm: Arc::new(llm.clone()),
+            template_engine: TemplateEngine::new(),
             memory: None,
             context: HashMap::new(),
         }
@@ -69,26 +68,48 @@ impl LLMChain {
     /// use orca::prompt::TemplateEngine;
     /// use orca::chains::chain::LLMChain;
     /// use orca::template;
-    /// use std::sync::Arc;
     ///
-    /// let client = Arc::new(OpenAI::new());
+    /// let client = OpenAI::new();
     /// let prompt = "Hello, LLM!";
-    /// let mut chain = LLMChain::new(client.clone()).with_prompt("my prompt", prompt);
+    /// let mut chain = LLMChain::new(&client).with_template("my prompt", prompt);
     /// let new_prompt = "Hello, LLM! How are you?";
     /// ```
-    pub fn with_prompt(self, name: &str, prompt: &str) -> Self {
+    pub fn with_template(self, name: &str, prompt: &str) -> Self {
         Self {
-            prompt: self.prompt.register_template(name, prompt),
+            template_engine: self.template_engine.register_template(name, prompt),
             ..self
         }
     }
 
+    /// Duplicate a template with a new name and return the new template name.
+    ///
+    /// # Arguments
+    /// * `name` - A string slice that holds the name of the template to duplicate.
+    ///
+    /// # Returns
+    /// An optional string that holds the name of the new template if the template with the given name exists, otherwise `None`.
+    ///
+    /// # Example
+    /// ```rust
+    /// use orca::llm::openai::OpenAI;
+    /// use orca::llm::LLM;
+    /// use orca::prompt::TemplateEngine;
+    /// use orca::chains::chain::LLMChain;
+    /// use orca::template;
+    ///
+    /// let client = OpenAI::new();
+    /// let prompt = "Hello, LLM!";
+    /// let mut chain = LLMChain::new(&client).with_template("my prompt", prompt);
+    /// let new_prompt = "Hello, LLM! How are you?";
+    /// let new_template_name = chain.duplicate_template("my prompt").unwrap();
+    /// let mut chain = chain.with_template(new_template_name.as_str(), new_prompt);
+    /// ```
     pub fn duplicate_template(&mut self, name: &str) -> Option<String> {
         let template_name = format!("{}-{}", name, uuid::Uuid::new_v4().to_string());
-        if let Some(template) = self.prompt.get_template(name) {
-            let mut prompt_clone = self.prompt.clone();
-            prompt_clone = prompt_clone.register_template(template_name.as_str(), &template);
-            self.prompt = prompt_clone;
+        if let Some(template) = self.template_engine.get_template(name) {
+            let mut template_clone = self.template_engine.clone();
+            template_clone = template_clone.register_template(template_name.as_str(), &template);
+            self.template_engine = template_clone;
         } else {
             return None;
         }
@@ -106,11 +127,10 @@ impl LLMChain {
     /// use orca::prompt::TemplateEngine;
     /// use orca::chains::chain::LLMChain;
     /// use orca::memory::ChatBuffer;
-    /// use std::sync::Arc;
     ///
-    /// let client = Arc::new(OpenAI::new());
+    /// let client = OpenAI::new();
     /// let prompt = "Hello, LLM!";
-    /// let mut chain = LLMChain::new(client.clone()).with_prompt("my prompt", prompt);
+    /// let mut chain = LLMChain::new(&client).with_template("my prompt", prompt);
     /// let memory = ChatBuffer::new();
     /// let chain = chain.with_memory(memory);
     /// ```
@@ -123,7 +143,7 @@ impl LLMChain {
 #[async_trait::async_trait]
 impl Chain for LLMChain {
     async fn execute(&self, target: &str) -> Result<ChainResult> {
-        let prompt = self.prompt.render_context(target, &self.context)?;
+        let prompt = self.template_engine.render_context(target, &self.context)?;
 
         let response = if let Some(memory) = &self.memory {
             let mut locked_memory = memory.lock().await; // Lock the memory
@@ -147,7 +167,7 @@ impl Clone for LLMChain {
         LLMChain {
             name: self.name.clone(),
             llm: self.llm.clone(),
-            prompt: self.prompt.clone(),
+            template_engine: self.template_engine.clone(),
             memory: self.memory.clone(),
             context: self.context.clone(),
         }
@@ -178,7 +198,7 @@ mod test {
 
     #[tokio::test]
     async fn test_generate() {
-        let client = Arc::new(OpenAI::new());
+        let client = OpenAI::new();
         let prompt = r#"
             {{#chat}}
             {{#user}}
@@ -192,7 +212,7 @@ mod test {
             {{/user}}
             {{/chat}}
             "#;
-        let mut chain = LLMChain::new(client).with_prompt("capitals", prompt);
+        let mut chain = LLMChain::new(&client).with_template("capitals", prompt);
         chain
             .load_context(&DataOne {
                 country1: "France".to_string(),
@@ -206,7 +226,7 @@ mod test {
 
     #[tokio::test]
     async fn test_generate_with_record() {
-        let client = Arc::new(OpenAI::new().with_model("gpt-3.5-turbo-16k"));
+        let client = OpenAI::new().with_model("gpt-3.5-turbo-16k");
         let record = record::html::HTML::from_url("https://www.orwellfoundation.com/the-orwell-foundation/orwell/essays-and-other-works/shooting-an-elephant/")
             .await
             .unwrap()
@@ -222,7 +242,7 @@ mod test {
             {{/chat}}
             "#;
 
-        let mut chain = LLMChain::new(client).with_prompt("summary", prompt);
+        let mut chain = LLMChain::new(&client).with_template("summary", prompt);
 
         chain.load_record("story", record);
         let res = chain.execute("summary").await.unwrap().content();
@@ -231,12 +251,12 @@ mod test {
 
     #[tokio::test]
     async fn test_generate_with_memory() {
-        let client = Arc::new(OpenAI::new());
+        let client = OpenAI::new();
 
         let prompt = "{{#chat}}{{#user}}My name is Orca{{/user}}{{/chat}}";
-        let chain = LLMChain::new(client).with_prompt("name", prompt).with_memory(memory::ChatBuffer::new());
+        let chain = LLMChain::new(&client).with_template("name", prompt).with_memory(memory::ChatBuffer::new());
         chain.execute("name").await.unwrap();
-        let chain = chain.with_prompt("name", "{{#chat}}{{#user}}What is my name?{{/user}}{{/chat}}");
+        let chain = chain.with_template("name", "{{#chat}}{{#user}}What is my name?{{/user}}{{/chat}}");
         let res = chain.execute("name").await.unwrap().content();
 
         assert!(res.to_lowercase().contains("orca"));

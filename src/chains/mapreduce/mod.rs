@@ -80,8 +80,8 @@ mod tests {
         let rec = PDF::from_file("./tests/memgpt.pdf", false).spin().unwrap();
         let split_rec = rec.split(5);
 
-        let client = Arc::new(OpenAI::new());
-        let map_chain = Arc::new(RwLock::new(LLMChain::new(client.clone()).with_prompt(
+        let client = OpenAI::new();
+        let map_chain = Arc::new(RwLock::new(LLMChain::new(&client).with_template(
             "mapreduce",
             r#"{{#chat}}
                 {{#user}}
@@ -91,7 +91,7 @@ mod tests {
                 {{/chat}}
                 "#,
         )));
-        let reduce_chain = Arc::new(RwLock::new(LLMChain::new(client.clone()).with_prompt(
+        let reduce_chain = Arc::new(RwLock::new(LLMChain::new(&client).with_template(
             "mapreduce",
             r#"{{#chat}}
             {{#user}}

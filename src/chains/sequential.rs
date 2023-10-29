@@ -52,7 +52,7 @@ impl Chain for SequentialChain {
         let mut result: ChainResult = ChainResult::new(self.name.to_string()); // initialize result to a default value
         for chain in &self.chains {
             if !response.is_empty() {
-                chain.write().await.prompt.add_to_template(target, &format_prompt_as_user(&mut response));
+                chain.write().await.template_engine.add_to_template(target, &format_prompt_as_user(&mut response));
             }
             result = chain.read().await.execute(target).await?;
             response = result.content();
@@ -77,8 +77,6 @@ impl Chain for SequentialChain {
 #[cfg(test)]
 mod test {
 
-    use std::sync::Arc;
-
     use super::*;
     use crate::llm::openai::OpenAI;
     use serde::Serialize;
@@ -90,14 +88,14 @@ mod test {
 
     #[tokio::test]
     async fn test_generate() {
-        let client = Arc::new(OpenAI::new());
+        let client = OpenAI::new();
 
         let first = "{{#chat}}{{#user}}Give me a summary of {{play}}'s plot.{{/user}}{{/chat}}";
         let second = "{{#chat}}{{#system}}You are a professional critic. When given a summary of a play, you must write a review of it. Here is a summary of {{play}}'s plot:{{/system}}{{/chat}}";
 
         let mut chain = SequentialChain::new()
-            .link(LLMChain::new(client.clone()).with_prompt("review", first))
-            .link(LLMChain::new(client).with_prompt("review", second));
+            .link(LLMChain::new(&client).with_template("review", first))
+            .link(LLMChain::new(&client).with_template("review", second));
         chain
             .load_context(&Data {
                 play: "Hamlet".to_string(),
