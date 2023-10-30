@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["master","task","worker"],"struct":["MapReduceChain"]};

@@ -1,0 +1,10 @@
+/Users/santiagomedina/scrippt/orca/docs/debug/deps/istring-0cda620ff17097ae.rmeta: /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/istring-0.3.4/src/lib.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/istring-0.3.4/src/common.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/istring-0.3.4/src/istring.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/istring-0.3.4/src/small.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/istring-0.3.4/src/ibytes.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/istring-0.3.4/src/tiny.rs
+
+/Users/santiagomedina/scrippt/orca/docs/debug/deps/istring-0cda620ff17097ae.d: /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/istring-0.3.4/src/lib.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/istring-0.3.4/src/common.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/istring-0.3.4/src/istring.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/istring-0.3.4/src/small.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/istring-0.3.4/src/ibytes.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/istring-0.3.4/src/tiny.rs
+
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/istring-0.3.4/src/lib.rs:
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/istring-0.3.4/src/common.rs:
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/istring-0.3.4/src/istring.rs:
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/istring-0.3.4/src/small.rs:
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/istring-0.3.4/src/ibytes.rs:
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/istring-0.3.4/src/tiny.rs:

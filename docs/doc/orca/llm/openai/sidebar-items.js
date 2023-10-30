@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["Choice","Embedding","EmbeddingPayload","EmbeddingUsage","OpenAI","OpenAIEmbeddingResponse","Payload","Response","Usage"]};

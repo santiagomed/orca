@@ -1,0 +1,9 @@
+/Users/santiagomedina/scrippt/orca/docs/debug/deps/serial_test-14b9be770ab26f9d.rmeta: /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serial_test-2.0.0/src/lib.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serial_test-2.0.0/src/code_lock.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serial_test-2.0.0/src/parallel_code_lock.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serial_test-2.0.0/src/rwlock.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serial_test-2.0.0/src/serial_code_lock.rs
+
+/Users/santiagomedina/scrippt/orca/docs/debug/deps/serial_test-14b9be770ab26f9d.d: /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serial_test-2.0.0/src/lib.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serial_test-2.0.0/src/code_lock.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serial_test-2.0.0/src/parallel_code_lock.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serial_test-2.0.0/src/rwlock.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serial_test-2.0.0/src/serial_code_lock.rs
+
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serial_test-2.0.0/src/lib.rs:
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serial_test-2.0.0/src/code_lock.rs:
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serial_test-2.0.0/src/parallel_code_lock.rs:
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serial_test-2.0.0/src/rwlock.rs:
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serial_test-2.0.0/src/serial_code_lock.rs:

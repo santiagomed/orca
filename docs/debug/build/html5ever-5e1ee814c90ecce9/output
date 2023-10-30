@@ -1,0 +1,1 @@
+cargo:rerun-if-changed=/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/html5ever-0.26.0/src/tree_builder/rules.rs

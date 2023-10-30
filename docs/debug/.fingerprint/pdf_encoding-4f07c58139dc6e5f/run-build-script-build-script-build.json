@@ -1,0 +1,1 @@
+{"rustc":9313819672678296987,"features":"","target":0,"profile":0,"path":0,"deps":[[10031270799502049541,"build_script_build",false,3246213663270428663]],"local":[{"RerunIfChanged":{"output":"debug/build/pdf_encoding-4f07c58139dc6e5f/output","paths":["build.rs","agl-aglfn/glyphlist.txt"]}}],"rustflags":[],"metadata":0,"config":0,"compile_kind":0}

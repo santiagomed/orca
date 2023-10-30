@@ -1,0 +1,2 @@
+cargo:rerun-if-changed=build.rs
+cargo:rerun-if-changed=/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pdf_encoding-0.3.0/agl-aglfn/glyphlist.txt

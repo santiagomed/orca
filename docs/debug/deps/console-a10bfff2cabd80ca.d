@@ -1,0 +1,11 @@
+/Users/santiagomedina/scrippt/orca/docs/debug/deps/console-a10bfff2cabd80ca.rmeta: /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/console-0.15.7/src/lib.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/console-0.15.7/src/common_term.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/console-0.15.7/src/kb.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/console-0.15.7/src/term.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/console-0.15.7/src/unix_term.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/console-0.15.7/src/utils.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/console-0.15.7/src/ansi.rs
+
+/Users/santiagomedina/scrippt/orca/docs/debug/deps/console-a10bfff2cabd80ca.d: /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/console-0.15.7/src/lib.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/console-0.15.7/src/common_term.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/console-0.15.7/src/kb.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/console-0.15.7/src/term.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/console-0.15.7/src/unix_term.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/console-0.15.7/src/utils.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/console-0.15.7/src/ansi.rs
+
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/console-0.15.7/src/lib.rs:
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/console-0.15.7/src/common_term.rs:
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/console-0.15.7/src/kb.rs:
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/console-0.15.7/src/term.rs:
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/console-0.15.7/src/unix_term.rs:
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/console-0.15.7/src/utils.rs:
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/console-0.15.7/src/ansi.rs:

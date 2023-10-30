@@ -1,0 +1,14 @@
+/Users/santiagomedina/scrippt/orca/docs/debug/deps/pdf_encoding-fd85c2c37d3f3921.rmeta: /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pdf_encoding-0.3.0/src/lib.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pdf_encoding-0.3.0/src/stdenc.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pdf_encoding-0.3.0/src/symbol.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pdf_encoding-0.3.0/src/zdingbat.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pdf_encoding-0.3.0/src/cp1252.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pdf_encoding-0.3.0/src/macroman.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pdf_encoding-0.3.0/src/macexpert.rs /Users/santiagomedina/scrippt/orca/docs/debug/build/pdf_encoding-4f07c58139dc6e5f/out/glyphlist.rs
+
+/Users/santiagomedina/scrippt/orca/docs/debug/deps/pdf_encoding-fd85c2c37d3f3921.d: /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pdf_encoding-0.3.0/src/lib.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pdf_encoding-0.3.0/src/stdenc.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pdf_encoding-0.3.0/src/symbol.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pdf_encoding-0.3.0/src/zdingbat.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pdf_encoding-0.3.0/src/cp1252.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pdf_encoding-0.3.0/src/macroman.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pdf_encoding-0.3.0/src/macexpert.rs /Users/santiagomedina/scrippt/orca/docs/debug/build/pdf_encoding-4f07c58139dc6e5f/out/glyphlist.rs
+
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pdf_encoding-0.3.0/src/lib.rs:
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pdf_encoding-0.3.0/src/stdenc.rs:
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pdf_encoding-0.3.0/src/symbol.rs:
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pdf_encoding-0.3.0/src/zdingbat.rs:
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pdf_encoding-0.3.0/src/cp1252.rs:
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pdf_encoding-0.3.0/src/macroman.rs:
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pdf_encoding-0.3.0/src/macexpert.rs:
+/Users/santiagomedina/scrippt/orca/docs/debug/build/pdf_encoding-4f07c58139dc6e5f/out/glyphlist.rs:
+
+# env-dep:OUT_DIR=/Users/santiagomedina/scrippt/orca/docs/debug/build/pdf_encoding-4f07c58139dc6e5f/out

@@ -1,0 +1,56 @@
+TARGET = Some("aarch64-apple-darwin")
+OPT_LEVEL = Some("0")
+HOST = Some("aarch64-apple-darwin")
+cargo:rerun-if-env-changed=CXX_aarch64-apple-darwin
+CXX_aarch64-apple-darwin = None
+cargo:rerun-if-env-changed=CXX_aarch64_apple_darwin
+CXX_aarch64_apple_darwin = None
+cargo:rerun-if-env-changed=HOST_CXX
+HOST_CXX = None
+cargo:rerun-if-env-changed=CXX
+CXX = None
+cargo:rerun-if-env-changed=CRATE_CC_NO_DEFAULTS
+CRATE_CC_NO_DEFAULTS = None
+DEBUG = Some("true")
+CARGO_CFG_TARGET_FEATURE = Some("aes,crc,dit,dotprod,dpb,dpb2,fcma,fhm,flagm,fp16,frintts,jsconv,lor,lse,neon,paca,pacg,pan,pmuv3,ras,rcpc,rcpc2,rdm,sb,sha2,sha3,ssbs,vh")
+cargo:rerun-if-env-changed=CXXFLAGS_aarch64-apple-darwin
+CXXFLAGS_aarch64-apple-darwin = None
+cargo:rerun-if-env-changed=CXXFLAGS_aarch64_apple_darwin
+CXXFLAGS_aarch64_apple_darwin = None
+cargo:rerun-if-env-changed=HOST_CXXFLAGS
+HOST_CXXFLAGS = None
+cargo:rerun-if-env-changed=CXXFLAGS
+CXXFLAGS = None
+running: "c++" "-O0" "-ffunction-sections" "-fdata-sections" "-fPIC" "-gdwarf-2" "-fno-omit-frame-pointer" "-arch" "arm64" "-I" "src" "-Wall" "-Wextra" "-std=c++11" "-stdlib=libc++" "-o" "/Users/santiagomedina/scrippt/orca/docs/debug/build/esaxx-rs-fbf9559826cd5bf2/out/src/esaxx.o" "-c" "src/esaxx.cpp"
+exit status: 0
+cargo:rerun-if-env-changed=AR_aarch64-apple-darwin
+AR_aarch64-apple-darwin = None
+cargo:rerun-if-env-changed=AR_aarch64_apple_darwin
+AR_aarch64_apple_darwin = None
+cargo:rerun-if-env-changed=HOST_AR
+HOST_AR = None
+cargo:rerun-if-env-changed=AR
+AR = None
+cargo:rerun-if-env-changed=ARFLAGS_aarch64-apple-darwin
+ARFLAGS_aarch64-apple-darwin = None
+cargo:rerun-if-env-changed=ARFLAGS_aarch64_apple_darwin
+ARFLAGS_aarch64_apple_darwin = None
+cargo:rerun-if-env-changed=HOST_ARFLAGS
+HOST_ARFLAGS = None
+cargo:rerun-if-env-changed=ARFLAGS
+ARFLAGS = None
+running: ZERO_AR_DATE="1" "ar" "cq" "/Users/santiagomedina/scrippt/orca/docs/debug/build/esaxx-rs-fbf9559826cd5bf2/out/libesaxx.a" "/Users/santiagomedina/scrippt/orca/docs/debug/build/esaxx-rs-fbf9559826cd5bf2/out/src/esaxx.o"
+exit status: 0
+running: "ar" "s" "/Users/santiagomedina/scrippt/orca/docs/debug/build/esaxx-rs-fbf9559826cd5bf2/out/libesaxx.a"
+exit status: 0
+cargo:rustc-link-lib=static=esaxx
+cargo:rustc-link-search=native=/Users/santiagomedina/scrippt/orca/docs/debug/build/esaxx-rs-fbf9559826cd5bf2/out
+cargo:rerun-if-env-changed=CXXSTDLIB_aarch64-apple-darwin
+CXXSTDLIB_aarch64-apple-darwin = None
+cargo:rerun-if-env-changed=CXXSTDLIB_aarch64_apple_darwin
+CXXSTDLIB_aarch64_apple_darwin = None
+cargo:rerun-if-env-changed=HOST_CXXSTDLIB
+HOST_CXXSTDLIB = None
+cargo:rerun-if-env-changed=CXXSTDLIB
+CXXSTDLIB = None
+cargo:rustc-link-lib=c++

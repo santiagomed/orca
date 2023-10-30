@@ -1,0 +1,2 @@
+cargo:rerun-if-changed=build.rs
+cargo:rerun-if-changed=/Users/santiagomedina/.cargo/git/checkouts/encoding-b7c0f658ef1ffb49/2f4f225/agl-aglfn/glyphlist.txt

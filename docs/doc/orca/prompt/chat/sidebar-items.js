@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Role"],"fn":["remove_last_comma"],"struct":["ChatHelper","Message","RoleHelper"],"type":["ChatPrompt"]};

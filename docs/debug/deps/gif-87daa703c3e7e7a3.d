@@ -1,0 +1,11 @@
+/Users/santiagomedina/scrippt/orca/docs/debug/deps/gif-87daa703c3e7e7a3.rmeta: /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/gif-0.12.0/src/lib.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/gif-0.12.0/src/traits.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/gif-0.12.0/src/common.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/gif-0.12.0/src/reader/mod.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/gif-0.12.0/src/reader/decoder.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/gif-0.12.0/src/encoder.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/gif-0.12.0/src/../README.md
+
+/Users/santiagomedina/scrippt/orca/docs/debug/deps/gif-87daa703c3e7e7a3.d: /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/gif-0.12.0/src/lib.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/gif-0.12.0/src/traits.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/gif-0.12.0/src/common.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/gif-0.12.0/src/reader/mod.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/gif-0.12.0/src/reader/decoder.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/gif-0.12.0/src/encoder.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/gif-0.12.0/src/../README.md
+
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/gif-0.12.0/src/lib.rs:
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/gif-0.12.0/src/traits.rs:
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/gif-0.12.0/src/common.rs:
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/gif-0.12.0/src/reader/mod.rs:
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/gif-0.12.0/src/reader/decoder.rs:
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/gif-0.12.0/src/encoder.rs:
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/gif-0.12.0/src/../README.md:

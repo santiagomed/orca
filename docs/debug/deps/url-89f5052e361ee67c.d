@@ -1,0 +1,11 @@
+/Users/santiagomedina/scrippt/orca/docs/debug/deps/url-89f5052e361ee67c.rmeta: /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/url-2.4.1/src/lib.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/url-2.4.1/src/host.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/url-2.4.1/src/origin.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/url-2.4.1/src/parser.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/url-2.4.1/src/path_segments.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/url-2.4.1/src/slicing.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/url-2.4.1/src/quirks.rs
+
+/Users/santiagomedina/scrippt/orca/docs/debug/deps/url-89f5052e361ee67c.d: /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/url-2.4.1/src/lib.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/url-2.4.1/src/host.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/url-2.4.1/src/origin.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/url-2.4.1/src/parser.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/url-2.4.1/src/path_segments.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/url-2.4.1/src/slicing.rs /Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/url-2.4.1/src/quirks.rs
+
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/url-2.4.1/src/lib.rs:
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/url-2.4.1/src/host.rs:
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/url-2.4.1/src/origin.rs:
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/url-2.4.1/src/parser.rs:
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/url-2.4.1/src/path_segments.rs:
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/url-2.4.1/src/slicing.rs:
+/Users/santiagomedina/.cargo/registry/src/index.crates.io-6f17d22bba15001f/url-2.4.1/src/quirks.rs:
