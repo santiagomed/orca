@@ -196,6 +196,52 @@ impl Qdrant {
         Ok(())
     }
 
+    /// Inserts multiple vectors and their corresponding payloads into the specified collection.
+    ///
+    /// # Arguments
+    ///
+    /// * `collection_name` - The name of the collection to insert the vectors and payloads into.
+    /// * `vectors` - A vector of vectors, where each inner vector represents a vector to be inserted.
+    /// * `payloads` - A vector of payloads, where each payload corresponds to a vector to be inserted.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` indicating whether the operation was successful or not.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `T` - The type of the payload.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use orca::qdrant::QdrantClient;
+    /// # use orca::payload::ToPayload;
+    /// # use std::error::Error;
+    /// #
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn Error>> {
+    /// # let client = QdrantClient::new("http://localhost:6333").unwrap();
+    /// let vectors = vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]];
+    /// let payloads = vec!["payload1", "payload2"];
+    /// client.insert_many("collection_name", vectors, payloads).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn insert_many<T>(&self, collection_name: &str, vectors: Vec<Vec<f32>>, payloads: Vec<T>) -> Result<()>
+    where
+        T: ToPayload,
+    {
+        let points = vectors
+            .into_iter()
+            .zip(payloads.into_iter())
+            .enumerate()
+            .map(|(id, (vector, payload))| PointStruct::new(id as u64, vector, payload.to_payload().unwrap()))
+            .collect();
+        self.client.upsert_points_blocking(collection_name, points, None).await?;
+        Ok(())
+    }
+
     /// Searches for points in a given collection that match the specified conditions.
     ///
     /// # Arguments

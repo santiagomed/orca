@@ -49,8 +49,6 @@ Orca supports simple LLM chains and sequential chains. It also supports reading 
 ```rust
 use orca::chains::chain::LLMChain;
 use orca::chains::Chain;
-use orca::templates;
-use orca::template::TemplateEngine;
 use orca::llm::openai::OpenAI;
 use serde::Serialize;
 
@@ -61,9 +59,9 @@ pub struct Data {
 }
 
 #[tokio::main]
-async fn main() {
-        let client = OpenAI::new();
-        let prompt = r#"
+async fn main() -> anyhow::Result<()> {
+    let client = OpenAI::new();
+    let prompt = r#"
             {{#chat}}
             {{#user}}
             What is the capital of {{country1}}?
@@ -76,14 +74,17 @@ async fn main() {
             {{/user}}
             {{/chat}}
             "#;
-        let mut chain = LLMChain::new(&client, prompt);
-        chain.load_context(&Data {
+    let mut chain = LLMChain::new(&client).with_template("capitals", prompt);
+    chain
+        .load_context(&Data {
             country1: "France".to_string(),
             country2: "Germany".to_string(),
-        });
-        let res = chain.execute().await.unwrap().content();
+        })
+        .await;
+    let res = chain.execute("capitals").await?.content();
 
-        assert!(res.contains("Berlin") || res.contains("berlin"));
+    assert!(res.contains("Berlin") || res.contains("berlin"));
+    Ok(())
 }
 ```
 
@@ -97,6 +98,6 @@ cargo install cargo-make
 ```
 Once you have cargo-make installed, you can build or test Orca by running:
 ```bash
-$ cargo make build # Build Orca
-$ cargo make test # Test Orca
+$ makers build # Build Orca
+$ makers test # Test Orca
 ```

@@ -82,23 +82,22 @@ impl Record {
     /// # use orca::record::Record;
     /// # use orca::record::Content;
     /// let record = Record::new(Content::String("Hello World".into()));
-    /// let records = record.split(2);
+    /// let records = record.split(5);
     /// assert_eq!(records.len(), 2);
     /// ```
-    pub fn split(&self, chunks: usize) -> Vec<Record> {
-        let max_chars = self.content.to_string().len() / chunks;
+    pub fn split(&self, max_tokens: usize) -> Vec<Record> {
         let mut records = Vec::new();
         let splitter = TextSplitter::default().with_trim_chunks(true);
         match &self.content {
             Content::String(string) => {
-                let chunks = splitter.chunks(string, max_chars);
+                let chunks = splitter.chunks(string, max_tokens);
                 for chunk in chunks {
                     records.push(Record::new(Content::String(chunk.to_string())));
                 }
             }
             Content::Vec(vec) => {
                 for string in vec {
-                    let chunks = splitter.chunks(string, max_chars);
+                    let chunks = splitter.chunks(string, max_tokens);
                     for chunk in chunks {
                         records.push(Record::new(Content::String(chunk.to_string())));
                     }
@@ -223,7 +222,7 @@ mod tests {
     fn test_split_content() {
         let content = Content::String("Hello World!".to_string());
         let record = Record::new(content);
-        let chunks = record.split(2);
+        let chunks = record.split(6);
 
         assert_eq!(chunks.len(), 2);
         assert_eq!(chunks[0].content.to_string(), "Hello");
