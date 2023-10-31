@@ -68,7 +68,7 @@ pub trait Embedding {
     ///    let client = OpenAI::new();
     ///    let input = prompt!("Hello, world");
     ///    let response = client.generate_embedding(input).await.unwrap();
-    ///    assert!(response.get_embedding().len() > 0);
+    ///    assert!(response.get_embedding().expect("embedding is empty").len() > 0);
     /// }
     /// ```
     async fn generate_embedding(&self, prompt: Box<dyn Prompt>) -> Result<EmbeddingResponse>;
@@ -80,7 +80,7 @@ pub enum EmbeddingResponse {
     OpenAI(openai::OpenAIEmbeddingResponse),
 
     /// Bert embedding response
-    Bert(Vec<Tensor>),
+    Bert(Tensor),
 
     /// Empty response; usually used to initialize a chain result when
     /// no response is available.
@@ -116,10 +116,24 @@ impl From<openai::Response> for LLMResponse {
 
 impl EmbeddingResponse {
     /// Get the embedding from an OpenAIEmbeddingResponse
-    pub fn get_embedding(&self) -> Vec<f32> {
+    pub fn get_embedding(&self) -> Result<Vec<f32>> {
         match self {
-            EmbeddingResponse::OpenAI(response) => response.to_vec(),
-            EmbeddingResponse::Bert(response) => response[0].to_vec3().unwrap()[0][0].to_vec(),
+            EmbeddingResponse::OpenAI(response) => Ok(response.to_vec()),
+            EmbeddingResponse::Bert(embedding) => {
+                // perform avg-pooling to get the embedding
+                let (_n_sentence, n_tokens, _hidden_size) = embedding.dims3()?;
+                let embedding = (embedding.sum(1)? / (n_tokens as f64))?;
+                let embedding = embedding.to_vec2()?;
+                Ok(embedding[0].clone())
+            }
+            EmbeddingResponse::Empty => panic!("empty response does not have an embedding"),
+        }
+    }
+
+    pub fn get_tensor(&self) -> Tensor {
+        match self {
+            EmbeddingResponse::OpenAI(_) => panic!("openai does not have a tensor"),
+            EmbeddingResponse::Bert(response) => response.clone(),
             EmbeddingResponse::Empty => panic!("empty response does not have an embedding"),
         }
     }
@@ -159,11 +173,7 @@ impl Display for EmbeddingResponse {
                 write!(f, "{}", response.to_string())
             }
             EmbeddingResponse::Bert(response) => {
-                write!(
-                    f,
-                    "{}",
-                    response.iter().map(|x| x.to_string()).collect::<Vec<String>>().join(", ")
-                )
+                write!(f, "{}", response)
             }
             EmbeddingResponse::Empty => write!(f, ""),
         }

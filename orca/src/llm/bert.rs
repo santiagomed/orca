@@ -37,9 +37,6 @@ pub struct Bert {
 
     revision: Option<String>,
 
-    /// The number of times to run the prompt.
-    n: usize,
-
     /// L2 normalization for embeddings.
     normalize_embeddings: bool,
 }
@@ -55,7 +52,6 @@ impl Default for Bert {
             model: None,
             tokenizer: None,
             revision: None,
-            n: 1,
             normalize_embeddings: false,
         }
     }
@@ -100,12 +96,6 @@ impl Bert {
     /// Sets the revision for the model.
     pub fn with_revision(mut self, revision: &str) -> Self {
         self.revision = Some(revision.to_string());
-        self
-    }
-
-    /// Sets the number of times to run the prompt.
-    pub fn with_n(mut self, n: usize) -> Self {
-        self.n = n;
         self
     }
 
@@ -183,17 +173,12 @@ impl Embedding for Bert {
         let tokens = tokenizer.encode(prompt, true).map_err(E::msg)?.get_ids().to_vec();
         let token_ids = Tensor::new(&tokens[..], device)?.unsqueeze(0)?;
         let token_type_ids = token_ids.zeros_like()?;
-        let mut out_tensors = Vec::<Tensor>::with_capacity(self.n);
-        for _ in 0..self.n {
-            let start = std::time::Instant::now();
-            let model = model;
-            let token_ids = token_ids.clone();
-            let token_type_ids = token_type_ids.clone();
-            let ys = model.forward(&token_ids, &token_type_ids)?;
-            out_tensors.push(ys);
-            println!("Took {:?}", start.elapsed());
-        }
-        Ok(EmbeddingResponse::Bert(out_tensors))
+        let start = std::time::Instant::now();
+        let token_ids = token_ids.clone();
+        let token_type_ids = token_type_ids.clone();
+        let embedding = model.forward(&token_ids, &token_type_ids)?;
+        println!("Took {:?}", start.elapsed());
+        Ok(EmbeddingResponse::Bert(embedding))
     }
 }
 
@@ -206,12 +191,8 @@ mod test {
     async fn test_generate() {
         let bert = Bert::new();
         let response =
-            bert.build_model_and_tokenizer().await.unwrap().generate_embedding(prompt!("Hello, world")).await;
+            bert.build_model_and_tokenizer().await.unwrap().generate_embedding(prompt!("In the heart of the ancient forest, a single leaf fluttered, carrying the secret language of trees. It landed in the palm of a child, whispering tales of centuries past and futures yet to unfold.")).await;
         let response = response.unwrap();
-        println!(
-            "len: {}, {:#?}",
-            response.get_embedding().len(),
-            response.get_embedding()
-        );
+        assert_eq!(response.get_embedding().unwrap().len(), 384);
     }
 }

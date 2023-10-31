@@ -1,6 +1,6 @@
 pub mod html;
 pub mod pdf;
-use std::path::Path;
+use std::{fmt::Display, path::Path};
 
 use anyhow::Result;
 use serde::Serialize;
@@ -14,12 +14,12 @@ pub enum Content {
     Vec(Vec<String>),
 }
 
-impl ToString for Content {
-    /// Get the string representation of the content.
-    fn to_string(&self) -> String {
+impl Display for Content {
+    /// Display the content of the record.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Content::String(string) => string.to_string(),
-            Content::Vec(vec) => vec.join("\n******************\n"),
+            Content::String(string) => write!(f, "{}", string),
+            Content::Vec(vec) => write!(f, "{}", vec.join("\n******************\n")),
         }
     }
 }

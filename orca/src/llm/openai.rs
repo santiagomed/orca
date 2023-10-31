@@ -308,6 +308,6 @@ mod test {
         let client = OpenAI::new();
         let content = prompt!("This is a test");
         let res = client.generate_embedding(content).await.unwrap();
-        assert!(res.get_embedding().len() > 0);
+        assert!(res.get_embedding().unwrap().len() > 0);
     }
 }

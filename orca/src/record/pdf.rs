@@ -29,13 +29,13 @@ impl Pdf {
     /// use base64::{engine::general_purpose, Engine};
     /// use std::io::Read;
     ///
-    /// let mut f = std::fs::File::open("./tests/pdf.in").unwrap();
+    /// let mut f = std::fs::File::open("./tests/records/pdf.in").unwrap();
     /// let mut c = String::new();
     /// f.read_to_string(&mut c).unwrap();
     /// let mut bytes: Vec<u8> = Vec::new();
     /// general_purpose::STANDARD.decode_vec(c, &mut bytes).unwrap();
     ///
-    /// let record = PDF::from_buffer(bytes, false);
+    /// let record = Pdf::from_buffer(bytes, false);
     /// ```
     pub fn from_buffer(buffer: Vec<u8>, split: bool) -> Pdf {
         // convert buffer into file object
@@ -48,9 +48,9 @@ impl Pdf {
     /// Create a new PDF record from a file
     /// When calling this function, specify the PDF generic type as a vector of bytes
     /// ```
-    /// use orca::record::pdf::PDF;
+    /// use orca::record::pdf::Pdf;
     ///
-    /// let record = PDF::from_file("./tests/sample-resume.pdf", false);
+    /// let record = Pdf::from_file("./tests/records/sample-resume.pdf", false);
     /// ```
     pub fn from_file(path: &str, split: bool) -> Pdf {
         // convert buffer into file object

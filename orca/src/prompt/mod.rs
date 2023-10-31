@@ -1,4 +1,5 @@
 pub mod context;
+use core::panic;
 use std::{any::Any, collections::HashMap};
 
 use serde;
@@ -25,14 +26,6 @@ pub struct TemplateEngine {
 
     /// Registered templates
     pub templates: HashMap<String, String>,
-}
-
-impl std::ops::Deref for TemplateEngine {
-    type Target = Handlebars<'static>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.reg
-    }
 }
 
 impl TemplateEngine {
@@ -121,7 +114,7 @@ impl TemplateEngine {
     /// let prompt = TemplateEngine::new().register_template("template", "{{#if true}}Hello, world!{{/if}}");
     /// let result = prompt.render("template").unwrap();
     ///
-    /// assert_eq!(result.to_string().unwrap(), "Hello, world!".to_string());
+    /// assert_eq!(result.to_string(), "Hello, world!".to_string());
     /// ```
     pub fn render(&self, name: &str) -> Result<Box<dyn Prompt>> {
         let rendered = self.reg.render(name, &HashMap::<String, String>::new())?;
@@ -148,7 +141,7 @@ impl TemplateEngine {
     /// let data = json!({"name": "world"});
     /// let result = prompt.render_context("template", &data).unwrap();
     ///
-    /// assert_eq!(result.to_string().unwrap(), "Hello, world!".to_string());
+    /// assert_eq!(result.to_string(), "Hello, world!".to_string());
     /// ```
     pub fn render_context<T>(&self, name: &str, data: &T) -> Result<Box<dyn Prompt>>
     where
@@ -231,9 +224,11 @@ pub trait Prompt: Sync + Send {
     ///
     /// let mut my_prompt = prompt!("Some prompt");
     /// let another_prompt = prompt!("Some other prompt");
-    /// my_prompt.save(another_prompt).unwrap();
+    /// my_prompt.save(another_prompt);
     /// ```
-    fn save(&mut self, data: Box<dyn Prompt>);
+    fn save(&mut self, _data: Box<dyn Prompt>) {
+        panic!("save not implemented for this prompt type");
+    }
 
     /// Convert the current prompt to a `String`.
     ///
@@ -317,24 +312,19 @@ impl Prompt for String {
     }
 }
 
-// impl Prompt for Record {
-//     fn save(&mut self, data: Box<dyn Prompt>) {
-//         self.push(data.as_str()?);
-//         Ok(())
-//     }
+impl Prompt for Record {
+    fn to_string(&self) -> String {
+        self.content.to_string()
+    }
 
-//     fn to_string(&self) -> Result<String> {
-//         Err(anyhow::anyhow!("Unable to convert Record to String"))
-//     }
+    fn to_chat(&self) -> Result<ChatPrompt> {
+        Err(anyhow::anyhow!("Unable to convert Record to ChatPrompt"))
+    }
 
-//     fn to_chat(&self) -> Result<ChatPrompt> {
-//         Err(anyhow::anyhow!("Unable to convert Record to ChatPrompt"))
-//     }
-
-//     fn clone_prompt(&self) -> Box<dyn Prompt> {
-//         Box::new(self.clone())
-//     }
-// }
+    fn clone_prompt(&self) -> Box<dyn Prompt> {
+        Box::new(self.clone())
+    }
+}
 
 /// Cleans the prompt by removing unparsable characters and quotations.
 pub fn clean_prompt(content: &str, quotes: bool) -> String {

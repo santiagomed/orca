@@ -34,7 +34,7 @@ pub trait Chain {
     /// # #[tokio::main]
     /// # async fn main() {
     /// let client = OpenAI::new();
-    /// let mut chain = LLMChain::new(&client).with_prompt("my prompt", "Hello, {{name}}!");
+    /// let mut chain = LLMChain::new(&client).with_template("my prompt", "Hello, {{name}}!");
     /// let mut data = HashMap::new();
     /// data.insert("name", "LLM");
     /// chain.load_context(&data).await;
