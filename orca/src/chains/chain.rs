@@ -105,7 +105,7 @@ impl LLMChain {
     /// let mut chain = chain.with_template(new_template_name.as_str(), new_prompt);
     /// ```
     pub fn duplicate_template(&mut self, name: &str) -> Option<String> {
-        let template_name = format!("{}-{}", name, uuid::Uuid::new_v4().to_string());
+        let template_name = format!("{}-{}", name, uuid::Uuid::new_v4());
         if let Some(template) = self.template_engine.get_template(name) {
             let mut template_clone = self.template_engine.clone();
             template_clone = template_clone.register_template(template_name.as_str(), &template);
@@ -259,6 +259,7 @@ mod test {
         let chain = chain.with_template("name", "{{#chat}}{{#user}}What is my name?{{/user}}{{/chat}}");
         let res = chain.execute("name").await.unwrap().content();
 
+        println!("{}", res);
         assert!(res.to_lowercase().contains("orca"));
     }
 }

@@ -49,6 +49,6 @@ command = "cargo"
 args = ["clean"]
 dependencies = ["qdrant-clean"]
 
-[tasks.ci]
+[tasks.ci-flow]
 description = "Run all CI checks"
 dependencies = ["format-check", "lint", "test"]

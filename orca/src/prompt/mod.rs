@@ -28,6 +28,12 @@ pub struct TemplateEngine {
     pub templates: HashMap<String, String>,
 }
 
+impl Default for TemplateEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TemplateEngine {
     /// Creates a new `TemplateEngine` with the given prompt string.
     /// # Arguments
@@ -55,7 +61,7 @@ impl TemplateEngine {
 
     pub fn register_template(mut self, name: &str, template: &str) -> Self {
         self.templates.insert(name.to_string(), template.to_string());
-        self.reg.register_template_string(name, template.to_string()).unwrap();
+        self.reg.register_template_string(name, template).unwrap();
         self
     }
 
@@ -186,8 +192,8 @@ impl TemplateEngine {
         T: Serialize,
     {
         let rendered = match data {
-            Some(data) => self.render_context(&name, &data)?,
-            None => self.render(&name)?,
+            Some(data) => self.render_context(name, &data)?,
+            None => self.render(name)?,
         };
         let rendered_json = format!("[{}]", remove_last_comma(&rendered.to_string()));
         let messages: ChatPrompt = serde_json::from_str(&rendered_json)?;

@@ -95,8 +95,8 @@ pub struct Quantized {
     // chat_context: Option<String>,
 }
 
-impl Quantized {
-    pub fn new() -> Self {
+impl Default for Quantized {
+    fn default() -> Self {
         Self {
             model: None,
             model_path: None,
@@ -113,6 +113,12 @@ impl Quantized {
             gqa: None,
             // chat_context: None,
         }
+    }
+}
+
+impl Quantized {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn with_sample_len(mut self, sample_len: usize) -> Self {
@@ -180,7 +186,7 @@ impl Quantized {
             return Err(anyhow::Error::msg("model path not set"));
         }
         let model_path = self.model_path.as_ref().unwrap();
-        let mut file = std::fs::File::open(&model_path)?;
+        let mut file = std::fs::File::open(model_path)?;
         let start = std::time::Instant::now();
 
         self.model = match model_path.extension().and_then(|v| v.to_str()) {

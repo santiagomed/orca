@@ -170,7 +170,7 @@ impl Display for EmbeddingResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             EmbeddingResponse::OpenAI(response) => {
-                write!(f, "{}", response.to_string())
+                write!(f, "{}", response)
             }
             EmbeddingResponse::Bert(response) => {
                 write!(f, "{}", response)

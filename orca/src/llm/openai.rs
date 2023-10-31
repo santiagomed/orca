@@ -52,9 +52,15 @@ impl OpenAIEmbeddingResponse {
     pub fn to_vec(&self) -> Vec<f32> {
         self.data.first().unwrap().embedding.clone()
     }
+}
 
-    pub fn to_string(&self) -> String {
-        self.data.first().unwrap().object.clone()
+impl Display for OpenAIEmbeddingResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = String::new();
+        for embedding in &self.data {
+            s.push_str(&embedding.object);
+        }
+        write!(f, "{}", s)
     }
 }
 
