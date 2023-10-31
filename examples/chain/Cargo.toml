@@ -1,5 +1,5 @@
 [package]
-name = "pdf"
+name = "chain"
 version = "0.1.0"
 edition = "2021"
 
@@ -9,3 +9,4 @@ edition = "2021"
 orca = { path = "../../orca" }
 anyhow = "1.0.75"
 tokio = { version = "1.12.0", features = ["full"] }
+serde = { version = "1.0.130", features = ["derive"] }
