@@ -7,6 +7,7 @@ use crate::{llm::LLMResponse, record::Record};
 
 use anyhow::Result;
 use serde::Serialize;
+use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 
 #[async_trait::async_trait]
@@ -48,8 +49,7 @@ pub trait Chain {
         let context = serde_json::to_value(context).unwrap_or(serde_json::Value::Null);
         if let serde_json::Value::Object(map) = context {
             map.into_iter().for_each(|(key, value)| {
-                let value = value.as_str().unwrap_or("");
-                self.context().insert(key, clean_prompt(value, true));
+                self.context().insert(key, clean_prompt(&value, true));
             });
         }
     }
@@ -63,7 +63,7 @@ pub trait Chain {
         if !self.context().contains_key(name) {
             self.context().insert(
                 name.to_string(),
-                clean_prompt(record.content.to_string().as_str(), true),
+                clean_prompt(&JsonValue::String(record.content.to_string()), true),
             );
         }
     }
@@ -72,7 +72,7 @@ pub trait Chain {
     ///
     /// # Returns
     /// - A mutable reference to a hashmap containing the current context.
-    fn context(&mut self) -> &mut HashMap<String, String>;
+    fn context(&mut self) -> &mut HashMap<String, JsonValue>;
 }
 
 #[derive(Debug)]

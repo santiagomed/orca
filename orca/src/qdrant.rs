@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
-use qdrant_client::prelude::Value as QdrantValue;
+pub use qdrant_client::prelude::Value as QdrantValue;
 use qdrant_client::prelude::*;
 use qdrant_client::qdrant::point_id::PointIdOptions;
 use qdrant_client::qdrant::value::Kind;
@@ -38,8 +38,10 @@ where
 pub struct FoundPoint {
     pub id: u64,
     pub score: f32,
-    pub payload: Option<HashMap<String, Value>>, // assuming Value is from serde_json
+    pub payload: Option<HashMap<String, QdrantValue>>, // assuming Value is from serde_json
 }
+
+pub type Value = QdrantValue;
 
 /// Represents search conditions for the Qdrant wrapper.
 pub enum Condition {

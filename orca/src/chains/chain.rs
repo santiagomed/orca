@@ -5,6 +5,7 @@ use crate::memory::Memory;
 use crate::prompt::TemplateEngine;
 
 use anyhow::Result;
+use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -30,7 +31,7 @@ pub struct LLMChain {
 
     /// The context containing key-value pairs which the `prompt`
     /// template engine might use to render the final prompt.
-    context: HashMap<String, String>,
+    context: HashMap<String, JsonValue>,
 }
 
 impl LLMChain {
@@ -157,7 +158,7 @@ impl Chain for LLMChain {
         Ok(ChainResult::new(self.name.clone()).with_llm_response(response))
     }
 
-    fn context(&mut self) -> &mut HashMap<String, String> {
+    fn context(&mut self) -> &mut HashMap<String, JsonValue> {
         &mut self.context
     }
 }

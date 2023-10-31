@@ -9,13 +9,14 @@ use self::task::Task;
 
 use super::{chain::LLMChain, Chain, ChainResult};
 use anyhow::Result;
+use serde_json::Value as JsonValue;
 
 pub mod master;
 pub mod task;
 pub mod worker;
 
 pub struct MapReduceChain {
-    context: HashMap<String, String>,
+    context: HashMap<String, JsonValue>,
     map_chain: Arc<RwLock<LLMChain>>,
     reduce_chain: Arc<RwLock<LLMChain>>,
     records: Vec<(String, Record)>,
@@ -50,7 +51,7 @@ impl Chain for MapReduceChain {
         )
     }
 
-    fn context(&mut self) -> &mut HashMap<String, String> {
+    fn context(&mut self) -> &mut HashMap<String, JsonValue> {
         &mut self.context
     }
 

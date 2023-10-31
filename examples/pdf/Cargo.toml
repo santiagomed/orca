@@ -9,3 +9,5 @@ edition = "2021"
 orca = { path = "../../orca" }
 anyhow = "1.0.75"
 tokio = { version = "1.12.0", features = ["full"] }
+clap = "4.4.7"
+serde_json = "1.0.108"

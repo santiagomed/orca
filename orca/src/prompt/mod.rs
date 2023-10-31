@@ -9,6 +9,7 @@ use anyhow::Result;
 use handlebars::Handlebars;
 
 use chat::{remove_last_comma, ChatHelper, ChatPrompt, RoleHelper};
+use serde_json::{Map, Value};
 
 use crate::record::Record;
 
@@ -155,7 +156,10 @@ impl TemplateEngine {
     {
         let rendered = self.reg.render(name, &data)?;
         println!("{}", rendered);
-        match serde_json::from_str::<ChatPrompt>(&clean_prompt(&rendered, false)) {
+        match serde_json::from_str::<ChatPrompt>(&serde_json::to_string(&clean_prompt(
+            &Value::String(rendered.clone()),
+            false,
+        ))?) {
             Ok(chat) => {
                 log::info!("Parsed as chat: {:?}", chat);
                 Ok(Box::new(chat))
@@ -333,7 +337,28 @@ impl Prompt for Record {
 }
 
 /// Cleans the prompt by removing unparsable characters and quotations.
-pub fn clean_prompt(content: &str, quotes: bool) -> String {
+pub fn clean_prompt(content: &Value, quotes: bool) -> Value {
+    match content {
+        Value::String(string) => Value::String(clean_string(string, quotes)),
+        Value::Array(array) => {
+            let mut result = Vec::new();
+            for item in array {
+                result.push(clean_prompt(item, quotes));
+            }
+            Value::Array(result)
+        }
+        Value::Object(map) => {
+            let mut result = Map::new();
+            for (key, value) in map {
+                result.insert(key.clone(), clean_prompt(value, quotes));
+            }
+            Value::Object(result)
+        }
+        _ => content.clone(),
+    }
+}
+
+fn clean_string(content: &str, quotes: bool) -> String {
     content
         .chars()
         .filter(|&c| c > '\u{1F}')

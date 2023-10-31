@@ -38,6 +38,13 @@ pub struct Record {
     pub metadata: Option<String>,
 }
 
+impl Display for Record {
+    /// Display the content of the record.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.content)
+    }
+}
+
 impl Record {
     /// Create a new record with the given content.
     pub fn new(content: Content) -> Record {

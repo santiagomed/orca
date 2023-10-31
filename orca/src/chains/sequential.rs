@@ -5,6 +5,7 @@ use crate::prompt::clean_prompt;
 use super::chain::LLMChain;
 use super::{Chain, ChainResult};
 use anyhow::Result;
+use serde_json::Value as JsonValue;
 use tokio::sync::RwLock;
 
 pub struct SequentialChain {
@@ -15,7 +16,7 @@ pub struct SequentialChain {
     chains: Vec<RwLock<LLMChain>>,
 
     /// The context for for the templates used by the SequentialChain.
-    context: HashMap<String, String>,
+    context: HashMap<String, JsonValue>,
 }
 
 impl Default for SequentialChain {
@@ -42,7 +43,10 @@ impl SequentialChain {
 }
 
 pub fn format_prompt_as_user(prompt: &mut str) -> String {
-    format!("{{{{#user}}}}{}{{{{/user}}}}", clean_prompt(prompt, true))
+    format!(
+        "{{{{#user}}}}{}{{{{/user}}}}",
+        clean_prompt(&JsonValue::String(prompt.to_string()), true)
+    )
 }
 
 #[async_trait::async_trait]
@@ -60,7 +64,7 @@ impl Chain for SequentialChain {
         Ok(result)
     }
 
-    fn context(&mut self) -> &mut HashMap<String, String> {
+    fn context(&mut self) -> &mut HashMap<String, JsonValue> {
         &mut self.context
     }
 
