@@ -43,10 +43,14 @@ impl SequentialChain {
 }
 
 pub fn format_prompt_as_user(prompt: &mut str) -> String {
-    format!(
-        "{{{{#user}}}}{}{{{{/user}}}}",
-        clean_prompt(&JsonValue::String(prompt.to_string()), true)
-    )
+    let cleaned_prompt = clean_prompt(&JsonValue::String(prompt.to_string()), true);
+
+    let cleaned_string = match cleaned_prompt {
+        JsonValue::String(s) => s,
+        _ => String::new(),
+    };
+
+    format!("{{{{#user}}}}{}{{{{/user}}}}", cleaned_string)
 }
 
 #[async_trait::async_trait]
