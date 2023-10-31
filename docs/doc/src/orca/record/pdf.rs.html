@@ -186,37 +186,37 @@
     PdfError,
 };
 
-<span class="kw">type </span>PDFFile = File&lt;
+<span class="kw">type </span>PdfFile = File&lt;
     Vec&lt;u8&gt;,
     Arc&lt;SyncCache&lt;PlainRef, <span class="prelude-ty">Result</span>&lt;AnySync, Arc&lt;PdfError&gt;&gt;&gt;&gt;,
     Arc&lt;SyncCache&lt;PlainRef, <span class="prelude-ty">Result</span>&lt;Arc&lt;[u8]&gt;, Arc&lt;PdfError&gt;&gt;&gt;&gt;,
     NoLog,
 &gt;;
 
-<span class="kw">pub struct </span>PDF {
-    file: PDFFile,
+<span class="kw">pub struct </span>Pdf {
+    file: PdfFile,
     split: bool,
 }
 
-<span class="kw">impl </span>PDF {
-    <span class="doccomment">/// Create a new PDF record from a buffer
+<span class="kw">impl </span>Pdf {
+    <span class="doccomment">/// Create a new Pdf record from a buffer
     /// When calling this function, specify the PDF generic type as a slice of bytes
     /// ```
-    /// use orca::record::pdf::PDF;
+    /// use orca::record::pdf::Pdf;
     /// use base64::{engine::general_purpose, Engine};
     /// use std::io::Read;
     ///
-    /// let mut f = std::fs::File::open(&quot;./tests/pdf.in&quot;).unwrap();
+    /// let mut f = std::fs::File::open(&quot;./tests/records/pdf.in&quot;).unwrap();
     /// let mut c = String::new();
     /// f.read_to_string(&amp;mut c).unwrap();
     /// let mut bytes: Vec&lt;u8&gt; = Vec::new();
     /// general_purpose::STANDARD.decode_vec(c, &amp;mut bytes).unwrap();
     ///
-    /// let record = PDF::from_buffer(bytes, false);
+    /// let record = Pdf::from_buffer(bytes, false);
     /// ```
-    </span><span class="kw">pub fn </span>from_buffer(buffer: Vec&lt;u8&gt;, split: bool) -&gt; PDF {
+    </span><span class="kw">pub fn </span>from_buffer(buffer: Vec&lt;u8&gt;, split: bool) -&gt; Pdf {
         <span class="comment">// convert buffer into file object
-        </span>PDF {
+        </span>Pdf {
             file: FileOptions::cached().load(buffer).unwrap(),
             split,
         }
@@ -225,44 +225,44 @@
     <span class="doccomment">/// Create a new PDF record from a file
     /// When calling this function, specify the PDF generic type as a vector of bytes
     /// ```
-    /// use orca::record::pdf::PDF;
+    /// use orca::record::pdf::Pdf;
     ///
-    /// let record = PDF::from_file(&quot;./tests/sample-resume.pdf&quot;, false);
+    /// let record = Pdf::from_file(&quot;./tests/records/sample-resume.pdf&quot;, false);
     /// ```
-    </span><span class="kw">pub fn </span>from_file(path: <span class="kw-2">&amp;</span>str, split: bool) -&gt; PDF {
+    </span><span class="kw">pub fn </span>from_file(path: <span class="kw-2">&amp;</span>str, split: bool) -&gt; Pdf {
         <span class="comment">// convert buffer into file object
-        </span>PDF {
+        </span>Pdf {
             file: FileOptions::cached().open(path).unwrap(),
             split,
         }
     }
 }
 
-<span class="kw">pub enum </span>PDFOutput {
+<span class="kw">pub enum </span>PdfOutput {
     String(String),
     Vec(Vec&lt;String&gt;),
 }
 
-<span class="kw">impl </span>PDFOutput {
-    <span class="doccomment">/// Get the vector representation of the PDF output
+<span class="kw">impl </span>PdfOutput {
+    <span class="doccomment">/// Get the vector representation of the Pdf output
     </span><span class="kw">pub fn </span>to_vec(<span class="self">self</span>) -&gt; Vec&lt;String&gt; {
         <span class="kw">match </span><span class="self">self </span>{
-            PDFOutput::String(string) =&gt; <span class="macro">vec!</span>[string],
-            PDFOutput::Vec(vec) =&gt; vec,
+            PdfOutput::String(string) =&gt; <span class="macro">vec!</span>[string],
+            PdfOutput::Vec(vec) =&gt; vec,
         }
     }
 }
 
-<span class="kw">impl </span>Display <span class="kw">for </span>PDFOutput {
+<span class="kw">impl </span>Display <span class="kw">for </span>PdfOutput {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; std::fmt::Result {
         <span class="kw">match </span><span class="self">self </span>{
-            PDFOutput::String(string) =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, string),
-            PDFOutput::Vec(vec) =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, vec.join(<span class="string">&quot;\n******************\n&quot;</span>)),
+            PdfOutput::String(string) =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, string),
+            PdfOutput::Vec(vec) =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, vec.join(<span class="string">&quot;\n******************\n&quot;</span>)),
         }
     }
 }
 
-<span class="kw">impl </span>Spin <span class="kw">for </span>PDF {
+<span class="kw">impl </span>Spin <span class="kw">for </span>Pdf {
     <span class="kw">fn </span>spin(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Record&gt; {
         <span class="kw">let </span>resolver = <span class="self">self</span>.file.resolver();
         <span class="kw">return if </span><span class="self">self</span>.split {
@@ -314,40 +314,40 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_from_buffer() {
-        <span class="kw">let </span><span class="kw-2">mut </span>f = std::fs::File::open(<span class="string">&quot;./tests/pdf.in&quot;</span>).unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>f = std::fs::File::open(<span class="string">&quot;./tests/records/pdf.in&quot;</span>).unwrap();
         <span class="kw">let </span><span class="kw-2">mut </span>c = String::new();
         f.read_to_string(<span class="kw-2">&amp;mut </span>c).unwrap();
         <span class="kw">let </span><span class="kw-2">mut </span>bytes: Vec&lt;u8&gt; = Vec::new();
         general_purpose::STANDARD.decode_vec(c, <span class="kw-2">&amp;mut </span>bytes).unwrap();
 
-        <span class="kw">let </span>record = PDF::from_buffer(bytes, <span class="bool-val">false</span>);
+        <span class="kw">let </span>record = Pdf::from_buffer(bytes, <span class="bool-val">false</span>);
         <span class="macro">assert!</span>(!record.split);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_from_file() {
-        <span class="kw">let </span>record = PDF::from_file(<span class="string">&quot;./tests/sample-resume.pdf&quot;</span>, <span class="bool-val">false</span>);
+        <span class="kw">let </span>record = Pdf::from_file(<span class="string">&quot;./tests/records/sample-resume.pdf&quot;</span>, <span class="bool-val">false</span>);
         <span class="macro">assert!</span>(!record.split);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_spin_from_buffer() {
-        std::env::set_var(<span class="string">&quot;STANDARD_FONTS&quot;</span>, <span class="string">&quot;./assets/pdf_fonts&quot;</span>);
-        <span class="kw">let </span><span class="kw-2">mut </span>f = std::fs::File::open(<span class="string">&quot;./tests/pdf.in&quot;</span>).unwrap();
+        std::env::set_var(<span class="string">&quot;STANDARD_FONTS&quot;</span>, <span class="string">&quot;../assets/pdf_fonts&quot;</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>f = std::fs::File::open(<span class="string">&quot;./tests/records/pdf.in&quot;</span>).unwrap();
         <span class="kw">let </span><span class="kw-2">mut </span>c = String::new();
         f.read_to_string(<span class="kw-2">&amp;mut </span>c).unwrap();
         <span class="kw">let </span><span class="kw-2">mut </span>bytes: Vec&lt;u8&gt; = Vec::new();
         general_purpose::STANDARD.decode_vec(c, <span class="kw-2">&amp;mut </span>bytes).unwrap();
 
-        <span class="kw">let </span>record = PDF::from_buffer(bytes, <span class="bool-val">false</span>).spin().unwrap();
+        <span class="kw">let </span>record = Pdf::from_buffer(bytes, <span class="bool-val">false</span>).spin().unwrap();
         <span class="kw">let </span>expected_content = <span class="macro">include_str!</span>(<span class="string">&quot;../../tests/expected/sample-resume.out&quot;</span>);
         <span class="macro">assert_eq!</span>(record.content.to_string(), expected_content);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_spin_from_file() {
-        std::env::set_var(<span class="string">&quot;STANDARD_FONTS&quot;</span>, <span class="string">&quot;./assets/pdf_fonts&quot;</span>);
-        <span class="kw">let </span>record = PDF::from_file(<span class="string">&quot;./tests/sample-resume.pdf&quot;</span>, <span class="bool-val">false</span>).spin().unwrap();
+        std::env::set_var(<span class="string">&quot;STANDARD_FONTS&quot;</span>, <span class="string">&quot;../assets/pdf_fonts&quot;</span>);
+        <span class="kw">let </span>record = Pdf::from_file(<span class="string">&quot;./tests/records/sample-resume.pdf&quot;</span>, <span class="bool-val">false</span>).spin().unwrap();
         <span class="kw">let </span>expected_content = <span class="macro">include_str!</span>(<span class="string">&quot;../../tests/expected/sample-resume.out&quot;</span>);
         <span class="macro">assert_eq!</span>(record.content.to_string(), expected_content);
     }

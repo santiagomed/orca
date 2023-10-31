@@ -430,8 +430,18 @@
 <a href="#430" id="430">430</a>
 <a href="#431" id="431">431</a>
 <a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
 </pre></div><pre class="rust"><code><span class="kw">pub mod </span>context;
-<span class="kw">use </span>std::collections::HashMap;
+<span class="kw">use </span>core::panic;
+<span class="kw">use </span>std::{any::Any, collections::HashMap};
 
 <span class="kw">use </span>serde;
 <span class="kw">use </span>serde::Serialize;
@@ -440,6 +450,8 @@
 <span class="kw">use </span>handlebars::Handlebars;
 
 <span class="kw">use </span>chat::{remove_last_comma, ChatHelper, ChatPrompt, RoleHelper};
+
+<span class="kw">use </span><span class="kw">crate</span>::record::Record;
 
 <span class="kw">pub mod </span>chat;
 
@@ -457,11 +469,9 @@
     </span><span class="kw">pub </span>templates: HashMap&lt;String, String&gt;,
 }
 
-<span class="kw">impl </span>std::ops::Deref <span class="kw">for </span>TemplateEngine {
-    <span class="kw">type </span>Target = Handlebars&lt;<span class="lifetime">&#39;static</span>&gt;;
-
-    <span class="kw">fn </span>deref(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Target {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.reg
+<span class="kw">impl </span>Default <span class="kw">for </span>TemplateEngine {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::new()
     }
 }
 
@@ -492,7 +502,7 @@
 
     <span class="kw">pub fn </span>register_template(<span class="kw-2">mut </span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str, template: <span class="kw-2">&amp;</span>str) -&gt; <span class="self">Self </span>{
         <span class="self">self</span>.templates.insert(name.to_string(), template.to_string());
-        <span class="self">self</span>.reg.register_template_string(name, template.to_string()).unwrap();
+        <span class="self">self</span>.reg.register_template_string(name, template).unwrap();
         <span class="self">self
     </span>}
 
@@ -551,7 +561,7 @@
     /// let prompt = TemplateEngine::new().register_template(&quot;template&quot;, &quot;{{#if true}}Hello, world!{{/if}}&quot;);
     /// let result = prompt.render(&quot;template&quot;).unwrap();
     ///
-    /// assert_eq!(result.to_string().unwrap(), &quot;Hello, world!&quot;.to_string());
+    /// assert_eq!(result.to_string(), &quot;Hello, world!&quot;.to_string());
     /// ```
     </span><span class="kw">pub fn </span>render(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;Box&lt;<span class="kw">dyn </span>Prompt&gt;&gt; {
         <span class="kw">let </span>rendered = <span class="self">self</span>.reg.render(name, <span class="kw-2">&amp;</span>HashMap::&lt;String, String&gt;::new())<span class="question-mark">?</span>;
@@ -578,7 +588,7 @@
     /// let data = json!({&quot;name&quot;: &quot;world&quot;});
     /// let result = prompt.render_context(&quot;template&quot;, &amp;data).unwrap();
     ///
-    /// assert_eq!(result.to_string().unwrap(), &quot;Hello, world!&quot;.to_string());
+    /// assert_eq!(result.to_string(), &quot;Hello, world!&quot;.to_string());
     /// ```
     </span><span class="kw">pub fn </span>render_context&lt;T&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str, data: <span class="kw-2">&amp;</span>T) -&gt; <span class="prelude-ty">Result</span>&lt;Box&lt;<span class="kw">dyn </span>Prompt&gt;&gt;
     <span class="kw">where
@@ -623,10 +633,10 @@
         </span>T: Serialize,
     {
         <span class="kw">let </span>rendered = <span class="kw">match </span>data {
-            <span class="prelude-val">Some</span>(data) =&gt; <span class="self">self</span>.render_context(<span class="kw-2">&amp;</span>name, <span class="kw-2">&amp;</span>data)<span class="question-mark">?</span>,
-            <span class="prelude-val">None </span>=&gt; <span class="self">self</span>.render(<span class="kw-2">&amp;</span>name)<span class="question-mark">?</span>,
+            <span class="prelude-val">Some</span>(data) =&gt; <span class="self">self</span>.render_context(name, <span class="kw-2">&amp;</span>data)<span class="question-mark">?</span>,
+            <span class="prelude-val">None </span>=&gt; <span class="self">self</span>.render(name)<span class="question-mark">?</span>,
         };
-        <span class="kw">let </span>rendered_json = <span class="macro">format!</span>(<span class="string">&quot;[{}]&quot;</span>, remove_last_comma(rendered.as_str()<span class="question-mark">?</span>));
+        <span class="kw">let </span>rendered_json = <span class="macro">format!</span>(<span class="string">&quot;[{}]&quot;</span>, remove_last_comma(<span class="kw-2">&amp;</span>rendered.to_string()));
         <span class="kw">let </span>messages: ChatPrompt = serde_json::from_str(<span class="kw-2">&amp;</span>rendered_json)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(messages)
     }
@@ -661,14 +671,16 @@
     ///
     /// let mut my_prompt = prompt!(&quot;Some prompt&quot;);
     /// let another_prompt = prompt!(&quot;Some other prompt&quot;);
-    /// my_prompt.save(another_prompt).unwrap();
+    /// my_prompt.save(another_prompt);
     /// ```
-    </span><span class="kw">fn </span>save(<span class="kw-2">&amp;mut </span><span class="self">self</span>, data: Box&lt;<span class="kw">dyn </span>Prompt&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt;;
+    </span><span class="kw">fn </span>save(<span class="kw-2">&amp;mut </span><span class="self">self</span>, _data: Box&lt;<span class="kw">dyn </span>Prompt&gt;) {
+        <span class="macro">panic!</span>(<span class="string">&quot;save not implemented for this prompt type&quot;</span>);
+    }
 
     <span class="doccomment">/// Convert the current prompt to a `String`.
     ///
     /// # Returns
-    /// * `Result&lt;String&gt;` - The `String` representation of the prompt or an error.
+    /// * `String` - The `String` representation of the prompt or an error.
     ///
     /// # Examples
     /// ```
@@ -678,13 +690,7 @@
     /// let my_prompt = prompt!(&quot;Some prompt&quot;);
     /// assert_eq!(my_prompt.to_string(), &quot;Some prompt&quot;.to_string());
     /// ```
-    </span><span class="kw">fn </span>to_string(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;String&gt;;
-
-    <span class="doccomment">/// Get the current prompt as a string slice.
-    ///
-    /// # Returns
-    /// * `Result&lt;&amp;str&gt;` - The string slice representation of the prompt or an error.
-    </span><span class="kw">fn </span>as_str(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw-2">&amp;</span>str&gt;;
+    </span><span class="kw">fn </span>to_string(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; String;
 
     <span class="doccomment">/// Convert the current prompt to a `ChatPrompt`.
     ///
@@ -707,21 +713,23 @@
     /// let cloned_prompt = my_prompt.clone_prompt();
     /// ```
     </span><span class="kw">fn </span>clone_prompt(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Box&lt;<span class="kw">dyn </span>Prompt&gt;;
+
+    <span class="kw">fn </span>as_any(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="kw">dyn </span>Any
+    <span class="kw">where
+        </span><span class="self">Self</span>: Sized + <span class="lifetime">&#39;static</span>,
+    {
+        <span class="self">self
+    </span>}
 }
 
 <span class="kw">impl </span>Prompt <span class="kw">for </span>ChatPrompt {
-    <span class="kw">fn </span>save(<span class="kw-2">&amp;mut </span><span class="self">self</span>, data: Box&lt;<span class="kw">dyn </span>Prompt&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">let </span>msgs = data.to_chat()<span class="question-mark">?</span>;
+    <span class="kw">fn </span>save(<span class="kw-2">&amp;mut </span><span class="self">self</span>, data: Box&lt;<span class="kw">dyn </span>Prompt&gt;) {
+        <span class="kw">let </span>msgs = data.to_chat().unwrap();
         <span class="self">self</span>.extend(msgs);
-        <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn </span>to_string(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;String&gt; {
-        <span class="prelude-val">Err</span>(<span class="macro">anyhow::anyhow!</span>(<span class="string">&quot;Unable to convert ChatPrompt to String&quot;</span>))
-    }
-
-    <span class="kw">fn </span>as_str(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw-2">&amp;</span>str&gt; {
-        <span class="prelude-val">Err</span>(<span class="macro">anyhow::anyhow!</span>(<span class="string">&quot;Unable to convert ChatPrompt to &amp;str&quot;</span>))
+    <span class="kw">fn </span>to_string(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; String {
+        serde_json::to_string(<span class="self">self</span>).unwrap()
     }
 
     <span class="kw">fn </span>to_chat(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;ChatPrompt&gt; {
@@ -732,22 +740,32 @@
         Box::new(<span class="self">self</span>.clone())
     }
 }
+
 <span class="kw">impl </span>Prompt <span class="kw">for </span>String {
-    <span class="kw">fn </span>save(<span class="kw-2">&amp;mut </span><span class="self">self</span>, data: Box&lt;<span class="kw">dyn </span>Prompt&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="self">self</span>.push_str(data.as_str()<span class="question-mark">?</span>);
-        <span class="prelude-val">Ok</span>(())
+    <span class="kw">fn </span>save(<span class="kw-2">&amp;mut </span><span class="self">self</span>, data: Box&lt;<span class="kw">dyn </span>Prompt&gt;) {
+        <span class="self">self</span>.push_str(<span class="kw-2">&amp;</span>data.to_string());
     }
 
-    <span class="kw">fn </span>to_string(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;String&gt; {
-        <span class="prelude-val">Ok</span>(<span class="self">self</span>.clone())
-    }
-
-    <span class="kw">fn </span>as_str(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw-2">&amp;</span>str&gt; {
-        <span class="prelude-val">Ok</span>(<span class="self">self</span>.as_str())
+    <span class="kw">fn </span>to_string(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; String {
+        <span class="self">self</span>.clone()
     }
 
     <span class="kw">fn </span>to_chat(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;ChatPrompt&gt; {
         <span class="prelude-val">Err</span>(<span class="macro">anyhow::anyhow!</span>(<span class="string">&quot;Unable to convert String to ChatPrompt&quot;</span>))
+    }
+
+    <span class="kw">fn </span>clone_prompt(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Box&lt;<span class="kw">dyn </span>Prompt&gt; {
+        Box::new(<span class="self">self</span>.clone())
+    }
+}
+
+<span class="kw">impl </span>Prompt <span class="kw">for </span>Record {
+    <span class="kw">fn </span>to_string(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; String {
+        <span class="self">self</span>.content.to_string()
+    }
+
+    <span class="kw">fn </span>to_chat(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;ChatPrompt&gt; {
+        <span class="prelude-val">Err</span>(<span class="macro">anyhow::anyhow!</span>(<span class="string">&quot;Unable to convert Record to ChatPrompt&quot;</span>))
     }
 
     <span class="kw">fn </span>clone_prompt(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Box&lt;<span class="kw">dyn </span>Prompt&gt; {
@@ -799,7 +817,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>context = HashMap::new();
         context.insert(<span class="string">&quot;country&quot;</span>, <span class="string">&quot;France&quot;</span>);
         <span class="kw">let </span>prompt = prompt_template.render_context(<span class="string">&quot;my template&quot;</span>, <span class="kw-2">&amp;</span>context).unwrap();
-        <span class="macro">assert_eq!</span>(prompt.to_string().unwrap(), <span class="string">&quot;What is the capital of France&quot;</span>);
+        <span class="macro">assert_eq!</span>(prompt.to_string(), <span class="string">&quot;What is the capital of France&quot;</span>);
     }
 
     <span class="attr">#[test]

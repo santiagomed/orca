@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Condition"],"struct":["FoundPoint","Qdrant","StringPayload"],"trait":["ToPayload"]};
+window.SIDEBAR_ITEMS = {"enum":["Condition"],"struct":["FoundPoint","Qdrant"],"trait":["ToPayload"]};

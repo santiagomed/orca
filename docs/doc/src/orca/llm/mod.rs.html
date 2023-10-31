@@ -296,10 +296,18 @@
 <a href="#296" id="296">296</a>
 <a href="#297" id="297">297</a>
 <a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
 </pre></div><pre class="rust"><code><span class="kw">pub mod </span>bert;
 <span class="kw">pub mod </span>openai;
 <span class="kw">pub mod </span>quantized;
-<span class="kw">pub mod </span>request;
 
 <span class="kw">use </span>std::fmt::Display;
 
@@ -367,7 +375,7 @@
     ///    let client = OpenAI::new();
     ///    let input = prompt!(&quot;Hello, world&quot;);
     ///    let response = client.generate_embedding(input).await.unwrap();
-    ///    assert!(response.get_embedding().len() &gt; 0);
+    ///    assert!(response.get_embedding().expect(&quot;embedding is empty&quot;).len() &gt; 0);
     /// }
     /// ```
     </span><span class="kw">async fn </span>generate_embedding(<span class="kw-2">&amp;</span><span class="self">self</span>, prompt: Box&lt;<span class="kw">dyn </span>Prompt&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;EmbeddingResponse&gt;;
@@ -377,6 +385,9 @@
 </span><span class="kw">pub enum </span>EmbeddingResponse {
     <span class="doccomment">/// OpenAI embedding response
     </span>OpenAI(openai::OpenAIEmbeddingResponse),
+
+    <span class="doccomment">/// Bert embedding response
+    </span>Bert(Tensor),
 
     <span class="doccomment">/// Empty response; usually used to initialize a chain result when
     /// no response is available.
@@ -395,9 +406,6 @@
     <span class="doccomment">/// OpenAI response
     </span>OpenAI(openai::Response),
 
-    <span class="doccomment">/// Bert response
-    </span>Bert(Vec&lt;Tensor&gt;),
-
     <span class="doccomment">/// Quantized model response
     </span>Quantized(String),
 
@@ -415,10 +423,25 @@
 
 <span class="kw">impl </span>EmbeddingResponse {
     <span class="doccomment">/// Get the embedding from an OpenAIEmbeddingResponse
-    </span><span class="kw">pub fn </span>get_embedding(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;f32&gt; {
+    </span><span class="kw">pub fn </span>get_embedding(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;f32&gt;&gt; {
         <span class="kw">match </span><span class="self">self </span>{
-            EmbeddingResponse::OpenAI(response) =&gt; response.to_vec(),
-            EmbeddingResponse::Empty =&gt; Vec::new(),
+            EmbeddingResponse::OpenAI(response) =&gt; <span class="prelude-val">Ok</span>(response.to_vec()),
+            EmbeddingResponse::Bert(embedding) =&gt; {
+                <span class="comment">// perform avg-pooling to get the embedding
+                </span><span class="kw">let </span>(_n_sentence, n_tokens, _hidden_size) = embedding.dims3()<span class="question-mark">?</span>;
+                <span class="kw">let </span>embedding = (embedding.sum(<span class="number">1</span>)<span class="question-mark">? </span>/ (n_tokens <span class="kw">as </span>f64))<span class="question-mark">?</span>;
+                <span class="kw">let </span>embedding = embedding.to_vec2()<span class="question-mark">?</span>;
+                <span class="prelude-val">Ok</span>(embedding[<span class="number">0</span>].clone())
+            }
+            EmbeddingResponse::Empty =&gt; <span class="macro">panic!</span>(<span class="string">&quot;empty response does not have an embedding&quot;</span>),
+        }
+    }
+
+    <span class="kw">pub fn </span>get_tensor(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Tensor {
+        <span class="kw">match </span><span class="self">self </span>{
+            EmbeddingResponse::OpenAI(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(<span class="string">&quot;openai does not have a tensor&quot;</span>),
+            EmbeddingResponse::Bert(response) =&gt; response.clone(),
+            EmbeddingResponse::Empty =&gt; <span class="macro">panic!</span>(<span class="string">&quot;empty response does not have an embedding&quot;</span>),
         }
     }
 }
@@ -429,8 +452,7 @@
         <span class="kw">match </span><span class="self">self </span>{
             LLMResponse::OpenAI(response) =&gt; response.to_string(),
             LLMResponse::Quantized(<span class="kw">_</span>) =&gt; <span class="string">&quot;ai&quot;</span>.to_string(),
-            LLMResponse::Bert(<span class="kw">_</span>) =&gt; <span class="string">&quot;ai&quot;</span>.to_string(),
-            LLMResponse::Empty =&gt; <span class="string">&quot;&quot;</span>.to_string(),
+            LLMResponse::Empty =&gt; <span class="macro">panic!</span>(<span class="string">&quot;empty response does not have a role&quot;</span>),
         }
     }
 }
@@ -445,13 +467,6 @@
             LLMResponse::Quantized(response) =&gt; {
                 <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, response)
             }
-            LLMResponse::Bert(response) =&gt; {
-                <span class="macro">write!</span>(
-                    f,
-                    <span class="string">&quot;{}&quot;</span>,
-                    response.iter().map(|x| x.to_string()).collect::&lt;Vec&lt;String&gt;&gt;().join(<span class="string">&quot;, &quot;</span>)
-                )
-            }
             LLMResponse::Empty =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;&quot;</span>),
         }
     }
@@ -462,7 +477,10 @@
     </span><span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; std::fmt::Result {
         <span class="kw">match </span><span class="self">self </span>{
             EmbeddingResponse::OpenAI(response) =&gt; {
-                <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, response.to_string())
+                <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, response)
+            }
+            EmbeddingResponse::Bert(response) =&gt; {
+                <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, response)
             }
             EmbeddingResponse::Empty =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;&quot;</span>),
         }

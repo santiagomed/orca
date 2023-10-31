@@ -262,6 +262,7 @@
 <a href="#262" id="262">262</a>
 <a href="#263" id="263">263</a>
 <a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::Chain;
 <span class="kw">use </span><span class="kw">super</span>::ChainResult;
 <span class="kw">use </span><span class="kw">crate</span>::llm::LLM;
@@ -369,7 +370,7 @@
     /// let mut chain = chain.with_template(new_template_name.as_str(), new_prompt);
     /// ```
     </span><span class="kw">pub fn </span>duplicate_template(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
-        <span class="kw">let </span>template_name = <span class="macro">format!</span>(<span class="string">&quot;{}-{}&quot;</span>, name, uuid::Uuid::new_v4().to_string());
+        <span class="kw">let </span>template_name = <span class="macro">format!</span>(<span class="string">&quot;{}-{}&quot;</span>, name, uuid::Uuid::new_v4());
         <span class="kw">if let </span><span class="prelude-val">Some</span>(template) = <span class="self">self</span>.template_engine.get_template(name) {
             <span class="kw">let </span><span class="kw-2">mut </span>template_clone = <span class="self">self</span>.template_engine.clone();
             template_clone = template_clone.register_template(template_name.as_str(), <span class="kw-2">&amp;</span>template);
@@ -412,7 +413,7 @@
         <span class="kw">let </span>response = <span class="kw">if let </span><span class="prelude-val">Some</span>(memory) = <span class="kw-2">&amp;</span><span class="self">self</span>.memory {
             <span class="kw">let </span><span class="kw-2">mut </span>locked_memory = memory.lock().<span class="kw">await</span>; <span class="comment">// Lock the memory
             </span><span class="kw">let </span>mem = locked_memory.memory();
-            mem.save(prompt)<span class="question-mark">?</span>;
+            mem.save(prompt);
             <span class="self">self</span>.llm.generate(mem.clone_prompt()).<span class="kw">await</span><span class="question-mark">?
         </span>} <span class="kw">else </span>{
             <span class="self">self</span>.llm.generate(prompt.clone_prompt()).<span class="kw">await</span><span class="question-mark">?
@@ -523,6 +524,7 @@
         <span class="kw">let </span>chain = chain.with_template(<span class="string">&quot;name&quot;</span>, <span class="string">&quot;{{#chat}}{{#user}}What is my name?{{/user}}{{/chat}}&quot;</span>);
         <span class="kw">let </span>res = chain.execute(<span class="string">&quot;name&quot;</span>).<span class="kw">await</span>.unwrap().content();
 
+        <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, res);
         <span class="macro">assert!</span>(res.to_lowercase().contains(<span class="string">&quot;orca&quot;</span>));
     }
 }

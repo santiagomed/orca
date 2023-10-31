@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["EmbeddingResponse","LLMResponse"],"fn":["device"],"mod":["bert","openai","quantized","request"],"struct":["TokenOutputStream"],"trait":["Embedding","LLM"]};
+window.SIDEBAR_ITEMS = {"enum":["EmbeddingResponse","LLMResponse"],"fn":["device"],"mod":["bert","openai","quantized"],"struct":["TokenOutputStream"],"trait":["Embedding","LLM"]};

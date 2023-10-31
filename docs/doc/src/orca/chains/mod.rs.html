@@ -163,7 +163,7 @@
     /// # #[tokio::main]
     /// # async fn main() {
     /// let client = OpenAI::new();
-    /// let mut chain = LLMChain::new(&amp;client).with_prompt(&quot;my prompt&quot;, &quot;Hello, {{name}}!&quot;);
+    /// let mut chain = LLMChain::new(&amp;client).with_template(&quot;my prompt&quot;, &quot;Hello, {{name}}!&quot;);
     /// let mut data = HashMap::new();
     /// data.insert(&quot;name&quot;, &quot;LLM&quot;);
     /// chain.load_context(&amp;data).await;

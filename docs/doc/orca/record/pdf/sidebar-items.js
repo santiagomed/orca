@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["PDFOutput"],"struct":["PDF"]};
+window.SIDEBAR_ITEMS = {"enum":["PdfOutput"],"struct":["Pdf"]};

@@ -54,7 +54,7 @@
 <span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">let </span>client = OpenAI::new();
-<span class="kw">let </span><span class="kw-2">mut </span>chain = LLMChain::new(<span class="kw-2">&amp;</span>client).with_prompt(<span class="string">&quot;my prompt&quot;</span>, <span class="string">&quot;Hello, {{name}}!&quot;</span>);
+<span class="kw">let </span><span class="kw-2">mut </span>chain = LLMChain::new(<span class="kw-2">&amp;</span>client).with_template(<span class="string">&quot;my prompt&quot;</span>, <span class="string">&quot;Hello, {{name}}!&quot;</span>);
 <span class="kw">let </span><span class="kw-2">mut </span>data = HashMap::new();
 data.insert(<span class="string">&quot;name&quot;</span>, <span class="string">&quot;LLM&quot;</span>);
 chain.load_context(<span class="kw-2">&amp;</span>data).<span class="kw">await</span>;</code></pre></div>

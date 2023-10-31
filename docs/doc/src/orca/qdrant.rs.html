@@ -355,9 +355,61 @@
 <a href="#355" id="355">355</a>
 <a href="#356" id="356">356</a>
 <a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a>
+<a href="#360" id="360">360</a>
+<a href="#361" id="361">361</a>
+<a href="#362" id="362">362</a>
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a>
+<a href="#365" id="365">365</a>
+<a href="#366" id="366">366</a>
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>anyhow::Result;
+<span class="kw">use </span>qdrant_client::prelude::Value <span class="kw">as </span>QdrantValue;
 <span class="kw">use </span>qdrant_client::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>qdrant_client::qdrant::point_id::PointIdOptions;
 <span class="kw">use </span>qdrant_client::qdrant::value::Kind;
@@ -370,23 +422,23 @@
     <span class="kw">fn </span>to_payload(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Payload&gt;;
 }
 
-<span class="kw">pub struct </span>StringPayload(String);
-
-<span class="kw">impl </span>ToPayload <span class="kw">for </span>StringPayload {
-    <span class="kw">fn </span>to_payload(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Payload&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>map = HashMap::new();
-        map.insert(<span class="string">&quot;data&quot;</span>.to_string(), Value::from(<span class="self">self</span>.<span class="number">0</span>));
-        <span class="prelude-val">Ok</span>(Payload::new_from_hashmap(map))
-    }
-}
-
 <span class="kw">impl</span>&lt;T&gt; ToPayload <span class="kw">for </span>T
 <span class="kw">where
     </span>T: Serialize,
 {
     <span class="kw">fn </span>to_payload(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Payload&gt; {
-        <span class="kw">let </span>payload_map: HashMap&lt;String, Value&gt; = serde_json::from_value(serde_json::to_value(<span class="self">self</span>)<span class="question-mark">?</span>)<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(Payload::new_from_hashmap(payload_map))
+        <span class="kw">let </span>value = serde_json::to_value(<span class="self">self</span>)<span class="question-mark">?</span>;
+
+        <span class="kw">if let </span>serde_json::Value::Object(map) = value {
+            <span class="kw">let </span>converted_map: HashMap&lt;String, QdrantValue&gt; =
+                map.into_iter().map(|(k, v)| (k, QdrantValue::from(v))).collect();
+            <span class="prelude-val">Ok</span>(Payload::new_from_hashmap(converted_map))
+        } <span class="kw">else </span>{
+            <span class="comment">// If the value is not an object, wrap it in a map with a generic key.
+            </span><span class="kw">let </span><span class="kw-2">mut </span>map = HashMap::new();
+            map.insert(<span class="string">&quot;value&quot;</span>.to_string(), QdrantValue::from(value));
+            <span class="prelude-val">Ok</span>(Payload::new_from_hashmap(map))
+        }
     }
 }
 
@@ -553,6 +605,56 @@
         <span class="prelude-val">Ok</span>(())
     }
 
+    <span class="doccomment">/// Inserts multiple vectors and their corresponding payloads into the specified collection.
+    ///
+    /// # Arguments
+    /// * `collection_name` - The name of the collection to insert the vectors and payloads into.
+    /// * `vectors` - A vector of vectors, where each inner vector represents a vector to be inserted.
+    /// * `payloads` - A vector of payloads, where each payload corresponds to a vector to be inserted.
+    ///
+    /// # Returns
+    /// Returns a `Result` indicating whether the operation was successful or not.
+    ///
+    /// # Type Parameters
+    /// * `T` - The type of the payload.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use orca::qdrant::Qdrant;
+    /// # use std::error::Error;
+    /// #
+    /// # #[tokio::main]
+    /// # async fn main() -&gt; Result&lt;(), Box&lt;dyn Error&gt;&gt; {
+    /// # let client = Qdrant::new(&quot;localhost&quot;, 6333);
+    /// let vectors = vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]];
+    /// let payloads = vec![&quot;payload1&quot;.to_string(), &quot;payload2&quot;.to_string()];
+    /// client.insert_many(&quot;collection_name&quot;, vectors, payloads).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    </span><span class="kw">pub async fn </span>insert_many&lt;T&gt;(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        collection_name: <span class="kw-2">&amp;</span>str,
+        vectors: Vec&lt;Vec&lt;f32&gt;&gt;,
+        payloads: Vec&lt;T&gt;,
+    ) -&gt; anyhow::Result&lt;()&gt;
+    <span class="kw">where
+        </span>T: ToPayload,
+    {
+        <span class="kw">let </span>points = vectors
+            .into_iter()
+            .zip(payloads.into_iter())
+            .enumerate()
+            .map(|(id, (vector, payload))| {
+                <span class="kw">let </span>payload = payload.to_payload().unwrap(); <span class="comment">// Ensure payload is correctly converted
+                </span>PointStruct::new(id <span class="kw">as </span>u64, vector, payload)
+            })
+            .collect();
+        <span class="self">self</span>.client.upsert_points_blocking(collection_name, points, <span class="prelude-val">None</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(())
+    }
+
     <span class="doccomment">/// Searches for points in a given collection that match the specified conditions.
     ///
     /// # Arguments
@@ -669,9 +771,9 @@
         qdrant.create_collection(<span class="kw-2">&amp;</span>unique_collection_name, <span class="number">3</span>).<span class="kw">await</span>.unwrap();
 
         <span class="kw">let </span>vector = <span class="macro">vec!</span>[<span class="number">0.1</span>, <span class="number">0.2</span>, <span class="number">0.3</span>];
-        <span class="kw">let </span>payload = <span class="string">&quot;some_payload&quot;</span>.to_string();
+        <span class="kw">let </span>payload = <span class="string">&quot;some_payload&quot;</span>;
 
-        <span class="kw">let </span>result = qdrant.insert(<span class="kw-2">&amp;</span>unique_collection_name, vector, StringPayload(payload)).<span class="kw">await</span>;
+        <span class="kw">let </span>result = qdrant.insert(<span class="kw-2">&amp;</span>unique_collection_name, vector, payload).<span class="kw">await</span>;
         <span class="macro">assert!</span>(result.is_ok());
 
         teardown(<span class="kw-2">&amp;</span>unique_collection_name).<span class="kw">await</span>;

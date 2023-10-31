@@ -182,7 +182,7 @@
     <span class="kw">use crate</span>::{
         chains::chain::LLMChain,
         llm::openai::OpenAI,
-        record::{pdf::PDF, Spin},
+        record::{pdf::Pdf, Spin},
     };
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
@@ -191,7 +191,7 @@
     #[ignore = <span class="string">&quot;wip&quot;</span>]
     </span><span class="kw">async fn </span>test_mapreduce() {
         std::env::set_var(<span class="string">&quot;STANDARD_FONTS&quot;</span>, <span class="string">&quot;./assets/pdf_fonts&quot;</span>);
-        <span class="kw">let </span>rec = PDF::from_file(<span class="string">&quot;./tests/memgpt.pdf&quot;</span>, <span class="bool-val">false</span>).spin().unwrap();
+        <span class="kw">let </span>rec = Pdf::from_file(<span class="string">&quot;./tests/memgpt.pdf&quot;</span>, <span class="bool-val">false</span>).spin().unwrap();
         <span class="kw">let </span>split_rec = rec.split(<span class="number">5</span>);
 
         <span class="kw">let </span>client = OpenAI::new();

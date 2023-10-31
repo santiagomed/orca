@@ -399,6 +399,12 @@
 <a href="#399" id="399">399</a>
 <a href="#400" id="400">400</a>
 <a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
 </pre></div><pre class="rust"><code><span class="attr">#[cfg(feature = <span class="string">&quot;mkl&quot;</span>)]
 </span><span class="kw">extern crate </span>intel_mkl_src;
 
@@ -496,8 +502,8 @@
     // chat_context: Option&lt;String&gt;,
 </span>}
 
-<span class="kw">impl </span>Quantized {
-    <span class="kw">pub fn </span>new() -&gt; <span class="self">Self </span>{
+<span class="kw">impl </span>Default <span class="kw">for </span>Quantized {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             model: <span class="prelude-val">None</span>,
             model_path: <span class="prelude-val">None</span>,
@@ -514,6 +520,12 @@
             gqa: <span class="prelude-val">None</span>,
             <span class="comment">// chat_context: None,
         </span>}
+    }
+}
+
+<span class="kw">impl </span>Quantized {
+    <span class="kw">pub fn </span>new() -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::default()
     }
 
     <span class="kw">pub fn </span>with_sample_len(<span class="kw-2">mut </span><span class="self">self</span>, sample_len: usize) -&gt; <span class="self">Self </span>{
@@ -581,7 +593,7 @@
             <span class="kw">return </span><span class="prelude-val">Err</span>(anyhow::Error::msg(<span class="string">&quot;model path not set&quot;</span>));
         }
         <span class="kw">let </span>model_path = <span class="self">self</span>.model_path.as_ref().unwrap();
-        <span class="kw">let </span><span class="kw-2">mut </span>file = std::fs::File::open(<span class="kw-2">&amp;</span>model_path)<span class="question-mark">?</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>file = std::fs::File::open(model_path)<span class="question-mark">?</span>;
         <span class="kw">let </span>start = std::time::Instant::now();
 
         <span class="self">self</span>.model = <span class="kw">match </span>model_path.extension().and_then(|v| v.to_str()) {
@@ -702,8 +714,8 @@
 
         <span class="kw">let </span>tokenizer = <span class="self">self</span>.tokenizer()<span class="question-mark">?</span>;
         <span class="kw">let </span>prompt = <span class="kw">if </span>prompt.to_chat().is_err() {
-            prompt.to_string()<span class="question-mark">?
-        </span>} <span class="kw">else </span>{
+            prompt.to_string()
+        } <span class="kw">else </span>{
             <span class="kw">let </span>chat_prompt = prompt.to_chat()<span class="question-mark">?</span>;
             <span class="kw">let </span>prompt = <span class="self">self</span>.format_chat_prompt(chat_prompt);
             <span class="kw">if </span><span class="self">self</span>.verbose_prompt {

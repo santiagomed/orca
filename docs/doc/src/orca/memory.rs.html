@@ -158,7 +158,7 @@
 
     <span class="doccomment">/// Load a message into the Memory Buffer.
     </span><span class="kw">fn </span>save_memory(<span class="kw-2">&amp;mut </span><span class="self">self</span>, msgs: <span class="kw-2">&amp;</span><span class="kw">dyn </span>Prompt) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="self">self</span>.memory = msgs.to_string()<span class="question-mark">?</span>;
+        <span class="self">self</span>.memory = msgs.to_string();
         <span class="prelude-val">Ok</span>(())
     }
 }

@@ -196,29 +196,25 @@
 <a href="#196" id="196">196</a>
 <a href="#197" id="197">197</a>
 <a href="#198" id="198">198</a>
-<a href="#199" id="199">199</a>
-<a href="#200" id="200">200</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! This module provides an implementation for Bert in the context of language models.
 //! It utilizes the [candle](https://github.com/huggingface/candle) ML framework.
 //!
 //! This Bert struct allows for various configuration options such as running on a CPU,
 //! offline mode, tracing and model selection among others.
 
-</span><span class="kw">use </span>std::sync::Arc;
-
-<span class="kw">use </span>anyhow::{anyhow, Error <span class="kw">as </span>E, <span class="prelude-ty">Result</span>};
+</span><span class="kw">use </span>anyhow::{anyhow, Error <span class="kw">as </span>E, <span class="prelude-ty">Result</span>};
 <span class="kw">use </span>candle_core::Tensor;
 <span class="kw">use </span>candle_nn::VarBuilder;
 <span class="kw">use </span>candle_transformers::models::bert::{BertModel, Config, DTYPE};
 <span class="kw">use </span>hf_hub::{api::tokio::Api, Cache, Repo, RepoType};
 <span class="kw">use </span>tokenizers::Tokenizer;
+<span class="kw">use </span>tokio::sync::RwLock;
 
 <span class="kw">use </span><span class="kw">crate</span>::prompt::Prompt;
 
-<span class="kw">use super</span>::{LLMResponse, LLM};
+<span class="kw">use super</span>::{Embedding, EmbeddingResponse};
 
-<span class="attr">#[derive(Clone)]
-</span><span class="kw">pub struct </span>Bert {
+<span class="kw">pub struct </span>Bert {
     <span class="doccomment">/// Run on CPU rather than on GPU.
     </span>cpu: bool,
 
@@ -231,10 +227,13 @@
     <span class="doccomment">/// The model to use, check out available models: https://huggingface.co/models?library=sentence-transformers&amp;sort=trending
     </span>model_id: <span class="prelude-ty">Option</span>&lt;String&gt;,
 
-    revision: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    <span class="doccomment">/// Model weights.
+    </span>model: <span class="prelude-ty">Option</span>&lt;BertModel&gt;,
 
-    <span class="doccomment">/// The number of times to run the prompt.
-    </span>n: usize,
+    <span class="doccomment">/// Tokenizer.
+    </span>tokenizer: <span class="prelude-ty">Option</span>&lt;RwLock&lt;Tokenizer&gt;&gt;,
+
+    revision: <span class="prelude-ty">Option</span>&lt;String&gt;,
 
     <span class="doccomment">/// L2 normalization for embeddings.
     </span>normalize_embeddings: bool,
@@ -248,8 +247,9 @@
             offline: <span class="bool-val">false</span>,
             tracing: <span class="bool-val">false</span>,
             model_id: <span class="prelude-val">None</span>,
+            model: <span class="prelude-val">None</span>,
+            tokenizer: <span class="prelude-val">None</span>,
             revision: <span class="prelude-val">None</span>,
-            n: <span class="number">1</span>,
             normalize_embeddings: <span class="bool-val">false</span>,
         }
     }
@@ -297,12 +297,6 @@
         <span class="self">self
     </span>}
 
-    <span class="doccomment">/// Sets the number of times to run the prompt.
-    </span><span class="kw">pub fn </span>with_n(<span class="kw-2">mut </span><span class="self">self</span>, n: usize) -&gt; <span class="self">Self </span>{
-        <span class="self">self</span>.n = n;
-        <span class="self">self
-    </span>}
-
     <span class="doccomment">/// Enables L2 normalization for embeddings.
     </span><span class="kw">pub fn </span>with_normalize_embeddings(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
         <span class="self">self</span>.normalize_embeddings = <span class="bool-val">true</span>;
@@ -310,7 +304,7 @@
     </span>}
 
     <span class="doccomment">/// Builds the model and tokenizer.
-    </span><span class="kw">async fn </span>build_model_and_tokenizer(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(BertModel, Tokenizer)&gt; {
+    </span><span class="kw">pub async fn </span>build_model_and_tokenizer(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
         <span class="kw">let </span>device = <span class="kw">super</span>::device(<span class="self">self</span>.cpu)<span class="question-mark">?</span>;
         <span class="kw">let </span>default_model = <span class="string">&quot;sentence-transformers/all-MiniLM-L6-v2&quot;</span>.to_string();
         <span class="kw">let </span>default_revision = <span class="string">&quot;refs/pr/21&quot;</span>.to_string();
@@ -344,15 +338,21 @@
 
         <span class="kw">let </span>vb = <span class="kw">unsafe </span>{ VarBuilder::from_mmaped_safetensors(<span class="kw-2">&amp;</span>[weights_filename], DTYPE, <span class="kw-2">&amp;</span>device)<span class="question-mark">? </span>};
         <span class="kw">let </span>model = BertModel::load(vb, <span class="kw-2">&amp;</span>config)<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>((model, tokenizer))
+        <span class="self">self</span>.model = <span class="prelude-val">Some</span>(model);
+        <span class="self">self</span>.tokenizer = <span class="prelude-val">Some</span>(RwLock::new(tokenizer));
+        <span class="prelude-val">Ok</span>(<span class="self">self</span>)
     }
 }
 
 <span class="attr">#[async_trait::async_trait]
-</span><span class="kw">impl </span>LLM <span class="kw">for </span>Bert {
-    <span class="kw">async fn </span>generate(<span class="kw-2">&amp;</span><span class="self">self</span>, prompt: Box&lt;<span class="kw">dyn </span>Prompt&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;LLMResponse&gt; {
+</span><span class="kw">impl </span>Embedding <span class="kw">for </span>Bert {
+    <span class="kw">async fn </span>generate_embedding(<span class="kw-2">&amp;</span><span class="self">self</span>, prompt: Box&lt;<span class="kw">dyn </span>Prompt&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;EmbeddingResponse&gt; {
         <span class="kw">use </span>tracing_chrome::ChromeLayerBuilder;
         <span class="kw">use </span>tracing_subscriber::prelude::<span class="kw-2">*</span>;
+
+        <span class="kw">if </span><span class="self">self</span>.model.is_none() || <span class="self">self</span>.tokenizer.is_none() {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;Model or tokenizer not initialized&quot;</span>));
+        }
 
         <span class="kw">let </span>_guard = <span class="kw">if </span><span class="self">self</span>.tracing {
             <span class="macro">println!</span>(<span class="string">&quot;tracing...&quot;</span>);
@@ -363,26 +363,20 @@
             <span class="prelude-val">None
         </span>};
 
-        <span class="kw">let </span>cloned = <span class="self">self</span>.clone();
-        <span class="kw">let </span>(model, <span class="kw-2">mut </span>tokenizer) = cloned.build_model_and_tokenizer().<span class="kw">await</span><span class="question-mark">?</span>;
-        <span class="kw">let </span>model = Arc::new(model);
+        <span class="kw">let </span>model = <span class="self">self</span>.model.as_ref().unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>tokenizer = <span class="self">self</span>.tokenizer.as_ref().unwrap().write().<span class="kw">await</span>;
         <span class="kw">let </span>device = <span class="kw-2">&amp;</span>model.device;
-        <span class="kw">let </span>prompt = prompt.to_string()<span class="question-mark">?</span>;
+        <span class="kw">let </span>prompt = prompt.to_string();
         <span class="kw">let </span>tokenizer = tokenizer.with_padding(<span class="prelude-val">None</span>).with_truncation(<span class="prelude-val">None</span>).map_err(E::msg)<span class="question-mark">?</span>;
         <span class="kw">let </span>tokens = tokenizer.encode(prompt, <span class="bool-val">true</span>).map_err(E::msg)<span class="question-mark">?</span>.get_ids().to_vec();
         <span class="kw">let </span>token_ids = Tensor::new(<span class="kw-2">&amp;</span>tokens[..], device)<span class="question-mark">?</span>.unsqueeze(<span class="number">0</span>)<span class="question-mark">?</span>;
         <span class="kw">let </span>token_type_ids = token_ids.zeros_like()<span class="question-mark">?</span>;
-        <span class="kw">let </span><span class="kw-2">mut </span>out_tensors = Vec::&lt;Tensor&gt;::with_capacity(<span class="self">self</span>.n);
-        <span class="kw">for _ in </span><span class="number">0</span>..<span class="self">self</span>.n {
-            <span class="kw">let </span>start = std::time::Instant::now();
-            <span class="kw">let </span>model = model.clone();
-            <span class="kw">let </span>token_ids = token_ids.clone();
-            <span class="kw">let </span>token_type_ids = token_type_ids.clone();
-            <span class="kw">let </span>ys = model.forward(<span class="kw-2">&amp;</span>token_ids, <span class="kw-2">&amp;</span>token_type_ids)<span class="question-mark">?</span>;
-            out_tensors.push(ys);
-            <span class="macro">println!</span>(<span class="string">&quot;Took {:?}&quot;</span>, start.elapsed());
-        }
-        <span class="prelude-val">Ok</span>(LLMResponse::Bert(out_tensors))
+        <span class="kw">let </span>start = std::time::Instant::now();
+        <span class="kw">let </span>token_ids = token_ids.clone();
+        <span class="kw">let </span>token_type_ids = token_type_ids.clone();
+        <span class="kw">let </span>embedding = model.forward(<span class="kw-2">&amp;</span>token_ids, <span class="kw-2">&amp;</span>token_type_ids)<span class="question-mark">?</span>;
+        <span class="macro">println!</span>(<span class="string">&quot;Took {:?}&quot;</span>, start.elapsed());
+        <span class="prelude-val">Ok</span>(EmbeddingResponse::Bert(embedding))
     }
 }
 
@@ -394,8 +388,10 @@
     <span class="attr">#[tokio::test]
     </span><span class="kw">async fn </span>test_generate() {
         <span class="kw">let </span>bert = Bert::new();
-        <span class="kw">let </span>response = bert.generate(<span class="macro">prompt!</span>(<span class="string">&quot;Hello, world&quot;</span>)).<span class="kw">await</span>;
-        <span class="macro">assert!</span>(response.is_ok());
+        <span class="kw">let </span>response =
+            bert.build_model_and_tokenizer().<span class="kw">await</span>.unwrap().generate_embedding(<span class="macro">prompt!</span>(<span class="string">&quot;In the heart of the ancient forest, a single leaf fluttered, carrying the secret language of trees. It landed in the palm of a child, whispering tales of centuries past and futures yet to unfold.&quot;</span>)).<span class="kw">await</span>;
+        <span class="kw">let </span>response = response.unwrap();
+        <span class="macro">assert_eq!</span>(response.get_embedding().unwrap().len(), <span class="number">384</span>);
     }
 }
 </code></pre></div></section></main></body></html>
