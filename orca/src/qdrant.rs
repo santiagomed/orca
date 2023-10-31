@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
+use qdrant_client::prelude::Value as QdrantValue;
 use qdrant_client::prelude::*;
 use qdrant_client::qdrant::point_id::PointIdOptions;
 use qdrant_client::qdrant::value::Kind;
@@ -13,23 +14,23 @@ pub trait ToPayload {
     fn to_payload(self) -> Result<Payload>;
 }
 
-pub struct StringPayload(String);
-
-impl ToPayload for StringPayload {
-    fn to_payload(self) -> Result<Payload> {
-        let mut map = HashMap::new();
-        map.insert("data".to_string(), Value::from(self.0));
-        Ok(Payload::new_from_hashmap(map))
-    }
-}
-
 impl<T> ToPayload for T
 where
     T: Serialize,
 {
     fn to_payload(self) -> Result<Payload> {
-        let payload_map: HashMap<String, Value> = serde_json::from_value(serde_json::to_value(self)?)?;
-        Ok(Payload::new_from_hashmap(payload_map))
+        let value = serde_json::to_value(self)?;
+
+        if let serde_json::Value::Object(map) = value {
+            let converted_map: HashMap<String, QdrantValue> =
+                map.into_iter().map(|(k, v)| (k, QdrantValue::from(v))).collect();
+            Ok(Payload::new_from_hashmap(converted_map))
+        } else {
+            // If the value is not an object, wrap it in a map with a generic key.
+            let mut map = HashMap::new();
+            map.insert("value".to_string(), QdrantValue::from(value));
+            Ok(Payload::new_from_hashmap(map))
+        }
     }
 }
 
@@ -199,36 +200,37 @@ impl Qdrant {
     /// Inserts multiple vectors and their corresponding payloads into the specified collection.
     ///
     /// # Arguments
-    ///
     /// * `collection_name` - The name of the collection to insert the vectors and payloads into.
     /// * `vectors` - A vector of vectors, where each inner vector represents a vector to be inserted.
     /// * `payloads` - A vector of payloads, where each payload corresponds to a vector to be inserted.
     ///
     /// # Returns
-    ///
     /// Returns a `Result` indicating whether the operation was successful or not.
     ///
     /// # Type Parameters
-    ///
     /// * `T` - The type of the payload.
     ///
     /// # Examples
     ///
-    /// ```
-    /// # use orca::qdrant::QdrantClient;
-    /// # use orca::payload::ToPayload;
+    /// ```no_run
+    /// # use orca::qdrant::Qdrant;
     /// # use std::error::Error;
     /// #
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn Error>> {
-    /// # let client = QdrantClient::new("http://localhost:6333").unwrap();
+    /// # let client = Qdrant::new("localhost", 6333);
     /// let vectors = vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]];
-    /// let payloads = vec!["payload1", "payload2"];
+    /// let payloads = vec!["payload1".to_string(), "payload2".to_string()];
     /// client.insert_many("collection_name", vectors, payloads).await?;
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn insert_many<T>(&self, collection_name: &str, vectors: Vec<Vec<f32>>, payloads: Vec<T>) -> Result<()>
+    pub async fn insert_many<T>(
+        &self,
+        collection_name: &str,
+        vectors: Vec<Vec<f32>>,
+        payloads: Vec<T>,
+    ) -> anyhow::Result<()>
     where
         T: ToPayload,
     {
@@ -236,7 +238,10 @@ impl Qdrant {
             .into_iter()
             .zip(payloads.into_iter())
             .enumerate()
-            .map(|(id, (vector, payload))| PointStruct::new(id as u64, vector, payload.to_payload().unwrap()))
+            .map(|(id, (vector, payload))| {
+                let payload = payload.to_payload().unwrap(); // Ensure payload is correctly converted
+                PointStruct::new(id as u64, vector, payload)
+            })
             .collect();
         self.client.upsert_points_blocking(collection_name, points, None).await?;
         Ok(())
@@ -358,9 +363,9 @@ mod tests {
         qdrant.create_collection(&unique_collection_name, 3).await.unwrap();
 
         let vector = vec![0.1, 0.2, 0.3];
-        let payload = "some_payload".to_string();
+        let payload = "some_payload";
 
-        let result = qdrant.insert(&unique_collection_name, vector, StringPayload(payload)).await;
+        let result = qdrant.insert(&unique_collection_name, vector, payload).await;
         assert!(result.is_ok());
 
         teardown(&unique_collection_name).await;
