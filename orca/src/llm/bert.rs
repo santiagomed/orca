@@ -9,7 +9,8 @@ use candle_core::Tensor;
 use candle_nn::VarBuilder;
 use candle_transformers::models::bert::{BertModel, Config, DTYPE};
 use hf_hub::{api::tokio::Api, Cache, Repo, RepoType};
-use tokenizers::Tokenizer;
+use std::sync::Arc;
+use tokenizers::{PaddingParams, Tokenizer};
 use tokio::sync::RwLock;
 
 use crate::prompt::Prompt;
@@ -30,7 +31,7 @@ pub struct Bert {
     model_id: Option<String>,
 
     /// Model weights.
-    model: Option<BertModel>,
+    model: Option<Arc<BertModel>>,
 
     /// Tokenizer.
     tokenizer: Option<RwLock<Tokenizer>>,
@@ -140,7 +141,7 @@ impl Bert {
 
         let vb = unsafe { VarBuilder::from_mmaped_safetensors(&[weights_filename], DTYPE, &device)? };
         let model = BertModel::load(vb, &config)?;
-        self.model = Some(model);
+        self.model = Some(Arc::new(model));
         self.tokenizer = Some(RwLock::new(tokenizer));
         Ok(self)
     }
@@ -157,7 +158,7 @@ impl Embedding for Bert {
         }
 
         let _guard = if self.tracing {
-            println!("tracing...");
+            log::info!("tracing...");
             let (chrome_layer, guard) = ChromeLayerBuilder::new().build();
             tracing_subscriber::registry().with(chrome_layer).init();
             Some(guard)
@@ -165,7 +166,7 @@ impl Embedding for Bert {
             None
         };
 
-        let model = self.model.as_ref().unwrap();
+        let model = self.model.as_ref().unwrap().clone();
         let mut tokenizer = self.tokenizer.as_ref().unwrap().write().await;
         let device = &model.device;
         let prompt = prompt.to_string();
@@ -174,18 +175,93 @@ impl Embedding for Bert {
         let token_ids = Tensor::new(&tokens[..], device)?.unsqueeze(0)?;
         let token_type_ids = token_ids.zeros_like()?;
         let start = std::time::Instant::now();
-        let token_ids = token_ids.clone();
-        let token_type_ids = token_type_ids.clone();
         let embedding = model.forward(&token_ids, &token_type_ids)?;
-        println!("Took {:?}", start.elapsed());
+        log::info!("Embedding took {:?} to generate", start.elapsed());
         Ok(EmbeddingResponse::Bert(embedding))
     }
-}
 
+    async fn generate_embeddings(&self, prompts: Vec<Box<dyn Prompt>>) -> Result<EmbeddingResponse> {
+        use tracing_chrome::ChromeLayerBuilder;
+        use tracing_subscriber::prelude::*;
+
+        if self.model.is_none() || self.tokenizer.is_none() {
+            return Err(anyhow!("Model or tokenizer not initialized"));
+        }
+
+        let _guard = if self.tracing {
+            log::info!("tracing...");
+            let (chrome_layer, guard) = ChromeLayerBuilder::new().build();
+            tracing_subscriber::registry().with(chrome_layer).init();
+            Some(guard)
+        } else {
+            None
+        };
+
+        let model = self.model.as_ref().unwrap().clone();
+        let mut tokenizer = self.tokenizer.as_ref().unwrap().write().await;
+        let device = &model.device;
+
+        if let Some(pp) = tokenizer.get_padding_mut() {
+            pp.strategy = tokenizers::PaddingStrategy::BatchLongest
+        } else {
+            let pp = PaddingParams {
+                strategy: tokenizers::PaddingStrategy::BatchLongest,
+                ..Default::default()
+            };
+            tokenizer.with_padding(Some(pp));
+        }
+
+        let tokens = tokenizer
+            .encode_batch(prompts.iter().map(|p| p.to_string()).collect::<Vec<_>>(), true)
+            .map_err(E::msg)?;
+        let token_ids = tokens
+            .iter()
+            .map(|tokens| {
+                let tokens = tokens.get_ids().to_vec();
+                Ok(Tensor::new(tokens.as_slice(), device)?)
+            })
+            .collect::<Result<Vec<_>>>()?;
+
+        let token_ids = Tensor::stack(&token_ids, 0)?;
+        let token_type_ids = token_ids.zeros_like()?;
+        log::info!("running inference on batch {:?}", token_ids.shape());
+        let embeddings = model.forward(&token_ids, &token_type_ids)?;
+        log::info!("generated embeddings {:?}", embeddings.shape());
+
+        Ok(EmbeddingResponse::Bert(embeddings))
+    }
+}
+/*
+        let tokenizer = tokenizer.with_padding(None).with_truncation(None).map_err(E::msg)?;
+
+        let tasks: Vec<_> = prompts
+            .par_iter() // Using Rayon's parallel iterator
+            .filter_map(|p| {
+                let model = model.clone();
+                tokenizer
+                    .encode(p.to_string(), true)
+                    .ok()
+                    .and_then(|t| t.get_ids().to_vec().into())
+                    .and_then(|tokens| Tensor::new(&tokens[..], device).ok()?.unsqueeze(0).ok())
+                    .and_then(|token_ids| {
+                        let token_type_ids = token_ids.zeros_like().ok()?;
+                        let start = std::time::Instant::now();
+                        let tensor = Some(model.forward(&token_ids, &token_type_ids));
+                        log::info!("Embeddings took {:?} to generate", start.elapsed());
+                        tensor
+                    })
+            })
+            .collect();
+
+        let mut embeddings = Vec::new();
+        for task in tasks {
+            embeddings.push(task?);
+        }
+*/
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::prompt;
+    use crate::{prompt, prompts};
 
     #[tokio::test]
     async fn test_generate() {
@@ -193,6 +269,18 @@ mod test {
         let response =
             bert.build_model_and_tokenizer().await.unwrap().generate_embedding(prompt!("In the heart of the ancient forest, a single leaf fluttered, carrying the secret language of trees. It landed in the palm of a child, whispering tales of centuries past and futures yet to unfold.")).await;
         let response = response.unwrap();
-        assert_eq!(response.get_embedding().unwrap().len(), 384);
+        let vec = response.to_vec().unwrap();
+        assert_eq!(vec.len(), 384);
+    }
+
+    #[tokio::test]
+    async fn test_batch() {
+        let bert = Bert::new().build_model_and_tokenizer().await.unwrap();
+        let response = bert.generate_embeddings(prompts!("Hello World", "Goodbye World")).await;
+        let response = response.unwrap();
+        let vec = response.to_vec2().unwrap();
+        assert_eq!(vec.len(), 2);
+        assert_eq!(vec[0].len(), 384);
+        assert_eq!(vec[1].len(), 384);
     }
 }

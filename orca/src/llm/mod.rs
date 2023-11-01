@@ -2,6 +2,7 @@ pub mod bert;
 pub mod openai;
 pub mod quantized;
 
+use openai::{OpenAIEmbeddingResponse, Response};
 use std::fmt::Display;
 
 use anyhow::Result;
@@ -68,16 +69,18 @@ pub trait Embedding {
     ///    let client = OpenAI::new();
     ///    let input = prompt!("Hello, world");
     ///    let response = client.generate_embedding(input).await.unwrap();
-    ///    assert!(response.get_embedding().expect("embedding is empty").len() > 0);
+    ///    assert!(response.to_vec().expect("embedding is empty").len() > 0);
     /// }
     /// ```
     async fn generate_embedding(&self, prompt: Box<dyn Prompt>) -> Result<EmbeddingResponse>;
+
+    async fn generate_embeddings(&self, prompts: Vec<Box<dyn Prompt>>) -> Result<EmbeddingResponse>;
 }
 
 #[derive(Debug)]
 pub enum EmbeddingResponse {
     /// OpenAI embedding response
-    OpenAI(openai::OpenAIEmbeddingResponse),
+    OpenAI(Vec<OpenAIEmbeddingResponse>),
 
     /// Bert embedding response
     Bert(Tensor),
@@ -87,10 +90,10 @@ pub enum EmbeddingResponse {
     Empty,
 }
 
-impl From<openai::OpenAIEmbeddingResponse> for EmbeddingResponse {
+impl From<OpenAIEmbeddingResponse> for EmbeddingResponse {
     /// Convert an OpenAI embedding response to an EmbeddingResponse
     fn from(response: openai::OpenAIEmbeddingResponse) -> Self {
-        EmbeddingResponse::OpenAI(response)
+        EmbeddingResponse::OpenAI(vec![response])
     }
 }
 
@@ -107,7 +110,7 @@ pub enum LLMResponse {
     Empty,
 }
 
-impl From<openai::Response> for LLMResponse {
+impl From<Response> for LLMResponse {
     /// Convert an OpenAI response to an LLMResponse
     fn from(response: openai::Response) -> Self {
         LLMResponse::OpenAI(response)
@@ -115,33 +118,61 @@ impl From<openai::Response> for LLMResponse {
 }
 
 impl EmbeddingResponse {
-    /// Get the embedding from an OpenAIEmbeddingResponse
-    pub fn get_embedding(&self) -> Result<Vec<f32>> {
+    pub fn to_vec(&self) -> Result<Vec<f32>> {
         match self {
-            EmbeddingResponse::OpenAI(response) => Ok(response.to_vec()),
+            EmbeddingResponse::OpenAI(response) => Ok(response[0].to_vec()),
             EmbeddingResponse::Bert(embedding) => {
                 // perform avg-pooling to get the embedding
-                let (_n_sentence, n_tokens, _hidden_size) = embedding.dims3()?;
+                let (_n, n_tokens, _hidden_size) = embedding.dims3()?;
                 let embedding = (embedding.sum(1)? / (n_tokens as f64))?;
                 let embedding = embedding.to_vec2()?;
-                Ok(embedding[0].clone())
+
+                match embedding.len() {
+                    1 => Ok(embedding[0].clone()),
+                    _ => Err(anyhow::anyhow!(format!(
+                        "expected 1 embedding, got {}",
+                        embedding.len()
+                    ))),
+                }
             }
-            EmbeddingResponse::Empty => panic!("empty response does not have an embedding"),
+            EmbeddingResponse::Empty => Err(anyhow::anyhow!("empty response does not have an embedding")),
         }
     }
 
-    pub fn get_tensor(&self) -> Tensor {
+    /// Get the embedding from an OpenAIEmbeddingResponse
+    pub fn to_vec2(&self) -> Result<Vec<Vec<f32>>> {
         match self {
-            EmbeddingResponse::OpenAI(_) => panic!("openai does not have a tensor"),
-            EmbeddingResponse::Bert(response) => response.clone(),
-            EmbeddingResponse::Empty => panic!("empty response does not have an embedding"),
+            EmbeddingResponse::OpenAI(response) => {
+                let mut embeddings = Vec::new();
+                for embedding in response {
+                    embeddings.push(embedding.to_vec());
+                }
+                Ok(embeddings)
+            }
+            EmbeddingResponse::Bert(embedding) => {
+                // perform avg-pooling to get the embedding
+                let (_n, n_tokens, _hidden_size) = embedding.dims3()?;
+                let embedding = (embedding.sum(1)? / (n_tokens as f64))?;
+                let embedding = embedding.to_vec2()?;
+
+                Ok(embedding.clone())
+            }
+            EmbeddingResponse::Empty => Err(anyhow::anyhow!("empty response does not have an embedding")),
+        }
+    }
+
+    pub fn to_tensor(&self) -> Option<Tensor> {
+        match self {
+            EmbeddingResponse::OpenAI(_) => None,
+            EmbeddingResponse::Bert(tensor) => Some(tensor.clone()),
+            EmbeddingResponse::Empty => None,
         }
     }
 }
 
 impl LLMResponse {
     /// Get the role of the response from an LLMResponse, if supported by the LLM.
-    pub fn get_role(&self) -> String {
+    pub fn to_role(&self) -> String {
         match self {
             LLMResponse::OpenAI(response) => response.to_string(),
             LLMResponse::Quantized(_) => "ai".to_string(),
@@ -170,10 +201,10 @@ impl Display for EmbeddingResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             EmbeddingResponse::OpenAI(response) => {
-                write!(f, "{}", response)
+                write!(f, "{:?}", response)
             }
             EmbeddingResponse::Bert(response) => {
-                write!(f, "{}", response)
+                write!(f, "{:?}", response)
             }
             EmbeddingResponse::Empty => write!(f, ""),
         }
@@ -215,7 +246,7 @@ pub fn device(cpu: bool) -> CandleResult<Device> {
     } else {
         let device = Device::cuda_if_available(0)?;
         if !device.is_cuda() {
-            println!("Running on CPU, to run on GPU, specify it using the llm.with_gpu() method.");
+            log::info!("Running on CPU, to run on GPU, specify it using the llm.with_gpu() method.");
         }
         Ok(device)
     }

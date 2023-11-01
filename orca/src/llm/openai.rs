@@ -265,12 +265,24 @@ impl LLM for OpenAI {
 
 #[async_trait::async_trait]
 impl EmbeddingTrait for OpenAI {
-    async fn generate_embedding<'a>(&'a self, prompt: Box<dyn Prompt>) -> Result<EmbeddingResponse> {
+    async fn generate_embedding(&self, prompt: Box<dyn Prompt>) -> Result<EmbeddingResponse> {
         let req = self.generate_embedding_request(&prompt.to_string())?;
         let res = self.client.execute(req).await?;
         let res = res.json::<OpenAIEmbeddingResponse>().await?;
 
         Ok(res.into())
+    }
+
+    /// TODO: Concurrent
+    async fn generate_embeddings(&self, prompt: Vec<Box<dyn Prompt>>) -> Result<EmbeddingResponse> {
+        let mut embeddings = Vec::new();
+        for prompt in prompt {
+            let req = self.generate_embedding_request(&prompt.to_string())?;
+            let res = self.client.execute(req).await?;
+            let res = res.json::<OpenAIEmbeddingResponse>().await?;
+            embeddings.push(res);
+        }
+        Ok(EmbeddingResponse::OpenAI(embeddings))
     }
 }
 
@@ -314,6 +326,6 @@ mod test {
         let client = OpenAI::new();
         let content = prompt!("This is a test");
         let res = client.generate_embedding(content).await.unwrap();
-        assert!(res.get_embedding().unwrap().len() > 0);
+        assert!(res.to_vec2().unwrap().len() > 0);
     }
 }

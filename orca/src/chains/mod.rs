@@ -1,8 +1,6 @@
 pub mod chain;
-
 pub mod mapreduce;
 pub mod sequential;
-use crate::prompt::clean_prompt;
 use crate::{llm::LLMResponse, record::Record};
 
 use anyhow::Result;
@@ -49,7 +47,7 @@ pub trait Chain {
         let context = serde_json::to_value(context).unwrap_or(serde_json::Value::Null);
         if let serde_json::Value::Object(map) = context {
             map.into_iter().for_each(|(key, value)| {
-                self.context().insert(key, clean_prompt(&value, true));
+                self.context().insert(key, value);
             });
         }
     }
@@ -61,10 +59,7 @@ pub trait Chain {
     /// - `record`: The actual record to load.
     fn load_record(&mut self, name: &str, record: Record) {
         if !self.context().contains_key(name) {
-            self.context().insert(
-                name.to_string(),
-                clean_prompt(&JsonValue::String(record.content.to_string()), true),
-            );
+            self.context().insert(name.to_string(), JsonValue::String(record.content.to_string()));
         }
     }
 
@@ -112,7 +107,7 @@ impl ChainResult {
     /// # Returns
     /// - A string representation of the role in the LLM response.
     pub fn role(&self) -> String {
-        self.llm_response.as_ref().unwrap_or(&LLMResponse::Empty).get_role()
+        self.llm_response.as_ref().unwrap_or(&LLMResponse::Empty).to_role()
     }
 
     /// Sets the LLM response for the current `ChainResult`.

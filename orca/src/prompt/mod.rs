@@ -9,7 +9,6 @@ use anyhow::Result;
 use handlebars::Handlebars;
 
 use chat::{remove_last_comma, ChatHelper, ChatPrompt, RoleHelper};
-use serde_json::{Map, Value as JsonValue};
 
 use crate::record::Record;
 
@@ -155,11 +154,10 @@ impl TemplateEngine {
         T: Serialize,
     {
         let rendered = self.reg.render(template_name, data)?;
+        log::info!("rendered: {}", rendered);
         // Check if rendered is a valid JSON string
         if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(&rendered) {
-            let cleaned = clean_prompt(&json_value, false);
-
-            match serde_json::from_value::<ChatPrompt>(cleaned) {
+            match serde_json::from_value::<ChatPrompt>(json_value) {
                 Ok(chat) => {
                     log::info!("Parsed as chat: {:?}", chat);
                     Ok(Box::new(chat))
@@ -171,6 +169,7 @@ impl TemplateEngine {
             }
         } else {
             // If rendered is not JSON, return it as a string
+            log::info!("rendered is not JSON, returning as string");
             Ok(Box::new(rendered))
         }
     }
@@ -339,41 +338,30 @@ impl Prompt for Record {
     }
 }
 
-/// Cleans the prompt by removing unparsable characters and quotations.
-pub fn clean_prompt(content: &JsonValue, quotes: bool) -> JsonValue {
-    match content {
-        JsonValue::String(string) => JsonValue::String(clean_string(string, quotes)),
-        JsonValue::Array(array) => {
-            let mut result = Vec::new();
-            for item in array {
-                result.push(clean_prompt(item, quotes));
-            }
-            JsonValue::Array(result)
-        }
-        JsonValue::Object(map) => {
-            let mut result = Map::new();
-            for (key, value) in map {
-                result.insert(key.clone(), clean_prompt(value, quotes));
-            }
-            JsonValue::Object(result)
-        }
-        _ => content.clone(),
-    }
-}
-
-fn clean_string(content: &str, quotes: bool) -> String {
-    content
-        .chars()
-        .filter(|&c| c > '\u{1F}')
-        .filter(|&c| if quotes { c != '"' } else { true })
-        .collect::<String>()
-        .replace("&nbsp;", " ")
-}
-
 #[macro_export]
 macro_rules! prompt {
     ($e:expr) => {
         Box::new($e.to_string())
+    };
+}
+
+#[macro_export]
+/// takes in a vector or a series of prompts
+macro_rules! prompts {
+    ($records:expr) => {{
+        $records
+            .into_iter()
+            .map(|record| Box::new(record.clone()) as Box<dyn orca::prompt::Prompt>)
+            .collect::<Vec<Box<dyn orca::prompt::Prompt>>>()
+    }};
+    ($($e:expr),* $(,)?) => {
+        {
+            let mut prompts = Vec::new();
+            $(
+                prompts.push(Box::new($e.to_string()) as Box<dyn Prompt>);
+            )*
+            prompts
+        }
     };
 }
 

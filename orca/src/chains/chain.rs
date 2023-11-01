@@ -259,8 +259,6 @@ mod test {
         chain.execute("name").await.unwrap();
         let chain = chain.with_template("name", "{{#chat}}{{#user}}What is my name?{{/user}}{{/chat}}");
         let res = chain.execute("name").await.unwrap().content();
-
-        println!("{}", res);
         assert!(res.to_lowercase().contains("orca"));
     }
 }

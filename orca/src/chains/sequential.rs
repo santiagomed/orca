@@ -1,11 +1,8 @@
-use std::collections::HashMap;
-
-use crate::prompt::clean_prompt;
-
 use super::chain::LLMChain;
 use super::{Chain, ChainResult};
 use anyhow::Result;
 use serde_json::Value as JsonValue;
+use std::collections::HashMap;
 use tokio::sync::RwLock;
 
 pub struct SequentialChain {
@@ -42,17 +39,6 @@ impl SequentialChain {
     }
 }
 
-pub fn format_prompt_as_user(prompt: &mut str) -> String {
-    let cleaned_prompt = clean_prompt(&JsonValue::String(prompt.to_string()), true);
-
-    let cleaned_string = match cleaned_prompt {
-        JsonValue::String(s) => s,
-        _ => String::new(),
-    };
-
-    format!("{{{{#user}}}}{}{{{{/user}}}}", cleaned_string)
-}
-
 #[async_trait::async_trait]
 impl Chain for SequentialChain {
     async fn execute(&self, target: &str) -> Result<ChainResult> {
@@ -60,7 +46,11 @@ impl Chain for SequentialChain {
         let mut result: ChainResult = ChainResult::new(self.name.to_string()); // initialize result to a default value
         for chain in &self.chains {
             if !response.is_empty() {
-                chain.write().await.template_engine.add_to_template(target, &format_prompt_as_user(&mut response));
+                chain
+                    .write()
+                    .await
+                    .template_engine
+                    .add_to_template(target, &format!("{{{{#user}}}}{}{{{{/user}}}}", response));
             }
             result = chain.read().await.execute(target).await?;
             response = result.content();

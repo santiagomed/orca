@@ -74,7 +74,12 @@ impl HelperDef for RoleHelper {
     ) -> HelperResult {
         let role = h.name();
         let content = h.template().map_or(Ok(String::new()), |t| t.renders(_r, ctx, rc))?;
-        let json = format!(r#"{{"role": "{}", "content": "{}"}},"#, role, content.trim());
+
+        let json = format!(
+            r#"{{"role": "{}", "content": "{}"}},"#,
+            role,
+            clean_string(content.trim())
+        );
         out.write(&json)?;
         Ok(())
     }
@@ -102,6 +107,31 @@ impl Copy for ChatHelper {}
 
 pub fn remove_last_comma(content: &str) -> String {
     content.trim().trim_end_matches(',').to_string()
+}
+
+fn clean_string(content: &str) -> String {
+    content
+        .chars()
+        .filter(|&c| c > '\u{1F}')
+        .map(|c| match c {
+            '"' => "\\\"".to_string(),
+            '\\' => "\\\\".to_string(),
+            '/' => "\\/".to_string(),
+            '\u{08}' => "\\b".to_string(),
+            '\u{0C}' => "\\f".to_string(),
+            '\n' => "\\n".to_string(),
+            '\r' => "\\r".to_string(),
+            '\t' => "\\t".to_string(),
+            '{' => "\\u007B".to_string(),
+            '}' => "\\u007D".to_string(),
+            '[' => "\\u005B".to_string(),
+            ']' => "\\u005D".to_string(),
+            ',' => "\\u002C".to_string(),
+            ':' => "\\u003A".to_string(),
+            '&' => "&amp;".to_string(), // If you want to escape HTML entities
+            _ => c.to_string(),
+        })
+        .collect::<String>()
 }
 
 #[cfg(test)]
@@ -145,7 +175,6 @@ mod test {
         });
 
         let rendered = handlebars.render_template(template, &data).unwrap();
-        println!("{}", rendered);
 
         let messages: Vec<Message> = from_str(&rendered).unwrap();
         assert_eq!(messages.len(), 4);
