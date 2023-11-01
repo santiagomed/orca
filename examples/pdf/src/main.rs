@@ -16,7 +16,6 @@ use orca::record::pdf;
 use orca::record::pdf::Pdf;
 use orca::record::Spin;
 use orca::{prompt, prompts};
-use rayon::prelude::*;
 use serde_json::json;
 
 #[derive(Parser, Debug)]
@@ -54,12 +53,8 @@ async fn main() -> Result<()> {
 
     let qdrant = Qdrant::new("localhost", 6334);
     if qdrant.create_collection(&collection, 384).await.is_ok() {
-        let mut embeddings = Vec::new();
-        for record in &pdf_records {
-            let embedding = bert.generate_embedding(prompt!(record)).await?;
-            embeddings.push(embedding.to_vec()?);
-        }
-        qdrant.insert_many(&collection, embeddings.clone(), pdf_records).await?;
+        let embeddings = bert.generate_embeddings(prompts!(&pdf_records)).await?;
+        qdrant.insert_many(&collection, embeddings.to_vec2()?, pdf_records).await?;
     }
 
     let query_embedding = bert.generate_embedding(prompt!(args.prompt)).await?;

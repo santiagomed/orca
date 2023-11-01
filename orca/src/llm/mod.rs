@@ -52,28 +52,52 @@ pub trait LLM: Sync + Send {
 /// Embedding trait is used to generate an embedding from an Online Service.
 #[async_trait::async_trait]
 pub trait Embedding {
-    /// Generate an embedding from an Online Service.
+    /// Generate an embedding.
     /// # Arguments
-    /// * `input` - A Record trait object.
+    /// * `input` - Boxed prompt trait object.
+    ///
+    /// # Returns
+    /// * `EmbeddingResponse` - An embedding response.
     ///
     /// # Examples
     /// This example uses the OpenAI chat models.
     /// ```
-    /// use orca::prompt;
-    /// use orca::llm::Embedding;
-    /// use orca::record::Record;
-    /// use orca::llm::openai::OpenAI;
-    ///
-    /// #[tokio::main]
-    /// async fn main() {
-    ///    let client = OpenAI::new();
-    ///    let input = prompt!("Hello, world");
-    ///    let response = client.generate_embedding(input).await.unwrap();
-    ///    assert!(response.to_vec().expect("embedding is empty").len() > 0);
-    /// }
+    /// # use orca::prompt;
+    /// # use orca::llm::Embedding;
+    /// # use orca::llm::openai::OpenAI;
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// let client = OpenAI::new();
+    /// let input = prompt!("Hello, world");
+    /// let response = client.generate_embedding(input).await.unwrap();
+    /// assert!(response.to_vec().expect("embedding is empty").len() > 0);
+    /// # }
     /// ```
     async fn generate_embedding(&self, prompt: Box<dyn Prompt>) -> Result<EmbeddingResponse>;
 
+    /// Generate an embedding by batch
+    /// # Arguments
+    /// * `prompts` - A vector of boxed prompt trait objects.
+    ///
+    /// # Returns
+    /// * `EmbeddingResponse` - An embedding response.
+    ///
+    /// # Example
+    /// This example uses the Bert model.
+    /// ```
+    /// # use orca::prompts;
+    /// # use orca::llm::Embedding;
+    /// # use orca::llm::bert::Bert;
+    /// # use orca::prompt::Prompt;
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// let bert = Bert::new().build_model_and_tokenizer().await.unwrap();
+    /// let response = bert.generate_embeddings(prompts!("Hello World", "Goodbye World")).await;
+    /// let response = response.unwrap();
+    /// let vec = response.to_vec2().unwrap();
+    /// assert_eq!(vec.len(), 2);
+    /// # }
+    /// ````
     async fn generate_embeddings(&self, prompts: Vec<Box<dyn Prompt>>) -> Result<EmbeddingResponse>;
 }
 
