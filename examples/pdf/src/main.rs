@@ -48,7 +48,7 @@ async fn main() -> Result<()> {
         args.file.split("/").last().unwrap().split(".").next().unwrap().to_string()
     };
 
-    let pdf_records = Pdf::from_file(&args.file, false).spin()?.split(500);
+    let pdf_records = Pdf::from_file(&args.file, false).spin()?.split(99);
     let bert = Bert::new().build_model_and_tokenizer().await?;
 
     let qdrant = Qdrant::new("localhost", 6334);
