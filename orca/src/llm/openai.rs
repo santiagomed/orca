@@ -5,6 +5,7 @@ use crate::{
     prompt::{chat::Message, Prompt},
 };
 use anyhow::Result;
+use futures::{stream::FuturesUnordered, TryFutureExt, TryStreamExt};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
@@ -273,15 +274,20 @@ impl EmbeddingTrait for OpenAI {
         Ok(res.into())
     }
 
-    /// TODO: Concurrent
-    async fn generate_embeddings(&self, prompt: Vec<Box<dyn Prompt>>) -> Result<EmbeddingResponse> {
+    async fn generate_embeddings(&self, prompts: Vec<Box<dyn Prompt>>) -> Result<EmbeddingResponse> {
         let mut embeddings = Vec::new();
-        for prompt in prompt {
+        let mut futures = FuturesUnordered::new();
+
+        for prompt in prompts {
             let req = self.generate_embedding_request(&prompt.to_string())?;
-            let res = self.client.execute(req).await?;
-            let res = res.json::<OpenAIEmbeddingResponse>().await?;
+            let fut = self.client.execute(req).and_then(|res| res.json::<OpenAIEmbeddingResponse>());
+            futures.push(fut);
+        }
+
+        while let Some(res) = futures.try_next().await? {
             embeddings.push(res);
         }
+
         Ok(EmbeddingResponse::OpenAI(embeddings))
     }
 }
@@ -289,9 +295,9 @@ impl EmbeddingTrait for OpenAI {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::prompt;
     use crate::prompt::TemplateEngine;
     use crate::template;
+    use crate::{prompt, prompts};
     use std::collections::HashMap;
 
     #[tokio::test]
@@ -322,10 +328,18 @@ mod test {
     }
 
     #[tokio::test]
-    async fn test_embeddings() {
+    async fn test_embedding() {
         let client = OpenAI::new();
         let content = prompt!("This is a test");
         let res = client.generate_embedding(content).await.unwrap();
+        assert!(res.to_vec2().unwrap().len() > 0);
+    }
+
+    #[tokio::test]
+    async fn test_embeddings() {
+        let client = OpenAI::new();
+        let content = prompts!("This is a test", "This is another test", "This is a third test");
+        let res = client.generate_embeddings(content).await.unwrap();
         assert!(res.to_vec2().unwrap().len() > 0);
     }
 }
