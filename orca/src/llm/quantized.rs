@@ -236,10 +236,10 @@ impl Quantized {
     fn format_chat_prompt(chat_prompt: ChatPrompt) -> String {
         let mut prompt = String::new();
         for message in chat_prompt {
-            if message.role == Role::System {
-                prompt.push_str(message.content.as_str());
+            if message.role == Role::System || message.role == Role::User {
+                prompt.push_str(&format!("[INST] {} [/INST]", message.content));
             } else {
-                prompt.push_str(format!("{}: {}", message.role, message.content).as_str());
+                prompt.push_str(&message.content);
             }
         }
         prompt
@@ -304,19 +304,18 @@ impl LLM for Quantized {
 
         let tokenizer = self.tokenizer()?;
         let prompt = if prompt.to_chat().is_err() {
-            prompt.to_string()
+            let prompt = prompt.to_string();
+            if self.which.is_mistral() {
+                format!("[INST] {prompt} [/INST]")
+            } else {
+                prompt
+            }
         } else {
             Quantized::format_chat_prompt(prompt.to_chat()?)
         };
-        let prompt = if self.which.is_mistral() {
-            format!("[INST] {prompt} [/INST]")
-        } else {
-            prompt
-        };
+
         log::info!("prompt:\n{}", &prompt);
         let mut result = String::new();
-
-        log::info!("{}", &prompt);
         let tokens = tokenizer.encode(prompt, true).map_err(anyhow::Error::msg)?;
         if log::log_enabled!(log::Level::Debug) {
             for (token, id) in tokens.get_tokens().iter().zip(tokens.get_ids().iter()) {

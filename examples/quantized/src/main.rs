@@ -12,7 +12,8 @@ async fn main() -> anyhow::Result<()> {
         .load_model_from_path("../../models/mistral-7b-instruct-v0.1.Q4_K_S.gguf")?
         .build_model()?;
 
-    let pipe = LLMChain::new(&model).with_template("greet", "Hi how are you doing?");
+    let pipe =
+        LLMChain::new(&model).with_template("greet", "{{#chat}}{{#user}}Hi how are you doing?{{/user}}{{/chat}}");
     let result = pipe.execute("greet").await?;
 
     println!("{}", result.content());
