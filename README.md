@@ -47,8 +47,8 @@ Orca supports simple LLM pipelines and sequential pipelines. It also supports re
 
 ## OpenAI Chat
 ```rust
-use orca::pipelines::pipeline::LLMPipeline;
-use orca::pipelines::Pipeline;
+use orca::pipeline::simple::LLMPipeline;
+use orca::pipeline::Pipeline;
 use orca::llm::openai::OpenAI;
 use orca::prompt::context::Context;
 use serde::Serialize;
