@@ -278,6 +278,8 @@ impl EmbeddingTrait for OpenAI {
         let mut embeddings = Vec::new();
         let (sender, receiver) = bounded(prompts.len());
 
+        let num_prompts = prompts.len();
+
         for (i, prompt) in prompts.into_iter().enumerate() {
             let sender = sender.clone();
             let client = self.client.clone();
@@ -291,7 +293,7 @@ impl EmbeddingTrait for OpenAI {
             });
         }
 
-        for _ in 0..prompts.len() {
+        for _ in 0..num_prompts {
             let (i, res) = receiver.recv().unwrap();
             embeddings[i] = res;
         }
