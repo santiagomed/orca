@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["master","task","worker"],"struct":["MapReduceChain"]};
+window.SIDEBAR_ITEMS = {"mod":["master","task","worker"],"struct":["MapReducePipeline"]};

@@ -1,6 +1,6 @@
-use orca::chains::chain::LLMChain;
-use orca::chains::Chain;
 use orca::llm::openai::OpenAI;
+use orca::pipeline::simple::LLMPipeline;
+use orca::pipeline::Pipeline;
 use orca::prompt::context::Context;
 use serde::Serialize;
 
@@ -26,14 +26,14 @@ async fn main() -> anyhow::Result<()> {
             {{/user}}
             {{/chat}}
             "#;
-    let mut chain = LLMChain::new(&client).with_template("capitals", prompt);
-    chain
+    let mut pipeline = LLMPipeline::new(&client).with_template("capitals", prompt);
+    pipeline
         .load_context(&Context::new(Data {
             country1: "France".to_string(),
             country2: "Germany".to_string(),
         })?)
         .await;
-    let res = chain.execute("capitals").await?.content();
+    let res = pipeline.execute("capitals").await?.content();
 
     assert!(res.contains("Berlin") || res.contains("berlin"));
     Ok(())

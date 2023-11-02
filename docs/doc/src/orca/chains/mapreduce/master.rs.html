@@ -1,4 +1,66 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `orca/src/chains/mapreduce/master.rs`."><title>master.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-cb6f1f67f1bcd037.css" id="mainThemeStyle"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="orca" data-themes="" data-resource-suffix="" data-rustdoc-version="1.73.0 (cc66ad468 2023-10-03)" data-channel="1.73.0" data-search-js="search-6dfdfced5eff6596.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-8c76f75bfb6bd192.css" data-theme-light-css="light-1596385f77d47ef2.css" data-theme-dark-css="dark-0a43001d3fc2282c.css" data-theme-ayu-css="ayu-fd19013d6ce078bf.css" ><script src="../../../../static.files/storage-db41da1a38ea3cb8.js"></script><script defer src="../../../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-0795b7d26be81095.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../../../static.files/light-1596385f77d47ef2.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../../../static.files/dark-0a43001d3fc2282c.css"><link rel="stylesheet" href="../../../../static.files/noscript-cffde32267a19fd6.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../../orca/index.html"><img class="rust-logo" src="../../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="Source of the Rust file `orca/src/pipelines/mapreduce/master.rs`.">
+    <title>master.rs - source</title>
+    <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="../../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2">
+    <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="../../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2">
+    <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="../../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2">
+    <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="../../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2">
+    <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="../../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2">
+    <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="../../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2">
+    <link rel="stylesheet" href="../../../../static.files/normalize-76eba96aa4d2e634.css">
+    <link rel="stylesheet" href="../../../../static.files/rustdoc-cb6f1f67f1bcd037.css" id="mainThemeStyle">
+    <meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/"
+        data-current-crate="orca" data-themes="" data-resource-suffix=""
+        data-rustdoc-version="1.73.0 (cc66ad468 2023-10-03)" data-channel="1.73.0"
+        data-search-js="search-6dfdfced5eff6596.js" data-settings-js="settings-de11bff964e9d4e5.js"
+        data-settings-css="settings-8c76f75bfb6bd192.css" data-theme-light-css="light-1596385f77d47ef2.css"
+        data-theme-dark-css="dark-0a43001d3fc2282c.css" data-theme-ayu-css="ayu-fd19013d6ce078bf.css">
+    <script src="../../../../static.files/storage-db41da1a38ea3cb8.js"></script>
+    <script defer src="../../../../static.files/src-script-3280b574d94e47b4.js"></script>
+    <script defer src="../../../../src-files.js"></script>
+    <script defer src="../../../../static.files/main-0795b7d26be81095.js"></script><noscript>
+        <link rel="stylesheet" media="(prefers-color-scheme:light)"
+            href="../../../../static.files/light-1596385f77d47ef2.css">
+        <link rel="stylesheet" media="(prefers-color-scheme:dark)"
+            href="../../../../static.files/dark-0a43001d3fc2282c.css">
+        <link rel="stylesheet" href="../../../../static.files/noscript-cffde32267a19fd6.css">
+    </noscript>
+    <link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-16x16-8b506e7a72182f1c.png">
+    <link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-422f7d1d52889060.png">
+    <link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-2c020d218678b618.svg">
+</head>
+
+<body class="rustdoc src">
+    <!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]-->
+    <nav class="sidebar"></nav>
+    <main>
+        <nav class="sub"><a class="sub-logo-container" href="../../../../orca/index.html"><img class="rust-logo"
+                    src="../../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a>
+            <form class="search-form"><span></span><input class="search-input" name="search"
+                    aria-label="Run search in the documentation" autocomplete="off" spellcheck="false"
+                    placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search">
+                <div id="help-button" title="help" tabindex="-1"><a href="../../../../help.html">?</a></div>
+                <div id="settings-menu" tabindex="-1"><a href="../../../../settings.html" title="settings"><img
+                            width="22" height="22" alt="Change settings"
+                            src="../../../../static.files/wheel-7b819b6101059cd0.svg"></a></div>
+            </form>
+        </nav>
+        <section id="main-content" class="content">
+            <div class="example-wrap">
+                <div data-nosnippet>
+                    <pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -94,10 +156,12 @@
 <a href="#94" id="94">94</a>
 <a href="#95" id="95">95</a>
 <a href="#96" id="96">96</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::task::{Task, TaskType, WorkerMsg, WorkerTask};
+</pre>
+                </div>
+                <pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::task::{Task, TaskType, WorkerMsg, WorkerTask};
 <span class="kw">use </span><span class="kw">super</span>::worker::Worker;
-<span class="kw">use </span><span class="kw">crate</span>::chains::chain::LLMChain;
-<span class="kw">use </span><span class="kw">crate</span>::chains::ChainResult;
+<span class="kw">use </span><span class="kw">crate</span>::pipelines::pipeline::LLMPipeline;
+<span class="kw">use </span><span class="kw">crate</span>::pipelines::PipelineResult;
 <span class="kw">use </span><span class="kw">crate</span>::record::{<span class="self">self</span>, Record};
 <span class="kw">use </span>std::sync::Arc;
 <span class="kw">use </span>tokio::sync::{
@@ -112,7 +176,7 @@
 }
 
 <span class="kw">impl </span>Master {
-    <span class="kw">pub fn </span>new(num_workers: usize, map_chain: Arc&lt;RwLock&lt;LLMChain&gt;&gt;, reduce_chain: Arc&lt;RwLock&lt;LLMChain&gt;&gt;) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>new(num_workers: usize, map_pipeline: Arc&lt;RwLock&lt;LLMPipeline&gt;&gt;, reduce_pipeline: Arc&lt;RwLock&lt;LLMPipeline&gt;&gt;) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span><span class="kw-2">mut </span>worker_channels = Vec::new();
         <span class="kw">let </span>(sender, receiver) = channel::&lt;WorkerMsg&gt;(std::mem::size_of::&lt;WorkerMsg&gt;() * num_workers);
         <span class="kw">let </span>sender = Arc::new(Mutex::new(sender));
@@ -120,7 +184,7 @@
         <span class="kw">for _ in </span><span class="number">0</span>..num_workers {
             <span class="kw">let </span>(tx, rx) = channel::&lt;WorkerTask&gt;(std::mem::size_of::&lt;Task&gt;() * num_workers);
             worker_channels.push(tx);
-            <span class="kw">let </span>worker = Worker::new(rx, map_chain.clone(), reduce_chain.clone(), sender.clone());
+            <span class="kw">let </span>worker = Worker::new(rx, map_pipeline.clone(), reduce_pipeline.clone(), sender.clone());
             worker.spawn().unwrap();
         }
 
@@ -137,7 +201,7 @@
             <span class="kw">let </span><span class="kw-2">mut </span>res = Vec::&lt;String&gt;::new();
             <span class="kw">while let </span><span class="prelude-val">Some</span>(msg) = receiver_clone.lock().<span class="kw">await</span>.recv().<span class="kw">await </span>{
                 <span class="kw">if </span>msg.task_completed == TaskType::Map {
-                    res.push(msg.chain_result.content());
+                    res.push(msg.pipeline_result.content());
                 } <span class="kw">else </span>{
                     <span class="macro">panic!</span>(<span class="string">&quot;Reduce task completed before map task.&quot;</span>)
                 }
@@ -163,12 +227,12 @@
         <span class="self">self
     </span>}
 
-    <span class="kw">pub async fn </span>reduce(<span class="kw-2">&amp;</span><span class="self">self</span>, template_name: String) -&gt; ChainResult {
+    <span class="kw">pub async fn </span>reduce(<span class="kw-2">&amp;</span><span class="self">self</span>, template_name: String) -&gt; PipelineResult {
         <span class="kw">let </span>receiver_clone = <span class="self">self</span>.receiver.clone();
         <span class="kw">let </span>result = tokio::spawn(<span class="kw">async move </span>{
             <span class="kw">while let </span><span class="prelude-val">Some</span>(msg) = receiver_clone.lock().<span class="kw">await</span>.recv().<span class="kw">await </span>{
                 <span class="kw">if </span>msg.task_completed == TaskType::Reduce {
-                    <span class="kw">return </span>msg.chain_result;
+                    <span class="kw">return </span>msg.pipeline_result;
                 } <span class="kw">else </span>{
                     <span class="macro">panic!</span>(<span class="string">&quot;Map task completed before reduce task.&quot;</span>)
                 }
@@ -190,4 +254,10 @@
         result.<span class="kw">await</span>.unwrap()
     }
 }
-</code></pre></div></section></main></body></html>
+</code></pre>
+            </div>
+        </section>
+    </main>
+</body>
+
+</html>

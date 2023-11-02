@@ -1,4 +1,66 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `orca/src/chains/mapreduce/mod.rs`."><title>mod.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-cb6f1f67f1bcd037.css" id="mainThemeStyle"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="orca" data-themes="" data-resource-suffix="" data-rustdoc-version="1.73.0 (cc66ad468 2023-10-03)" data-channel="1.73.0" data-search-js="search-6dfdfced5eff6596.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-8c76f75bfb6bd192.css" data-theme-light-css="light-1596385f77d47ef2.css" data-theme-dark-css="dark-0a43001d3fc2282c.css" data-theme-ayu-css="ayu-fd19013d6ce078bf.css" ><script src="../../../../static.files/storage-db41da1a38ea3cb8.js"></script><script defer src="../../../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-0795b7d26be81095.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../../../static.files/light-1596385f77d47ef2.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../../../static.files/dark-0a43001d3fc2282c.css"><link rel="stylesheet" href="../../../../static.files/noscript-cffde32267a19fd6.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../../orca/index.html"><img class="rust-logo" src="../../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="Source of the Rust file `orca/src/pipelines/mapreduce/mod.rs`.">
+    <title>mod.rs - source</title>
+    <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="../../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2">
+    <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="../../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2">
+    <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="../../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2">
+    <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="../../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2">
+    <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="../../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2">
+    <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="../../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2">
+    <link rel="stylesheet" href="../../../../static.files/normalize-76eba96aa4d2e634.css">
+    <link rel="stylesheet" href="../../../../static.files/rustdoc-cb6f1f67f1bcd037.css" id="mainThemeStyle">
+    <meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/"
+        data-current-crate="orca" data-themes="" data-resource-suffix=""
+        data-rustdoc-version="1.73.0 (cc66ad468 2023-10-03)" data-channel="1.73.0"
+        data-search-js="search-6dfdfced5eff6596.js" data-settings-js="settings-de11bff964e9d4e5.js"
+        data-settings-css="settings-8c76f75bfb6bd192.css" data-theme-light-css="light-1596385f77d47ef2.css"
+        data-theme-dark-css="dark-0a43001d3fc2282c.css" data-theme-ayu-css="ayu-fd19013d6ce078bf.css">
+    <script src="../../../../static.files/storage-db41da1a38ea3cb8.js"></script>
+    <script defer src="../../../../static.files/src-script-3280b574d94e47b4.js"></script>
+    <script defer src="../../../../src-files.js"></script>
+    <script defer src="../../../../static.files/main-0795b7d26be81095.js"></script><noscript>
+        <link rel="stylesheet" media="(prefers-color-scheme:light)"
+            href="../../../../static.files/light-1596385f77d47ef2.css">
+        <link rel="stylesheet" media="(prefers-color-scheme:dark)"
+            href="../../../../static.files/dark-0a43001d3fc2282c.css">
+        <link rel="stylesheet" href="../../../../static.files/noscript-cffde32267a19fd6.css">
+    </noscript>
+    <link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-16x16-8b506e7a72182f1c.png">
+    <link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-422f7d1d52889060.png">
+    <link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-2c020d218678b618.svg">
+</head>
+
+<body class="rustdoc src">
+    <!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]-->
+    <nav class="sidebar"></nav>
+    <main>
+        <nav class="sub"><a class="sub-logo-container" href="../../../../orca/index.html"><img class="rust-logo"
+                    src="../../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a>
+            <form class="search-form"><span></span><input class="search-input" name="search"
+                    aria-label="Run search in the documentation" autocomplete="off" spellcheck="false"
+                    placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search">
+                <div id="help-button" title="help" tabindex="-1"><a href="../../../../help.html">?</a></div>
+                <div id="settings-menu" tabindex="-1"><a href="../../../../settings.html" title="settings"><img
+                            width="22" height="22" alt="Change settings"
+                            src="../../../../static.files/wheel-7b819b6101059cd0.svg"></a></div>
+            </form>
+        </nav>
+        <section id="main-content" class="content">
+            <div class="example-wrap">
+                <div data-nosnippet>
+                    <pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -112,7 +174,9 @@
 <a href="#112" id="112">112</a>
 <a href="#113" id="113">113</a>
 <a href="#114" id="114">114</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, sync::Arc};
+</pre>
+                </div>
+                <pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, sync::Arc};
 
 <span class="kw">use </span>master::Master;
 <span class="kw">use </span>tokio::sync::RwLock;
@@ -121,26 +185,26 @@
 
 <span class="kw">use </span><span class="self">self</span>::task::Task;
 
-<span class="kw">use super</span>::{chain::LLMChain, Chain, ChainResult};
+<span class="kw">use super</span>::{pipeline::LLMPipeline, Pipeline, PipelineResult};
 <span class="kw">use </span>anyhow::Result;
 
 <span class="kw">pub mod </span>master;
 <span class="kw">pub mod </span>task;
 <span class="kw">pub mod </span>worker;
 
-<span class="kw">pub struct </span>MapReduceChain {
+<span class="kw">pub struct </span>MapReducePipeline {
     context: HashMap&lt;String, String&gt;,
-    map_chain: Arc&lt;RwLock&lt;LLMChain&gt;&gt;,
-    reduce_chain: Arc&lt;RwLock&lt;LLMChain&gt;&gt;,
+    map_pipeline: Arc&lt;RwLock&lt;LLMPipeline&gt;&gt;,
+    reduce_pipeline: Arc&lt;RwLock&lt;LLMPipeline&gt;&gt;,
     records: Vec&lt;(String, Record)&gt;,
 }
 
-<span class="kw">impl </span>MapReduceChain {
-    <span class="kw">pub fn </span>new(map_chain: Arc&lt;RwLock&lt;LLMChain&gt;&gt;, reduce_chain: Arc&lt;RwLock&lt;LLMChain&gt;&gt;) -&gt; <span class="self">Self </span>{
+<span class="kw">impl </span>MapReducePipeline {
+    <span class="kw">pub fn </span>new(map_pipeline: Arc&lt;RwLock&lt;LLMPipeline&gt;&gt;, reduce_pipeline: Arc&lt;RwLock&lt;LLMPipeline&gt;&gt;) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             context: HashMap::new(),
-            map_chain,
-            reduce_chain,
+            map_pipeline,
+            reduce_pipeline,
             records: Vec::new(),
         }
     }
@@ -152,11 +216,11 @@
 }
 
 <span class="attr">#[async_trait::async_trait]
-</span><span class="kw">impl </span>Chain <span class="kw">for </span>MapReduceChain {
-    <span class="kw">async fn </span>execute(<span class="kw-2">&amp;</span><span class="self">self</span>, target: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;ChainResult&gt; {
+</span><span class="kw">impl </span>Pipeline <span class="kw">for </span>MapReducePipeline {
+    <span class="kw">async fn </span>execute(<span class="kw-2">&amp;</span><span class="self">self</span>, target: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;PipelineResult&gt; {
         <span class="kw">let </span>task = Task::new(target.to_string(), <span class="self">self</span>.records.clone());
         <span class="prelude-val">Ok</span>(
-            Master::new(<span class="self">self</span>.records.len(), <span class="self">self</span>.map_chain.clone(), <span class="self">self</span>.reduce_chain.clone())
+            Master::new(<span class="self">self</span>.records.len(), <span class="self">self</span>.map_pipeline.clone(), <span class="self">self</span>.reduce_pipeline.clone())
                 .map(task)
                 .<span class="kw">await
                 </span>.reduce(target.to_string())
@@ -172,15 +236,15 @@
     <span class="kw">where
         </span>T: serde::Serialize + Sync,
     {
-        <span class="self">self</span>.map_chain.write().<span class="kw">await</span>.load_context(context).<span class="kw">await</span>;
-        <span class="self">self</span>.reduce_chain.write().<span class="kw">await</span>.load_context(context).<span class="kw">await</span>;
+        <span class="self">self</span>.map_pipeline.write().<span class="kw">await</span>.load_context(context).<span class="kw">await</span>;
+        <span class="self">self</span>.reduce_pipeline.write().<span class="kw">await</span>.load_context(context).<span class="kw">await</span>;
     }
 }
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
     <span class="kw">use crate</span>::{
-        chains::chain::LLMChain,
+        pipelines::pipeline::LLMPipeline,
         llm::openai::OpenAI,
         record::{pdf::Pdf, Spin},
     };
@@ -195,7 +259,7 @@
         <span class="kw">let </span>split_rec = rec.split(<span class="number">5</span>);
 
         <span class="kw">let </span>client = OpenAI::new();
-        <span class="kw">let </span>map_chain = Arc::new(RwLock::new(LLMChain::new(<span class="kw-2">&amp;</span>client).with_template(
+        <span class="kw">let </span>map_pipeline = Arc::new(RwLock::new(LLMPipeline::new(<span class="kw-2">&amp;</span>client).with_template(
             <span class="string">&quot;mapreduce&quot;</span>,
             <span class="string">r#&quot;{{#chat}}
                 {{#user}}
@@ -205,7 +269,7 @@
                 {{/chat}}
                 &quot;#</span>,
         )));
-        <span class="kw">let </span>reduce_chain = Arc::new(RwLock::new(LLMChain::new(<span class="kw-2">&amp;</span>client).with_template(
+        <span class="kw">let </span>reduce_pipeline = Arc::new(RwLock::new(LLMPipeline::new(<span class="kw-2">&amp;</span>client).with_template(
             <span class="string">&quot;mapreduce&quot;</span>,
             <span class="string">r#&quot;{{#chat}}
             {{#user}}
@@ -215,7 +279,7 @@
             {{/chat}}
             &quot;#</span>,
         )));
-        <span class="kw">let </span>mp_chain = MapReduceChain::new(map_chain, reduce_chain)
+        <span class="kw">let </span>mp_pipeline = MapReducePipeline::new(map_pipeline, reduce_pipeline)
             .with_record(<span class="string">&quot;rec&quot;</span>.to_string(), split_rec[<span class="number">0</span>].clone())
             .with_record(<span class="string">&quot;rec&quot;</span>.to_string(), split_rec[<span class="number">1</span>].clone())
             .with_record(<span class="string">&quot;rec&quot;</span>.to_string(), split_rec[<span class="number">2</span>].clone())
@@ -223,7 +287,13 @@
             .with_record(<span class="string">&quot;rec&quot;</span>.to_string(), split_rec[<span class="number">4</span>].clone())
             .execute(<span class="string">&quot;mapreduce&quot;</span>)
             .<span class="kw">await</span>;
-        <span class="macro">assert!</span>(mp_chain.is_ok())
+        <span class="macro">assert!</span>(mp_pipeline.is_ok())
     }
 }
-</code></pre></div></section></main></body></html>
+</code></pre>
+            </div>
+        </section>
+    </main>
+</body>
+
+</html>

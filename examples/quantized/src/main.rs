@@ -1,6 +1,6 @@
-use orca::chains::chain::LLMChain;
-use orca::chains::Chain;
 use orca::llm::quantized::{Model, Quantized};
+use orca::pipeline::simple::LLMPipeline;
+use orca::pipeline::Pipeline;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -13,7 +13,7 @@ async fn main() -> anyhow::Result<()> {
         .build_model()?;
 
     let pipe =
-        LLMChain::new(&model).with_template("greet", "{{#chat}}{{#user}}Hi how are you doing?{{/user}}{{/chat}}");
+        LLMPipeline::new(&model).with_template("greet", "{{#chat}}{{#user}}Hi how are you doing?{{/user}}{{/chat}}");
     let result = pipe.execute("greet").await?;
 
     println!("{}", result.content());

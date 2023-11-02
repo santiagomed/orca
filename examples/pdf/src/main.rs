@@ -5,12 +5,12 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use clap::Parser;
-use orca::chains::chain::LLMChain;
-use orca::chains::Chain;
 use orca::llm::bert::Bert;
 use orca::llm::openai::OpenAI;
 use orca::llm::quantized::Quantized;
 use orca::llm::Embedding;
+use orca::pipeline::simple::LLMPipeline;
+use orca::pipeline::Pipeline;
 use orca::prompt::context::Context;
 use orca::qdrant::Qdrant;
 use orca::qdrant::Value;
@@ -98,7 +98,7 @@ async fn main() -> Result<()> {
         .with_sample_len(7500)
         .load_model_from_path("../../models/mistral-7b-instruct-v0.1.Q4_K_S.gguf")?
         .build_model()?;
-    let mut pipe = LLMChain::new(&openai).with_template("query", prompt_for_model);
+    let mut pipe = LLMPipeline::new(&openai).with_template("query", prompt_for_model);
     pipe.load_context(&Context::new(context)?).await;
 
     let response = pipe.execute("query").await?;

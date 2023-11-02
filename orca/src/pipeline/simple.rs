@@ -1,5 +1,5 @@
-use super::Chain;
-use super::ChainResult;
+use super::Pipeline;
+use super::PipelineResult;
 use crate::llm::LLM;
 use crate::memory::Memory;
 use crate::prompt::TemplateEngine;
@@ -10,23 +10,23 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-/// Represents the simples chain for a Large Language Model (LLM).
+/// Represents the simples pipeline for a Large Language Model (LLM).
 ///
-/// This simple chain just takes a prompt/template and generates a response using the LLM.
+/// This simple pipeline just takes a prompt/template and generates a response using the LLM.
 /// It can make use of context, memory, and a prompt template.
-pub struct LLMChain {
-    /// The unique identifier for this LLMChain.
+pub struct LLMPipeline {
+    /// The unique identifier for this LLMPipeline.
     pub name: String,
 
-    /// The prompt template engine instance that is used by the LLMChain
+    /// The prompt template engine instance that is used by the LLMPipeline
     /// to generate the actual prompts based on the given context.
     pub template_engine: TemplateEngine,
 
-    /// A reference to the LLM that this chain will use to process the prompts.
+    /// A reference to the LLM that this pipeline will use to process the prompts.
     llm: Arc<dyn LLM>,
 
-    /// Memory associated with the LLMChain. It can be used to persist
-    /// state or data across different executions of the chain.
+    /// Memory associated with the LLMPipeline. It can be used to persist
+    /// state or data across different executions of the pipeline.
     memory: Option<Arc<Mutex<dyn Memory>>>,
 
     /// The context containing key-value pairs which the `prompt`
@@ -34,22 +34,22 @@ pub struct LLMChain {
     context: HashMap<String, JsonValue>,
 }
 
-impl LLMChain {
-    /// Creates a new LLMChain given an LLM and a prompt template.
+impl LLMPipeline {
+    /// Creates a new LLMPipeline given an LLM and a prompt template.
     ///
     /// # Examples
     /// ```rust
     /// use orca::llm::openai::OpenAI;
     /// use orca::llm::LLM;
     /// use orca::prompt::TemplateEngine;
-    /// use orca::chains::chain::LLMChain;
+    /// use orca::pipeline::simple::LLMPipeline;
     ///
     /// let client = OpenAI::new();
     /// let prompt = "Hello, LLM!";
-    /// let chain = LLMChain::new(&client).with_template("my prompt", prompt);
+    /// let pipeline = LLMPipeline::new(&client).with_template("my prompt", prompt);
     /// ```
-    pub fn new<M: LLM + Clone + 'static>(llm: &M) -> LLMChain {
-        LLMChain {
+    pub fn new<M: LLM + Clone + 'static>(llm: &M) -> LLMPipeline {
+        LLMPipeline {
             name: uuid::Uuid::new_v4().to_string(),
             llm: Arc::new(llm.clone()),
             template_engine: TemplateEngine::new(),
@@ -58,7 +58,7 @@ impl LLMChain {
         }
     }
 
-    /// Modifies the LLMChain's prompt template.
+    /// Modifies the LLMPipeline's prompt template.
     ///
     /// This is a builder-style method that returns a mutable reference to `self`.
     ///
@@ -67,12 +67,12 @@ impl LLMChain {
     /// use orca::llm::openai::OpenAI;
     /// use orca::llm::LLM;
     /// use orca::prompt::TemplateEngine;
-    /// use orca::chains::chain::LLMChain;
+    /// use orca::pipeline::simple::LLMPipeline;
     /// use orca::template;
     ///
     /// let client = OpenAI::new();
     /// let prompt = "Hello, LLM!";
-    /// let mut chain = LLMChain::new(&client).with_template("my prompt", prompt);
+    /// let mut pipeline = LLMPipeline::new(&client).with_template("my prompt", prompt);
     /// let new_prompt = "Hello, LLM! How are you?";
     /// ```
     pub fn with_template(self, name: &str, prompt: &str) -> Self {
@@ -95,15 +95,15 @@ impl LLMChain {
     /// use orca::llm::openai::OpenAI;
     /// use orca::llm::LLM;
     /// use orca::prompt::TemplateEngine;
-    /// use orca::chains::chain::LLMChain;
+    /// use orca::pipeline::simple::LLMPipeline;
     /// use orca::template;
     ///
     /// let client = OpenAI::new();
     /// let prompt = "Hello, LLM!";
-    /// let mut chain = LLMChain::new(&client).with_template("my prompt", prompt);
+    /// let mut pipeline = LLMPipeline::new(&client).with_template("my prompt", prompt);
     /// let new_prompt = "Hello, LLM! How are you?";
-    /// let new_template_name = chain.duplicate_template("my prompt").unwrap();
-    /// let mut chain = chain.with_template(new_template_name.as_str(), new_prompt);
+    /// let new_template_name = pipeline.duplicate_template("my prompt").unwrap();
+    /// let mut pipeline = pipeline.with_template(new_template_name.as_str(), new_prompt);
     /// ```
     pub fn duplicate_template(&mut self, name: &str) -> Option<String> {
         let template_name = format!("{}-{}", name, uuid::Uuid::new_v4());
@@ -117,7 +117,7 @@ impl LLMChain {
         Some(template_name)
     }
 
-    /// Change the memory used by the LLMChain.
+    /// Change the memory used by the LLMPipeline.
     ///
     /// This is a builder-style method that returns a mutable reference to `self`.
     ///
@@ -126,14 +126,14 @@ impl LLMChain {
     /// use orca::llm::openai::OpenAI;
     /// use orca::llm::LLM;
     /// use orca::prompt::TemplateEngine;
-    /// use orca::chains::chain::LLMChain;
+    /// use orca::pipeline::simple::LLMPipeline;
     /// use orca::memory::ChatBuffer;
     ///
     /// let client = OpenAI::new();
     /// let prompt = "Hello, LLM!";
-    /// let mut chain = LLMChain::new(&client).with_template("my prompt", prompt);
+    /// let mut pipeline = LLMPipeline::new(&client).with_template("my prompt", prompt);
     /// let memory = ChatBuffer::new();
-    /// let chain = chain.with_memory(memory);
+    /// let pipeline = pipeline.with_memory(memory);
     /// ```
     pub fn with_memory<T: Memory + 'static>(mut self, memory: T) -> Self {
         self.memory = Some(Arc::new(Mutex::new(memory)));
@@ -142,8 +142,8 @@ impl LLMChain {
 }
 
 #[async_trait::async_trait]
-impl Chain for LLMChain {
-    async fn execute(&self, target: &str) -> Result<ChainResult> {
+impl Pipeline for LLMPipeline {
+    async fn execute(&self, target: &str) -> Result<PipelineResult> {
         let prompt = self.template_engine.render_context(target, &self.context)?;
 
         let response = if let Some(memory) = &self.memory {
@@ -155,7 +155,7 @@ impl Chain for LLMChain {
             self.llm.generate(prompt.clone_prompt()).await?
         };
 
-        Ok(ChainResult::new(self.name.clone()).with_llm_response(response))
+        Ok(PipelineResult::new(self.name.clone()).with_llm_response(response))
     }
 
     fn context(&mut self) -> &mut HashMap<String, JsonValue> {
@@ -167,9 +167,9 @@ impl Chain for LLMChain {
     }
 }
 
-impl Clone for LLMChain {
+impl Clone for LLMPipeline {
     fn clone(&self) -> Self {
-        LLMChain {
+        LLMPipeline {
             name: self.name.clone(),
             llm: self.llm.clone(),
             template_engine: self.template_engine.clone(),
@@ -218,8 +218,8 @@ mod test {
             {{/user}}
             {{/chat}}
             "#;
-        let mut chain = LLMChain::new(&client).with_template("capitals", prompt);
-        chain
+        let mut pipeline = LLMPipeline::new(&client).with_template("capitals", prompt);
+        pipeline
             .load_context(
                 &Context::new(DataOne {
                     country1: "France".to_string(),
@@ -228,7 +228,7 @@ mod test {
                 .unwrap(),
             )
             .await;
-        let res = chain.execute("capitals").await.unwrap().content();
+        let res = pipeline.execute("capitals").await.unwrap().content();
 
         assert!(res.contains("Berlin") || res.contains("berlin"));
     }
@@ -251,10 +251,10 @@ mod test {
             {{/chat}}
             "#;
 
-        let mut chain = LLMChain::new(&client).with_template("summary", prompt);
+        let mut pipeline = LLMPipeline::new(&client).with_template("summary", prompt);
 
-        chain.load_record("story", record);
-        let res = chain.execute("summary").await.unwrap().content();
+        pipeline.load_record("story", record);
+        let res = pipeline.execute("summary").await.unwrap().content();
         assert!(res.contains("elephant") || res.contains("burma"));
     }
 
@@ -263,10 +263,10 @@ mod test {
         let client = OpenAI::new();
 
         let prompt = "{{#chat}}{{#user}}My name is Orca{{/user}}{{/chat}}";
-        let chain = LLMChain::new(&client).with_template("name", prompt).with_memory(memory::ChatBuffer::new());
-        chain.execute("name").await.unwrap();
-        let chain = chain.with_template("name", "{{#chat}}{{#user}}What is my name?{{/user}}{{/chat}}");
-        let res = chain.execute("name").await.unwrap().content();
+        let pipeline = LLMPipeline::new(&client).with_template("name", prompt).with_memory(memory::ChatBuffer::new());
+        pipeline.execute("name").await.unwrap();
+        let pipeline = pipeline.with_template("name", "{{#chat}}{{#user}}What is my name?{{/user}}{{/chat}}");
+        let res = pipeline.execute("name").await.unwrap().content();
         assert!(res.to_lowercase().contains("orca"));
     }
 }

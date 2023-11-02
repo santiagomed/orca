@@ -1,4 +1,66 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `orca/src/chains/chain.rs`."><title>chain.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-cb6f1f67f1bcd037.css" id="mainThemeStyle"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="orca" data-themes="" data-resource-suffix="" data-rustdoc-version="1.73.0 (cc66ad468 2023-10-03)" data-channel="1.73.0" data-search-js="search-6dfdfced5eff6596.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-8c76f75bfb6bd192.css" data-theme-light-css="light-1596385f77d47ef2.css" data-theme-dark-css="dark-0a43001d3fc2282c.css" data-theme-ayu-css="ayu-fd19013d6ce078bf.css" ><script src="../../../static.files/storage-db41da1a38ea3cb8.js"></script><script defer src="../../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-0795b7d26be81095.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../../static.files/light-1596385f77d47ef2.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../../static.files/dark-0a43001d3fc2282c.css"><link rel="stylesheet" href="../../../static.files/noscript-cffde32267a19fd6.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../orca/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="Source of the Rust file `orca/src/pipelines/pipeline.rs`.">
+    <title>pipeline.rs - source</title>
+    <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2">
+    <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2">
+    <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2">
+    <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2">
+    <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2">
+    <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2">
+    <link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css">
+    <link rel="stylesheet" href="../../../static.files/rustdoc-cb6f1f67f1bcd037.css" id="mainThemeStyle">
+    <meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/"
+        data-current-crate="orca" data-themes="" data-resource-suffix=""
+        data-rustdoc-version="1.73.0 (cc66ad468 2023-10-03)" data-channel="1.73.0"
+        data-search-js="search-6dfdfced5eff6596.js" data-settings-js="settings-de11bff964e9d4e5.js"
+        data-settings-css="settings-8c76f75bfb6bd192.css" data-theme-light-css="light-1596385f77d47ef2.css"
+        data-theme-dark-css="dark-0a43001d3fc2282c.css" data-theme-ayu-css="ayu-fd19013d6ce078bf.css">
+    <script src="../../../static.files/storage-db41da1a38ea3cb8.js"></script>
+    <script defer src="../../../static.files/src-script-3280b574d94e47b4.js"></script>
+    <script defer src="../../../src-files.js"></script>
+    <script defer src="../../../static.files/main-0795b7d26be81095.js"></script><noscript>
+        <link rel="stylesheet" media="(prefers-color-scheme:light)"
+            href="../../../static.files/light-1596385f77d47ef2.css">
+        <link rel="stylesheet" media="(prefers-color-scheme:dark)"
+            href="../../../static.files/dark-0a43001d3fc2282c.css">
+        <link rel="stylesheet" href="../../../static.files/noscript-cffde32267a19fd6.css">
+    </noscript>
+    <link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png">
+    <link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png">
+    <link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg">
+</head>
+
+<body class="rustdoc src">
+    <!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]-->
+    <nav class="sidebar"></nav>
+    <main>
+        <nav class="sub"><a class="sub-logo-container" href="../../../orca/index.html"><img class="rust-logo"
+                    src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a>
+            <form class="search-form"><span></span><input class="search-input" name="search"
+                    aria-label="Run search in the documentation" autocomplete="off" spellcheck="false"
+                    placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search">
+                <div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div>
+                <div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22"
+                            height="22" alt="Change settings"
+                            src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div>
+            </form>
+        </nav>
+        <section id="main-content" class="content">
+            <div class="example-wrap">
+                <div data-nosnippet>
+                    <pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -263,8 +325,10 @@
 <a href="#263" id="263">263</a>
 <a href="#264" id="264">264</a>
 <a href="#265" id="265">265</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::Chain;
-<span class="kw">use </span><span class="kw">super</span>::ChainResult;
+</pre>
+                </div>
+                <pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::Pipeline;
+<span class="kw">use </span><span class="kw">super</span>::PipelineResult;
 <span class="kw">use </span><span class="kw">crate</span>::llm::LLM;
 <span class="kw">use </span><span class="kw">crate</span>::memory::Memory;
 <span class="kw">use </span><span class="kw">crate</span>::prompt::TemplateEngine;
@@ -274,23 +338,23 @@
 <span class="kw">use </span>std::sync::Arc;
 <span class="kw">use </span>tokio::sync::Mutex;
 
-<span class="doccomment">/// Represents the simples chain for a Large Language Model (LLM).
+<span class="doccomment">/// Represents the simples pipeline for a Large Language Model (LLM).
 ///
-/// This simple chain just takes a prompt/template and generates a response using the LLM.
+/// This simple pipeline just takes a prompt/template and generates a response using the LLM.
 /// It can make use of context, memory, and a prompt template.
-</span><span class="kw">pub struct </span>LLMChain {
-    <span class="doccomment">/// The unique identifier for this LLMChain.
+</span><span class="kw">pub struct </span>LLMPipeline {
+    <span class="doccomment">/// The unique identifier for this LLMPipeline.
     </span><span class="kw">pub </span>name: String,
 
-    <span class="doccomment">/// The prompt template engine instance that is used by the LLMChain
+    <span class="doccomment">/// The prompt template engine instance that is used by the LLMPipeline
     /// to generate the actual prompts based on the given context.
     </span><span class="kw">pub </span>template_engine: TemplateEngine,
 
-    <span class="doccomment">/// A reference to the LLM that this chain will use to process the prompts.
+    <span class="doccomment">/// A reference to the LLM that this pipeline will use to process the prompts.
     </span>llm: Arc&lt;<span class="kw">dyn </span>LLM&gt;,
 
-    <span class="doccomment">/// Memory associated with the LLMChain. It can be used to persist
-    /// state or data across different executions of the chain.
+    <span class="doccomment">/// Memory associated with the LLMPipeline. It can be used to persist
+    /// state or data across different executions of the pipeline.
     </span>memory: <span class="prelude-ty">Option</span>&lt;Arc&lt;Mutex&lt;<span class="kw">dyn </span>Memory&gt;&gt;&gt;,
 
     <span class="doccomment">/// The context containing key-value pairs which the `prompt`
@@ -298,22 +362,22 @@
     </span>context: HashMap&lt;String, String&gt;,
 }
 
-<span class="kw">impl </span>LLMChain {
-    <span class="doccomment">/// Creates a new LLMChain given an LLM and a prompt template.
+<span class="kw">impl </span>LLMPipeline {
+    <span class="doccomment">/// Creates a new LLMPipeline given an LLM and a prompt template.
     ///
     /// # Examples
     /// ```rust
     /// use orca::llm::openai::OpenAI;
     /// use orca::llm::LLM;
     /// use orca::prompt::TemplateEngine;
-    /// use orca::chains::chain::LLMChain;
+    /// use orca::pipelines::pipeline::LLMPipeline;
     ///
     /// let client = OpenAI::new();
     /// let prompt = &quot;Hello, LLM!&quot;;
-    /// let chain = LLMChain::new(&amp;client).with_template(&quot;my prompt&quot;, prompt);
+    /// let pipeline = LLMPipeline::new(&amp;client).with_template(&quot;my prompt&quot;, prompt);
     /// ```
-    </span><span class="kw">pub fn </span>new&lt;M: LLM + Clone + <span class="lifetime">&#39;static</span>&gt;(llm: <span class="kw-2">&amp;</span>M) -&gt; LLMChain {
-        LLMChain {
+    </span><span class="kw">pub fn </span>new&lt;M: LLM + Clone + <span class="lifetime">&#39;static</span>&gt;(llm: <span class="kw-2">&amp;</span>M) -&gt; LLMPipeline {
+        LLMPipeline {
             name: uuid::Uuid::new_v4().to_string(),
             llm: Arc::new(llm.clone()),
             template_engine: TemplateEngine::new(),
@@ -322,7 +386,7 @@
         }
     }
 
-    <span class="doccomment">/// Modifies the LLMChain&#39;s prompt template.
+    <span class="doccomment">/// Modifies the LLMPipeline&#39;s prompt template.
     ///
     /// This is a builder-style method that returns a mutable reference to `self`.
     ///
@@ -331,12 +395,12 @@
     /// use orca::llm::openai::OpenAI;
     /// use orca::llm::LLM;
     /// use orca::prompt::TemplateEngine;
-    /// use orca::chains::chain::LLMChain;
+    /// use orca::pipelines::pipeline::LLMPipeline;
     /// use orca::template;
     ///
     /// let client = OpenAI::new();
     /// let prompt = &quot;Hello, LLM!&quot;;
-    /// let mut chain = LLMChain::new(&amp;client).with_template(&quot;my prompt&quot;, prompt);
+    /// let mut pipeline = LLMPipeline::new(&amp;client).with_template(&quot;my prompt&quot;, prompt);
     /// let new_prompt = &quot;Hello, LLM! How are you?&quot;;
     /// ```
     </span><span class="kw">pub fn </span>with_template(<span class="self">self</span>, name: <span class="kw-2">&amp;</span>str, prompt: <span class="kw-2">&amp;</span>str) -&gt; <span class="self">Self </span>{
@@ -359,15 +423,15 @@
     /// use orca::llm::openai::OpenAI;
     /// use orca::llm::LLM;
     /// use orca::prompt::TemplateEngine;
-    /// use orca::chains::chain::LLMChain;
+    /// use orca::pipelines::pipeline::LLMPipeline;
     /// use orca::template;
     ///
     /// let client = OpenAI::new();
     /// let prompt = &quot;Hello, LLM!&quot;;
-    /// let mut chain = LLMChain::new(&amp;client).with_template(&quot;my prompt&quot;, prompt);
+    /// let mut pipeline = LLMPipeline::new(&amp;client).with_template(&quot;my prompt&quot;, prompt);
     /// let new_prompt = &quot;Hello, LLM! How are you?&quot;;
-    /// let new_template_name = chain.duplicate_template(&quot;my prompt&quot;).unwrap();
-    /// let mut chain = chain.with_template(new_template_name.as_str(), new_prompt);
+    /// let new_template_name = pipeline.duplicate_template(&quot;my prompt&quot;).unwrap();
+    /// let mut pipeline = pipeline.with_template(new_template_name.as_str(), new_prompt);
     /// ```
     </span><span class="kw">pub fn </span>duplicate_template(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
         <span class="kw">let </span>template_name = <span class="macro">format!</span>(<span class="string">&quot;{}-{}&quot;</span>, name, uuid::Uuid::new_v4());
@@ -381,7 +445,7 @@
         <span class="prelude-val">Some</span>(template_name)
     }
 
-    <span class="doccomment">/// Change the memory used by the LLMChain.
+    <span class="doccomment">/// Change the memory used by the LLMPipeline.
     ///
     /// This is a builder-style method that returns a mutable reference to `self`.
     ///
@@ -390,14 +454,14 @@
     /// use orca::llm::openai::OpenAI;
     /// use orca::llm::LLM;
     /// use orca::prompt::TemplateEngine;
-    /// use orca::chains::chain::LLMChain;
+    /// use orca::pipelines::pipeline::LLMPipeline;
     /// use orca::memory::ChatBuffer;
     ///
     /// let client = OpenAI::new();
     /// let prompt = &quot;Hello, LLM!&quot;;
-    /// let mut chain = LLMChain::new(&amp;client).with_template(&quot;my prompt&quot;, prompt);
+    /// let mut pipeline = LLMPipeline::new(&amp;client).with_template(&quot;my prompt&quot;, prompt);
     /// let memory = ChatBuffer::new();
-    /// let chain = chain.with_memory(memory);
+    /// let pipeline = pipeline.with_memory(memory);
     /// ```
     </span><span class="kw">pub fn </span>with_memory&lt;T: Memory + <span class="lifetime">&#39;static</span>&gt;(<span class="kw-2">mut </span><span class="self">self</span>, memory: T) -&gt; <span class="self">Self </span>{
         <span class="self">self</span>.memory = <span class="prelude-val">Some</span>(Arc::new(Mutex::new(memory)));
@@ -406,8 +470,8 @@
 }
 
 <span class="attr">#[async_trait::async_trait]
-</span><span class="kw">impl </span>Chain <span class="kw">for </span>LLMChain {
-    <span class="kw">async fn </span>execute(<span class="kw-2">&amp;</span><span class="self">self</span>, target: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;ChainResult&gt; {
+</span><span class="kw">impl </span>Pipeline <span class="kw">for </span>LLMPipeline {
+    <span class="kw">async fn </span>execute(<span class="kw-2">&amp;</span><span class="self">self</span>, target: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;PipelineResult&gt; {
         <span class="kw">let </span>prompt = <span class="self">self</span>.template_engine.render_context(target, <span class="kw-2">&amp;</span><span class="self">self</span>.context)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>response = <span class="kw">if let </span><span class="prelude-val">Some</span>(memory) = <span class="kw-2">&amp;</span><span class="self">self</span>.memory {
@@ -419,7 +483,7 @@
             <span class="self">self</span>.llm.generate(prompt.clone_prompt()).<span class="kw">await</span><span class="question-mark">?
         </span>};
 
-        <span class="prelude-val">Ok</span>(ChainResult::new(<span class="self">self</span>.name.clone()).with_llm_response(response))
+        <span class="prelude-val">Ok</span>(PipelineResult::new(<span class="self">self</span>.name.clone()).with_llm_response(response))
     }
 
     <span class="kw">fn </span>context(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>HashMap&lt;String, String&gt; {
@@ -427,9 +491,9 @@
     }
 }
 
-<span class="kw">impl </span>Clone <span class="kw">for </span>LLMChain {
+<span class="kw">impl </span>Clone <span class="kw">for </span>LLMPipeline {
     <span class="kw">fn </span>clone(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
-        LLMChain {
+        LLMPipeline {
             name: <span class="self">self</span>.name.clone(),
             llm: <span class="self">self</span>.llm.clone(),
             template_engine: <span class="self">self</span>.template_engine.clone(),
@@ -477,14 +541,14 @@
             {{/user}}
             {{/chat}}
             &quot;#</span>;
-        <span class="kw">let </span><span class="kw-2">mut </span>chain = LLMChain::new(<span class="kw-2">&amp;</span>client).with_template(<span class="string">&quot;capitals&quot;</span>, prompt);
-        chain
+        <span class="kw">let </span><span class="kw-2">mut </span>pipeline = LLMPipeline::new(<span class="kw-2">&amp;</span>client).with_template(<span class="string">&quot;capitals&quot;</span>, prompt);
+        pipeline
             .load_context(<span class="kw-2">&amp;</span>DataOne {
                 country1: <span class="string">&quot;France&quot;</span>.to_string(),
                 country2: <span class="string">&quot;Germany&quot;</span>.to_string(),
             })
             .<span class="kw">await</span>;
-        <span class="kw">let </span>res = chain.execute(<span class="string">&quot;capitals&quot;</span>).<span class="kw">await</span>.unwrap().content();
+        <span class="kw">let </span>res = pipeline.execute(<span class="string">&quot;capitals&quot;</span>).<span class="kw">await</span>.unwrap().content();
 
         <span class="macro">assert!</span>(res.contains(<span class="string">&quot;Berlin&quot;</span>) || res.contains(<span class="string">&quot;berlin&quot;</span>));
     }
@@ -507,10 +571,10 @@
             {{/chat}}
             &quot;#</span>;
 
-        <span class="kw">let </span><span class="kw-2">mut </span>chain = LLMChain::new(<span class="kw-2">&amp;</span>client).with_template(<span class="string">&quot;summary&quot;</span>, prompt);
+        <span class="kw">let </span><span class="kw-2">mut </span>pipeline = LLMPipeline::new(<span class="kw-2">&amp;</span>client).with_template(<span class="string">&quot;summary&quot;</span>, prompt);
 
-        chain.load_record(<span class="string">&quot;story&quot;</span>, record);
-        <span class="kw">let </span>res = chain.execute(<span class="string">&quot;summary&quot;</span>).<span class="kw">await</span>.unwrap().content();
+        pipeline.load_record(<span class="string">&quot;story&quot;</span>, record);
+        <span class="kw">let </span>res = pipeline.execute(<span class="string">&quot;summary&quot;</span>).<span class="kw">await</span>.unwrap().content();
         <span class="macro">assert!</span>(res.contains(<span class="string">&quot;elephant&quot;</span>) || res.contains(<span class="string">&quot;burma&quot;</span>));
     }
 
@@ -519,13 +583,19 @@
         <span class="kw">let </span>client = OpenAI::new();
 
         <span class="kw">let </span>prompt = <span class="string">&quot;{{#chat}}{{#user}}My name is Orca{{/user}}{{/chat}}&quot;</span>;
-        <span class="kw">let </span>chain = LLMChain::new(<span class="kw-2">&amp;</span>client).with_template(<span class="string">&quot;name&quot;</span>, prompt).with_memory(memory::ChatBuffer::new());
-        chain.execute(<span class="string">&quot;name&quot;</span>).<span class="kw">await</span>.unwrap();
-        <span class="kw">let </span>chain = chain.with_template(<span class="string">&quot;name&quot;</span>, <span class="string">&quot;{{#chat}}{{#user}}What is my name?{{/user}}{{/chat}}&quot;</span>);
-        <span class="kw">let </span>res = chain.execute(<span class="string">&quot;name&quot;</span>).<span class="kw">await</span>.unwrap().content();
+        <span class="kw">let </span>pipeline = LLMPipeline::new(<span class="kw-2">&amp;</span>client).with_template(<span class="string">&quot;name&quot;</span>, prompt).with_memory(memory::ChatBuffer::new());
+        pipeline.execute(<span class="string">&quot;name&quot;</span>).<span class="kw">await</span>.unwrap();
+        <span class="kw">let </span>pipeline = pipeline.with_template(<span class="string">&quot;name&quot;</span>, <span class="string">&quot;{{#chat}}{{#user}}What is my name?{{/user}}{{/chat}}&quot;</span>);
+        <span class="kw">let </span>res = pipeline.execute(<span class="string">&quot;name&quot;</span>).<span class="kw">await</span>.unwrap().content();
 
         <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, res);
         <span class="macro">assert!</span>(res.to_lowercase().contains(<span class="string">&quot;orca&quot;</span>));
     }
 }
-</code></pre></div></section></main></body></html>
+</code></pre>
+            </div>
+        </section>
+    </main>
+</body>
+
+</html>
