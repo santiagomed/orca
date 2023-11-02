@@ -1,7 +1,7 @@
 use super::task::{Task, TaskType, WorkerMsg, WorkerTask};
 use super::worker::Worker;
-use crate::chains::chain::LLMChain;
-use crate::chains::ChainResult;
+use crate::pipelines::pipeline::LLMPipeline;
+use crate::pipelines::PipelineResult;
 use crate::record::{self, Record};
 use std::sync::Arc;
 use tokio::sync::{
@@ -16,7 +16,11 @@ pub(crate) struct Master {
 }
 
 impl Master {
-    pub fn new(num_workers: usize, map_chain: Arc<RwLock<LLMChain>>, reduce_chain: Arc<RwLock<LLMChain>>) -> Self {
+    pub fn new(
+        num_workers: usize,
+        map_pipeline: Arc<RwLock<LLMPipeline>>,
+        reduce_pipeline: Arc<RwLock<LLMPipeline>>,
+    ) -> Self {
         let mut worker_channels = Vec::new();
         let (sender, receiver) = channel::<WorkerMsg>(std::mem::size_of::<WorkerMsg>() * num_workers);
         let sender = Arc::new(Mutex::new(sender));
@@ -24,7 +28,7 @@ impl Master {
         for _ in 0..num_workers {
             let (tx, rx) = channel::<WorkerTask>(std::mem::size_of::<Task>() * num_workers);
             worker_channels.push(tx);
-            let worker = Worker::new(rx, map_chain.clone(), reduce_chain.clone(), sender.clone());
+            let worker = Worker::new(rx, map_pipeline.clone(), reduce_pipeline.clone(), sender.clone());
             worker.spawn().unwrap();
         }
 
@@ -41,7 +45,7 @@ impl Master {
             let mut res = Vec::<String>::new();
             while let Some(msg) = receiver_clone.lock().await.recv().await {
                 if msg.task_completed == TaskType::Map {
-                    res.push(msg.chain_result.content());
+                    res.push(msg.pipeline_result.content());
                 } else {
                     panic!("Reduce task completed before map task.")
                 }
@@ -67,12 +71,12 @@ impl Master {
         self
     }
 
-    pub async fn reduce(&self, template_name: String) -> ChainResult {
+    pub async fn reduce(&self, template_name: String) -> PipelineResult {
         let receiver_clone = self.receiver.clone();
         let result = tokio::spawn(async move {
             while let Some(msg) = receiver_clone.lock().await.recv().await {
                 if msg.task_completed == TaskType::Reduce {
-                    return msg.chain_result;
+                    return msg.pipeline_result;
                 } else {
                     panic!("Map task completed before reduce task.")
                 }

@@ -7,7 +7,7 @@ use crate::record::Record;
 
 use self::task::Task;
 
-use super::{chain::LLMChain, Chain, ChainResult};
+use super::{pipeline::LLMPipeline, Pipeline, PipelineResult};
 use anyhow::Result;
 use serde_json::Value as JsonValue;
 
@@ -15,19 +15,19 @@ pub mod master;
 pub mod task;
 pub mod worker;
 
-pub struct MapReduceChain {
+pub struct MapReducePipeline {
     context: HashMap<String, JsonValue>,
-    map_chain: Arc<RwLock<LLMChain>>,
-    reduce_chain: Arc<RwLock<LLMChain>>,
+    map_pipeline: Arc<RwLock<LLMPipeline>>,
+    reduce_pipeline: Arc<RwLock<LLMPipeline>>,
     records: Vec<(String, Record)>,
 }
 
-impl MapReduceChain {
-    pub fn new(map_chain: Arc<RwLock<LLMChain>>, reduce_chain: Arc<RwLock<LLMChain>>) -> Self {
+impl MapReducePipeline {
+    pub fn new(map_pipeline: Arc<RwLock<LLMPipeline>>, reduce_pipeline: Arc<RwLock<LLMPipeline>>) -> Self {
         Self {
             context: HashMap::new(),
-            map_chain,
-            reduce_chain,
+            map_pipeline,
+            reduce_pipeline,
             records: Vec::new(),
         }
     }
@@ -39,16 +39,18 @@ impl MapReduceChain {
 }
 
 #[async_trait::async_trait]
-impl Chain for MapReduceChain {
-    async fn execute(&self, target: &str) -> Result<ChainResult> {
+impl Pipeline for MapReducePipeline {
+    async fn execute(&self, target: &str) -> Result<PipelineResult> {
         let task = Task::new(target.to_string(), self.records.clone());
-        Ok(
-            Master::new(self.records.len(), self.map_chain.clone(), self.reduce_chain.clone())
-                .map(task)
-                .await
-                .reduce(target.to_string())
-                .await,
+        Ok(Master::new(
+            self.records.len(),
+            self.map_pipeline.clone(),
+            self.reduce_pipeline.clone(),
         )
+        .map(task)
+        .await
+        .reduce(target.to_string())
+        .await)
     }
 
     fn context(&mut self) -> &mut HashMap<String, JsonValue> {
@@ -59,16 +61,16 @@ impl Chain for MapReduceChain {
     where
         T: serde::Serialize + Sync,
     {
-        self.map_chain.write().await.load_context(context).await;
-        self.reduce_chain.write().await.load_context(context).await;
+        self.map_pipeline.write().await.load_context(context).await;
+        self.reduce_pipeline.write().await.load_context(context).await;
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{
-        chains::chain::LLMChain,
         llm::openai::OpenAI,
+        pipelines::pipeline::LLMPipeline,
         record::{pdf::Pdf, Spin},
     };
 
@@ -82,7 +84,7 @@ mod tests {
         let split_rec = rec.split(5);
 
         let client = OpenAI::new();
-        let map_chain = Arc::new(RwLock::new(LLMChain::new(&client).with_template(
+        let map_pipeline = Arc::new(RwLock::new(LLMPipeline::new(&client).with_template(
             "mapreduce",
             r#"{{#chat}}
                 {{#user}}
@@ -92,7 +94,7 @@ mod tests {
                 {{/chat}}
                 "#,
         )));
-        let reduce_chain = Arc::new(RwLock::new(LLMChain::new(&client).with_template(
+        let reduce_pipeline = Arc::new(RwLock::new(LLMPipeline::new(&client).with_template(
             "mapreduce",
             r#"{{#chat}}
             {{#user}}
@@ -102,7 +104,7 @@ mod tests {
             {{/chat}}
             "#,
         )));
-        let mp_chain = MapReduceChain::new(map_chain, reduce_chain)
+        let mp_pipeline = MapReducePipeline::new(map_pipeline, reduce_pipeline)
             .with_record("rec".to_string(), split_rec[0].clone())
             .with_record("rec".to_string(), split_rec[1].clone())
             .with_record("rec".to_string(), split_rec[2].clone())
@@ -110,6 +112,6 @@ mod tests {
             .with_record("rec".to_string(), split_rec[4].clone())
             .execute("mapreduce")
             .await;
-        assert!(mp_chain.is_ok())
+        assert!(mp_pipeline.is_ok())
     }
 }

@@ -52,6 +52,7 @@ impl Model {
     }
 }
 
+#[derive(Clone)]
 pub struct Quantized {
     /// The loaded model weights
     model: Option<ModelWeights>,
@@ -76,9 +77,6 @@ pub struct Quantized {
 
     /// Enable tracing (generates a trace-timestamp.json file).
     tracing: bool,
-
-    /// Display the token for the specified prompt.
-    verbose_prompt: bool,
 
     /// Penalty to be applied for repeating tokens, 1. means no penalty.
     repeat_penalty: f32,
@@ -106,7 +104,6 @@ impl Default for Quantized {
             top_p: None,
             seed: 42,
             tracing: false,
-            verbose_prompt: false,
             repeat_penalty: 1.,
             repeat_last_n: 1,
             which: Model::L7b,
@@ -236,13 +233,13 @@ impl Quantized {
         Ok(self)
     }
 
-    fn format_chat_prompt(&self, chat_prompt: ChatPrompt) -> String {
+    fn format_chat_prompt(chat_prompt: ChatPrompt) -> String {
         let mut prompt = String::new();
         for message in chat_prompt {
-            if message.role == Role::System {
-                prompt.push_str(message.content.as_str());
+            if message.role == Role::System || message.role == Role::User {
+                prompt.push_str(&format!("[INST] {} [/INST]", message.content));
             } else {
-                prompt.push_str(format!("{}: {}", message.role, message.content).as_str());
+                prompt.push_str(&message.content);
             }
         }
         prompt
@@ -307,23 +304,23 @@ impl LLM for Quantized {
 
         let tokenizer = self.tokenizer()?;
         let prompt = if prompt.to_chat().is_err() {
-            prompt.to_string()
-        } else {
-            let chat_prompt = prompt.to_chat()?;
-            let prompt = self.format_chat_prompt(chat_prompt);
-            if self.verbose_prompt {
-                log::info!("prompt:\n{}", &prompt);
+            let prompt = prompt.to_string();
+            if self.which.is_mistral() {
+                format!("[INST] {prompt} [/INST]")
+            } else {
+                prompt
             }
-            prompt
+        } else {
+            Quantized::format_chat_prompt(prompt.to_chat()?)
         };
-        let mut result = String::new();
 
-        log::info!("{}", &prompt);
+        log::info!("prompt:\n{}", &prompt);
+        let mut result = String::new();
         let tokens = tokenizer.encode(prompt, true).map_err(anyhow::Error::msg)?;
-        if self.verbose_prompt {
+        if log::log_enabled!(log::Level::Debug) {
             for (token, id) in tokens.get_tokens().iter().zip(tokens.get_ids().iter()) {
                 let token = token.replace('▁', " ").replace("<0x0A>", "\n");
-                log::info!("{id:7} -> '{token}'");
+                log::debug!("{id:7} -> '{token}'");
             }
         }
 
@@ -396,12 +393,13 @@ mod test {
     async fn test_generate() {
         let model = Quantized::new()
             .with_model(Model::Mistral7bInstruct)
-            .with_sample_len(20)
-            .load_model_from_path("./mistral-7b-v0.1.Q4_0.gguf")
+            .with_sample_len(1)
+            .load_model_from_path("./models/mistral-7b-v0.1.Q4_0.gguf")
             .unwrap()
             .build_model()
             .unwrap();
         let response = model.generate(Box::new("Who are you?".to_string())).await.unwrap();
         println!("{:?}", response.to_string());
+        assert!(response.to_string().len() > 0);
     }
 }

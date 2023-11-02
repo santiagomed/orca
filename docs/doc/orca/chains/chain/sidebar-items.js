@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["LLMChain"]};
+window.SIDEBAR_ITEMS = {"struct":["LLMPipeline"]};

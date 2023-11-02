@@ -38,18 +38,19 @@ orca = { git = "https://github.com/scrippt-tech/orca" }
 * Current LLM support:
   * [OpenAI Chat]("https://openai.com")
   * Limited [Bert]("https://huggingface.co/docs/transformers/model_doc/bert) support using the [Candle]("https://github.com/huggingface/candle") ML framework
-* Chains:
-  * Simple chains
-  * Sequential chains
+* Pipelines:
+  * Simple pipelines
+  * Sequential pipelines
 
 # Examples
-Orca supports simple LLM chains and sequential chains. It also supports reading PDF and HTML records (documents).
+Orca supports simple LLM pipelines and sequential pipelines. It also supports reading PDF and HTML records (documents).
 
 ## OpenAI Chat
 ```rust
-use orca::chains::chain::LLMChain;
-use orca::chains::Chain;
+use orca::pipeline::simple::LLMPipeline;
+use orca::pipeline::Pipeline;
 use orca::llm::openai::OpenAI;
+use orca::prompt::context::Context;
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -74,14 +75,14 @@ async fn main() -> anyhow::Result<()> {
             {{/user}}
             {{/chat}}
             "#;
-    let mut chain = LLMChain::new(&client).with_template("capitals", prompt);
-    chain
-        .load_context(&Data {
+    let mut pipeline = LLMPipeline::new(&client).with_template("capitals", prompt);
+    pipeline
+        .load_context(&Context::new(Data {
             country1: "France".to_string(),
             country2: "Germany".to_string(),
-        })
+        })?)
         .await;
-    let res = chain.execute("capitals").await?.content();
+    let res = pipeline.execute("capitals").await?.content();
 
     assert!(res.contains("Berlin") || res.contains("berlin"));
     Ok(())

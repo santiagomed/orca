@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::chains::ChainResult;
+use crate::pipelines::PipelineResult;
 use crate::record::Record;
 
 #[derive(PartialEq)]
@@ -29,11 +29,11 @@ pub(crate) struct WorkerTask {
 
 pub(crate) struct WorkerMsg {
     pub task_completed: TaskType,
-    pub chain_result: ChainResult,
+    pub pipeline_result: PipelineResult,
 }
 
 impl Display for WorkerMsg {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.chain_result.content())
+        write!(f, "{}", self.pipeline_result.content())
     }
 }

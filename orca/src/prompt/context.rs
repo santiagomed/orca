@@ -1,48 +1,43 @@
+use anyhow::Result;
 use serde::Serialize;
-use std::collections::BTreeMap;
+use serde_json::Value as JsonValue;
+use std::collections::HashMap;
 
 #[derive(Serialize, Clone)]
-pub struct Context<T> {
-    variables: BTreeMap<String, T>,
-}
+pub struct Context(HashMap<String, JsonValue>);
 
-impl<T> Default for Context<T> {
-    /// Create a new context
-    fn default() -> Self {
-        Self {
-            variables: BTreeMap::new(),
-        }
-    }
-}
-
-impl<T> Context<T> {
-    /// Create a new context
-    pub fn new() -> Context<T> {
-        Context::default()
-    }
-
-    /// Set a variable in the context
-    pub fn set(&mut self, name: &str, value: T) -> Option<T> {
-        self.variables.insert(name.to_string(), value)
-    }
-
-    /// Get a variable from the context
-    pub fn get(&self, name: &str) -> Option<&T> {
-        self.variables.get(name)
-    }
-
-    /// Get the variables from the context and clean them up for serialization
-    pub fn get_variables(&self) -> BTreeMap<String, String>
+impl Context {
+    /// Create a new context from a serializable object
+    pub fn new<C>(context: C) -> Result<Context>
     where
-        T: Serialize,
+        C: Serialize + Sync,
     {
-        let mut serialized_variables = BTreeMap::new();
-        for (key, value) in &self.variables {
-            let s = serde_json::to_string(value).unwrap();
-            let s = s.replace('\"', "");
-            serialized_variables.insert(key.to_string(), s.to_string());
-        }
-        serialized_variables
+        let json_str = serde_json::to_string(&context)?;
+        let hashmap: HashMap<String, JsonValue> = serde_json::from_str(&json_str)?;
+        Ok(Context(hashmap))
+    }
+
+    /// Create a new context from a JSON string
+    pub fn from_str(context: &str) -> Result<Context> {
+        let hashmap: HashMap<String, JsonValue> = serde_json::from_str(context)?;
+        Ok(Context(hashmap))
+    }
+
+    /// Get a reference to a value by key
+    pub fn get(&self, key: &str) -> Option<&JsonValue> {
+        self.0.get(key)
+    }
+
+    /// Set a value for a key, where value is any serializable type
+    pub fn set<T: Serialize>(&mut self, key: &str, value: T) -> Result<()> {
+        let json_value = serde_json::to_value(value)?;
+        self.0.insert(key.to_string(), json_value);
+        Ok(())
+    }
+
+    /// Get a reference to the underlying hashmap
+    pub fn as_object(&self) -> &HashMap<String, JsonValue> {
+        &self.0
     }
 }
 
@@ -58,22 +53,29 @@ mod test {
 
     #[test]
     fn test_set_get() {
-        let mut context = Context::new();
+        let mut context = Context::new(Test {
+            name: "gpt".to_string(),
+            age: 1,
+        })
+        .unwrap();
 
-        context.set(
-            "name",
-            Test {
-                name: "gpt".to_string(),
-                age: 1,
-            },
-        );
+        context
+            .set(
+                "name",
+                Test {
+                    name: "gpt".to_string(),
+                    age: 1,
+                },
+            )
+            .unwrap();
 
         assert_eq!(
-            context.get("name"),
-            Some(&Test {
+            context.get("name").unwrap(),
+            &serde_json::to_value(&Test {
                 name: "gpt".to_string(),
                 age: 1,
             })
+            .unwrap()
         );
     }
 }

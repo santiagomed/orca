@@ -5,11 +5,13 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use clap::Parser;
-use orca::chains::chain::LLMChain;
-use orca::chains::Chain;
 use orca::llm::bert::Bert;
 use orca::llm::openai::OpenAI;
+use orca::llm::quantized::Quantized;
 use orca::llm::Embedding;
+use orca::pipeline::simple::LLMPipeline;
+use orca::pipeline::Pipeline;
+use orca::prompt::context::Context;
 use orca::qdrant::Qdrant;
 use orca::qdrant::Value;
 use orca::record::pdf;
@@ -48,7 +50,7 @@ async fn main() -> Result<()> {
         args.file.split("/").last().unwrap().split(".").next().unwrap().to_string()
     };
 
-    let pdf_records = Pdf::from_file(&args.file, false).spin()?.split(99);
+    let pdf_records = Pdf::from_file(&args.file, false).spin()?.split(399);
     let bert = Bert::new().build_model_and_tokenizer().await?;
 
     let qdrant = Qdrant::new("localhost", 6334);
@@ -91,9 +93,13 @@ async fn main() -> Result<()> {
     {{/chat}}
     "#;
 
-    let openai = OpenAI::new();
-    let mut pipe = LLMChain::new(&openai).with_template("query", prompt_for_model);
-    pipe.load_context(&context).await;
+    let openai = Quantized::new()
+        .with_model(orca::llm::quantized::Model::Mistral7bInstruct)
+        .with_sample_len(7500)
+        .load_model_from_path("../../models/mistral-7b-instruct-v0.1.Q4_K_S.gguf")?
+        .build_model()?;
+    let mut pipe = LLMPipeline::new(&openai).with_template("query", prompt_for_model);
+    pipe.load_context(&Context::new(context)?).await;
 
     let response = pipe.execute("query").await?;
 

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["format_prompt_as_user"],"struct":["SequentialChain"]};
+window.SIDEBAR_ITEMS = {"fn":["format_prompt_as_user"],"struct":["SequentialPipeline"]};

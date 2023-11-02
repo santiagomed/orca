@@ -109,7 +109,7 @@ pub enum EmbeddingResponse {
     /// Bert embedding response
     Bert(Tensor),
 
-    /// Empty response; usually used to initialize a chain result when
+    /// Empty response; usually used to initialize a pipeline result when
     /// no response is available.
     Empty,
 }
@@ -129,7 +129,7 @@ pub enum LLMResponse {
     /// Quantized model response
     Quantized(String),
 
-    /// Empty response; usually used to initialize a chain result when
+    /// Empty response; usually used to initialize a pipeline result when
     /// no response is available.
     Empty,
 }

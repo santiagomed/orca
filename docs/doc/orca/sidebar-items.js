@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"macro":["prompt","template"],"mod":["chains","llm","memory","prompt","qdrant","record"]};
+window.SIDEBAR_ITEMS = {"macro":["prompt","template"],"mod":["pipelines","llm","memory","prompt","qdrant","record"]};
