@@ -50,6 +50,7 @@ Orca supports simple LLM chains and sequential chains. It also supports reading 
 use orca::chains::chain::LLMChain;
 use orca::chains::Chain;
 use orca::llm::openai::OpenAI;
+use orca::prompt::context::Context;
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -76,10 +77,10 @@ async fn main() -> anyhow::Result<()> {
             "#;
     let mut chain = LLMChain::new(&client).with_template("capitals", prompt);
     chain
-        .load_context(&Data {
+        .load_context(&Context::new(Data {
             country1: "France".to_string(),
             country2: "Germany".to_string(),
-        })
+        })?)
         .await;
     let res = chain.execute("capitals").await?.content();
 

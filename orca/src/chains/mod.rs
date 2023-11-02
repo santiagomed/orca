@@ -1,15 +1,20 @@
 pub mod chain;
+#[cfg(feature = "unstable")]
 pub mod mapreduce;
+// #[cfg(feature = "unstable")]
 pub mod sequential;
-use crate::{llm::LLMResponse, record::Record};
+use crate::{
+    llm::LLMResponse,
+    prompt::{context::Context, TemplateEngine},
+    record::Record,
+};
 
 use anyhow::Result;
-use serde::Serialize;
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 
 #[async_trait::async_trait]
-pub trait Chain {
+pub trait Chain: Sync + Send {
     /// Executes a given chain and produces an LLM response.
     ///
     /// # Returns
@@ -27,6 +32,7 @@ pub trait Chain {
     /// ```
     /// use orca::chains::Chain;
     /// use orca::llm::openai::OpenAI;
+    /// use orca::prompt::context::Context;
     /// use orca::chains::chain::LLMChain;
     /// use std::collections::HashMap;
     ///
@@ -36,20 +42,13 @@ pub trait Chain {
     /// let mut chain = LLMChain::new(&client).with_template("my prompt", "Hello, {{name}}!");
     /// let mut data = HashMap::new();
     /// data.insert("name", "LLM");
-    /// chain.load_context(&data).await;
+    /// chain.load_context(&Context::new(data).unwrap()).await;
     /// # }
     /// ```
-    async fn load_context<T>(&mut self, context: &T)
-    where
-        T: Serialize + Sync,
-        Self: Sized,
-    {
-        let context = serde_json::to_value(context).unwrap_or(serde_json::Value::Null);
-        if let serde_json::Value::Object(map) = context {
-            map.into_iter().for_each(|(key, value)| {
-                self.context().insert(key, value);
-            });
-        }
+    async fn load_context(&mut self, context: &Context) {
+        context.as_object().into_iter().for_each(|(key, value)| {
+            self.context().insert(key.to_string(), value.clone());
+        });
     }
 
     /// Loads a given record into the context of the LLM chain.
@@ -68,6 +67,14 @@ pub trait Chain {
     /// # Returns
     /// - A mutable reference to a hashmap containing the current context.
     fn context(&mut self) -> &mut HashMap<String, JsonValue>;
+
+    /// Retrieves the template engine for the current chain.
+    ///
+    /// # Returns
+    /// - A mutable reference to the template engine.
+    fn template_engine(&mut self) -> &mut TemplateEngine {
+        unimplemented!()
+    }
 }
 
 #[derive(Debug)]

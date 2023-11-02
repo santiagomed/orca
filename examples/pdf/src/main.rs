@@ -11,6 +11,7 @@ use orca::llm::bert::Bert;
 use orca::llm::openai::OpenAI;
 use orca::llm::quantized::Quantized;
 use orca::llm::Embedding;
+use orca::prompt::context::Context;
 use orca::qdrant::Qdrant;
 use orca::qdrant::Value;
 use orca::record::pdf;
@@ -98,7 +99,7 @@ async fn main() -> Result<()> {
         .load_model_from_path("../../models/mistral-7b-instruct-v0.1.Q4_K_S.gguf")?
         .build_model()?;
     let mut pipe = LLMChain::new(&openai).with_template("query", prompt_for_model);
-    pipe.load_context(&context).await;
+    pipe.load_context(&Context::new(context)?).await;
 
     let response = pipe.execute("query").await?;
 

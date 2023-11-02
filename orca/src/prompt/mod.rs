@@ -1,5 +1,4 @@
 pub mod context;
-use core::panic;
 use std::{any::Any, collections::HashMap};
 
 use serde;
@@ -239,7 +238,7 @@ pub trait Prompt: Sync + Send {
     /// my_prompt.save(another_prompt);
     /// ```
     fn save(&mut self, _data: Box<dyn Prompt>) {
-        panic!("save not implemented for this prompt type");
+        unimplemented!("save not implemented for this prompt type");
     }
 
     /// Convert the current prompt to a `String`.
@@ -261,7 +260,9 @@ pub trait Prompt: Sync + Send {
     ///
     /// # Returns
     /// * `Result<ChatPrompt>` - The `ChatPrompt` representation of the prompt or an error.
-    fn to_chat(&self) -> Result<ChatPrompt>;
+    fn to_chat(&self) -> Result<ChatPrompt> {
+        unimplemented!("Unable to convert prompt to ChatPrompt");
+    }
 
     /// Clone the current prompt into a Boxed trait object.
     ///
@@ -315,10 +316,6 @@ impl Prompt for String {
         self.clone()
     }
 
-    fn to_chat(&self) -> Result<ChatPrompt> {
-        Err(anyhow::anyhow!("Unable to convert String to ChatPrompt"))
-    }
-
     fn clone_prompt(&self) -> Box<dyn Prompt> {
         Box::new(self.clone())
     }
@@ -327,10 +324,6 @@ impl Prompt for String {
 impl Prompt for Record {
     fn to_string(&self) -> String {
         self.content.to_string()
-    }
-
-    fn to_chat(&self) -> Result<ChatPrompt> {
-        Err(anyhow::anyhow!("Unable to convert Record to ChatPrompt"))
     }
 
     fn clone_prompt(&self) -> Box<dyn Prompt> {

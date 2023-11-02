@@ -1,8 +1,11 @@
+use crate::prompt::context::Context;
+
 use super::chain::LLMChain;
 use super::{Chain, ChainResult};
 use anyhow::Result;
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
+use std::sync::Arc;
 use tokio::sync::RwLock;
 
 pub struct SequentialChain {
@@ -10,7 +13,7 @@ pub struct SequentialChain {
     name: String,
 
     /// Vector of LLM chains used by the SequentialChain.
-    chains: Vec<RwLock<LLMChain>>,
+    chains: Vec<Arc<RwLock<dyn Chain>>>,
 
     /// The context for for the templates used by the SequentialChain.
     context: HashMap<String, JsonValue>,
@@ -34,7 +37,7 @@ impl SequentialChain {
 
     /// Add a simple LLM Chain to the sequential chain.
     pub fn link(mut self, chain: LLMChain) -> SequentialChain {
-        self.chains.push(RwLock::new(chain));
+        self.chains.push(Arc::new(RwLock::new(chain)));
         self
     }
 }
@@ -49,7 +52,7 @@ impl Chain for SequentialChain {
                 chain
                     .write()
                     .await
-                    .template_engine
+                    .template_engine()
                     .add_to_template(target, &format!("{{{{#user}}}}{}{{{{/user}}}}", response));
             }
             result = chain.read().await.execute(target).await?;
@@ -62,10 +65,7 @@ impl Chain for SequentialChain {
         &mut self.context
     }
 
-    async fn load_context<T>(&mut self, context: &T)
-    where
-        T: serde::Serialize + Sync,
-    {
+    async fn load_context(&mut self, context: &Context) {
         for chain in &mut self.chains {
             chain.write().await.load_context(context).await;
         }
@@ -95,9 +95,12 @@ mod test {
             .link(LLMChain::new(&client).with_template("review", first))
             .link(LLMChain::new(&client).with_template("review", second));
         chain
-            .load_context(&Data {
-                play: "Hamlet".to_string(),
-            })
+            .load_context(
+                &Context::new(&Data {
+                    play: "Hamlet".to_string(),
+                })
+                .unwrap(),
+            )
             .await;
         let res = chain.execute("review").await;
         assert!(res.is_ok());

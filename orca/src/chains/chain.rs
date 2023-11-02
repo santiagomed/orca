@@ -161,6 +161,10 @@ impl Chain for LLMChain {
     fn context(&mut self) -> &mut HashMap<String, JsonValue> {
         &mut self.context
     }
+
+    fn template_engine(&mut self) -> &mut TemplateEngine {
+        &mut self.template_engine
+    }
 }
 
 impl Clone for LLMChain {
@@ -182,6 +186,7 @@ mod test {
     use crate::{
         llm::openai::OpenAI,
         memory,
+        prompt::context::Context,
         record::{self, Spin},
     };
     use serde::Serialize;
@@ -215,10 +220,13 @@ mod test {
             "#;
         let mut chain = LLMChain::new(&client).with_template("capitals", prompt);
         chain
-            .load_context(&DataOne {
-                country1: "France".to_string(),
-                country2: "Germany".to_string(),
-            })
+            .load_context(
+                &Context::new(DataOne {
+                    country1: "France".to_string(),
+                    country2: "Germany".to_string(),
+                })
+                .unwrap(),
+            )
             .await;
         let res = chain.execute("capitals").await.unwrap().content();
 
