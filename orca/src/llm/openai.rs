@@ -5,7 +5,7 @@ use crate::{
     prompt::{chat::Message, Prompt},
 };
 use anyhow::Result;
-use futures::{stream::FuturesUnordered, TryFutureExt, TryStreamExt};
+use crossbeam_channel::bounded;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
@@ -276,16 +276,24 @@ impl EmbeddingTrait for OpenAI {
 
     async fn generate_embeddings(&self, prompts: Vec<Box<dyn Prompt>>) -> Result<EmbeddingResponse> {
         let mut embeddings = Vec::new();
-        let mut futures = FuturesUnordered::new();
+        let (sender, receiver) = bounded(prompts.len());
 
-        for prompt in prompts {
+        for (i, prompt) in prompts.into_iter().enumerate() {
+            let sender = sender.clone();
+            let client = self.client.clone();
             let req = self.generate_embedding_request(&prompt.to_string())?;
-            let fut = self.client.execute(req).and_then(|res| res.json::<OpenAIEmbeddingResponse>());
-            futures.push(fut);
+
+            tokio::spawn(async move {
+                let res = client.execute(req).await.map_err(|e| e.to_string())?;
+                let response = res.json::<OpenAIEmbeddingResponse>().await.map_err(|e| e.to_string())?;
+                sender.send((i, response)).unwrap();
+                Ok::<_, String>(())
+            });
         }
 
-        while let Some(res) = futures.try_next().await? {
-            embeddings.push(res);
+        for _ in 0..prompts.len() {
+            let (i, res) = receiver.recv().unwrap();
+            embeddings[i] = res;
         }
 
         Ok(EmbeddingResponse::OpenAI(embeddings))
