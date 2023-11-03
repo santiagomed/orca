@@ -5,7 +5,6 @@ use crate::{
     prompt::{chat::Message, Prompt},
 };
 use anyhow::Result;
-use crossbeam_channel::bounded;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
@@ -275,8 +274,9 @@ impl EmbeddingTrait for OpenAI {
     }
 
     async fn generate_embeddings(&self, prompts: Vec<Box<dyn Prompt>>) -> Result<EmbeddingResponse> {
-        let mut embeddings = Vec::new();
-        let (sender, receiver) = bounded(prompts.len());
+        let mut embeddings = Vec::with_capacity(prompts.len());
+
+        let (sender, receiver) = tokio::sync::mpsc::channel(prompts.len());
 
         let num_prompts = prompts.len();
 
@@ -286,16 +286,30 @@ impl EmbeddingTrait for OpenAI {
             let req = self.generate_embedding_request(&prompt.to_string())?;
 
             tokio::spawn(async move {
-                let res = client.execute(req).await.map_err(|e| e.to_string())?;
-                let response = res.json::<OpenAIEmbeddingResponse>().await.map_err(|e| e.to_string())?;
-                sender.send((i, response)).unwrap();
-                Ok::<_, String>(())
+                let result: Result<OpenAIEmbeddingResponse, String> = async {
+                    let res = client.execute(req).await.map_err(|e| format!("Request Failed: {}", e.to_string()))?;
+                    let response = res
+                        .json::<OpenAIEmbeddingResponse>()
+                        .await
+                        .map_err(|e| format!("Mapping Error: {}", e.to_string()))?;
+                    Ok(response)
+                }
+                .await;
+
+                // Send back the result (success or error) via the channel.
+                sender.send((i, result)).await.expect("Failed to send over channel");
             });
         }
 
-        for _ in 0..num_prompts {
-            let (i, res) = receiver.recv().unwrap();
-            embeddings[i] = res;
+        while let Some((i, result)) = receiver.recv().await {
+            match result {
+                Ok(response) => {
+                    embeddings.push(response);
+                }
+                Err(e) => {
+                    return Err(anyhow::anyhow!("Failed to generate embeddings: {}", e));
+                }
+            }
         }
 
         Ok(EmbeddingResponse::OpenAI(embeddings))
