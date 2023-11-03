@@ -276,7 +276,7 @@ impl EmbeddingTrait for OpenAI {
     async fn generate_embeddings(&self, prompts: Vec<Box<dyn Prompt>>) -> Result<EmbeddingResponse> {
         let mut embeddings = Vec::with_capacity(prompts.len());
 
-        let (sender, receiver) = tokio::sync::mpsc::channel(prompts.len());
+        let (sender, mut receiver) = tokio::sync::mpsc::channel(prompts.len());
 
         let num_prompts = prompts.len();
 
