@@ -341,10 +341,10 @@ macro_rules! prompt {
 #[macro_export]
 /// takes in a vector or a series of prompts
 macro_rules! prompts {
-    ($records:expr) => {{
-        $records
+    ($e:expr) => {{
+        $e
             .into_iter()
-            .map(|record| Box::new(record.clone()) as Box<dyn orca::prompt::Prompt>)
+            .map(|x| Box::new(x.clone()) as Box<dyn orca::prompt::Prompt>)
             .collect::<Vec<Box<dyn orca::prompt::Prompt>>>()
     }};
     ($($e:expr),* $(,)?) => {

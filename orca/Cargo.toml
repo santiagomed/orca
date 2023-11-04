@@ -36,6 +36,8 @@ candle-nn = { git = "https://github.com/huggingface/candle" }
 tracing-chrome = "0.7.1"
 tracing-subscriber = "0.3.17"
 log = "0.4.20"
+rayon = "1.8.0"
+env_logger = "0.10.0"
 
 [dev-dependencies]
 base64 = "0.21.4"
