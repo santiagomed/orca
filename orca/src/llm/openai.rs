@@ -39,7 +39,7 @@ pub struct Response {
     choices: Vec<Choice>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct OpenAIEmbeddingResponse {
     object: String,
     model: String,
@@ -64,7 +64,7 @@ impl Display for OpenAIEmbeddingResponse {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Default)]
 pub struct Embedding {
     pub index: u32,
     pub object: String,
@@ -87,7 +87,7 @@ impl Display for Response {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct Usage {
     prompt_tokens: i32,
     completion_tokens: Option<i32>,
@@ -274,11 +274,10 @@ impl EmbeddingTrait for OpenAI {
     }
 
     async fn generate_embeddings(&self, prompts: Vec<Box<dyn Prompt>>) -> Result<EmbeddingResponse> {
-        let mut embeddings = Vec::with_capacity(prompts.len());
-
-        let (sender, mut receiver) = tokio::sync::mpsc::channel(prompts.len());
-
         let num_prompts = prompts.len();
+        let mut embeddings = vec![OpenAIEmbeddingResponse::default(); num_prompts];
+
+        let (sender, mut receiver) = tokio::sync::mpsc::channel(num_prompts);
 
         for (i, prompt) in prompts.into_iter().enumerate() {
             let sender = sender.clone();
@@ -301,10 +300,12 @@ impl EmbeddingTrait for OpenAI {
             });
         }
 
+        drop(sender);
+
         while let Some((i, result)) = receiver.recv().await {
             match result {
                 Ok(response) => {
-                    embeddings.push(response);
+                    embeddings[i] = response;
                 }
                 Err(e) => {
                     return Err(anyhow::anyhow!("Failed to generate embeddings: {}", e));
