@@ -235,7 +235,7 @@ impl Quantized {
 
     fn format_chat_prompt(chat_prompt: ChatPrompt) -> String {
         let mut prompt = String::new();
-        for message in chat_prompt {
+        for message in chat_prompt.to_vec_ref() {
             if message.role == Role::System || message.role == Role::User {
                 prompt.push_str(&format!("[INST] {} [/INST]", message.content));
             } else {

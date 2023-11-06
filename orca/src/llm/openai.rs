@@ -256,7 +256,7 @@ impl OpenAI {
 impl LLM for OpenAI {
     async fn generate(&self, prompt: Box<dyn Prompt>) -> Result<LLMResponse> {
         let messages = prompt.to_chat()?;
-        let req = self.generate_request(&messages)?;
+        let req = self.generate_request(messages.to_vec_ref())?;
         let res = self.client.execute(req).await?;
         let res = res.json::<Response>().await?;
         Ok(res.into())
