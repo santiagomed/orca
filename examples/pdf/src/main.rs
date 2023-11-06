@@ -1,23 +1,14 @@
-#![allow(unused_imports)]
-#![allow(unused_variables)]
-#![allow(dead_code)]
-use std::collections::HashMap;
-
-use anyhow::Result;
 use clap::Parser;
-use orca::llm::bert::Bert;
-use orca::llm::openai::OpenAI;
-use orca::llm::quantized::Quantized;
-use orca::llm::Embedding;
-use orca::pipeline::simple::LLMPipeline;
-use orca::pipeline::Pipeline;
-use orca::prompt::context::Context;
-use orca::qdrant::Qdrant;
-use orca::qdrant::Value;
-use orca::record::pdf;
-use orca::record::pdf::Pdf;
-use orca::record::Spin;
-use orca::{prompt, prompts};
+use orca::{
+    llm::{bert::Bert, quantized::Quantized, Embedding},
+    pipeline::simple::LLMPipeline,
+    pipeline::Pipeline,
+    prompt,
+    prompt::context::Context,
+    prompts,
+    qdrant::Qdrant,
+    record::{pdf::Pdf, Spin},
+};
 use serde_json::json;
 
 #[derive(Parser, Debug)]
@@ -28,52 +19,34 @@ struct Args {
     file: String,
 
     #[clap(long)]
-    /// The name of the collection to create
-    /// (default: the name of the file)
-    collection: Option<String>,
-
-    #[clap(long)]
     /// The prompt to use to query the index
     prompt: String,
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() {
     let args = Args::parse();
 
     // init logger
     env_logger::init();
 
-    let collection = if let Some(col) = args.collection {
-        col
-    } else {
-        args.file.split("/").last().unwrap().split(".").next().unwrap().to_string()
-    };
+    let pdf_records = Pdf::from_file(&args.file, false).spin().unwrap().split(399);
+    let bert = Bert::new().build_model_and_tokenizer().await.unwrap();
 
-    let pdf_records = Pdf::from_file(&args.file, false).spin()?.split(399);
-    let bert = Bert::new().build_model_and_tokenizer().await?;
+    let collection = std::path::Path::new(&args.file)
+        .file_stem()
+        .and_then(|name| name.to_str())
+        .unwrap_or("default_collection")
+        .to_string();
 
-    let qdrant = Qdrant::new("localhost", 6334);
+    let qdrant = Qdrant::new("http://localhost:6334");
     if qdrant.create_collection(&collection, 384).await.is_ok() {
-        let embeddings = bert.generate_embeddings(prompts!(&pdf_records)).await?;
-        qdrant.insert_many(&collection, embeddings.to_vec2()?, pdf_records).await?;
+        let embeddings = bert.generate_embeddings(prompts!(&pdf_records)).await.unwrap();
+        qdrant.insert_many(&collection, embeddings.to_vec2().unwrap(), pdf_records).await.unwrap();
     }
 
-    let query_embedding = bert.generate_embedding(prompt!(args.prompt)).await?;
-    let result = qdrant.search(&collection, query_embedding.to_vec()?.clone(), 5, None).await?;
-
-    let context = json!({
-        "user_prompt": args.prompt,
-        "payloads": result
-            .iter()
-            .filter_map(|found_point| {
-                found_point.payload.as_ref().map(|payload| {
-                    // Assuming you want to convert the whole payload to a JSON string
-                    serde_json::to_string(payload).unwrap_or_else(|_| "{}".to_string())
-                })
-            })
-            .collect::<Vec<String>>()
-    });
+    let query_embedding = bert.generate_embedding(prompt!(args.prompt)).await.unwrap();
+    let result = qdrant.search(&collection, query_embedding.to_vec().unwrap().clone(), 5, None).await.unwrap();
 
     let prompt_for_model = r#"
     {{#chat}}
@@ -93,17 +66,30 @@ async fn main() -> Result<()> {
     {{/chat}}
     "#;
 
-    let openai = Quantized::new()
+    let context = json!({
+        "user_prompt": args.prompt,
+        "payloads": result
+            .iter()
+            .filter_map(|found_point| {
+                found_point.payload.as_ref().map(|payload| {
+                    // Assuming you want to convert the whole payload to a JSON string
+                    serde_json::to_string(payload).unwrap_or_else(|_| "{}".to_string())
+                })
+            })
+            .collect::<Vec<String>>()
+    });
+
+    let mistral = Quantized::new()
         .with_model(orca::llm::quantized::Model::Mistral7bInstruct)
         .with_sample_len(7500)
-        .load_model_from_path("../../models/mistral-7b-instruct-v0.1.Q4_K_S.gguf")?
-        .build_model()?;
-    let mut pipe = LLMPipeline::new(&openai).with_template("query", prompt_for_model);
-    pipe.load_context(&Context::new(context)?).await;
+        .load_model_from_path("../../models/mistral-7b-instruct-v0.1.Q4_K_S.gguf")
+        .unwrap()
+        .build_model()
+        .unwrap();
+    let mut pipe = LLMPipeline::new(&mistral).with_template("query", prompt_for_model);
+    pipe.load_context(&Context::new(context).unwrap()).await;
 
-    let response = pipe.execute("query").await?;
+    let response = pipe.execute("query").await.unwrap();
 
     println!("Response: {}", response.content());
-
-    Ok(())
 }

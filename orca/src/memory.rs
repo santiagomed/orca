@@ -1,4 +1,4 @@
-use crate::prompt::chat::Message;
+use crate::prompt::chat::ChatPrompt;
 use crate::prompt::Prompt;
 
 use anyhow::Result;
@@ -74,13 +74,15 @@ impl Clone for Buffer {
 
 #[derive(Default, Debug)]
 pub struct ChatBuffer {
-    memory: Vec<Message>,
+    memory: ChatPrompt,
 }
 
 impl ChatBuffer {
     /// Initialize a new Memory Buffer.
     pub fn new() -> Self {
-        Self { memory: Vec::new() }
+        Self {
+            memory: ChatPrompt(Vec::new()),
+        }
     }
 }
 

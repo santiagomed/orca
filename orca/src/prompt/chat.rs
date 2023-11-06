@@ -11,7 +11,8 @@ pub enum Role {
     Assistant,
 }
 
-pub type ChatPrompt = Vec<Message>;
+#[derive(Default, Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct ChatPrompt(pub(crate) Vec<Message>);
 
 impl From<&str> for Role {
     fn from(role: &str) -> Self {
@@ -31,6 +32,22 @@ impl Display for Role {
             Role::User => write!(f, "user"),
             Role::Assistant => write!(f, "assistant"),
         }
+    }
+}
+
+impl Display for ChatPrompt {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{}", serde_json::to_string(&self.0).unwrap())
+    }
+}
+
+impl ChatPrompt {
+    pub fn to_vec(&self) -> Vec<Message> {
+        self.0.clone()
+    }
+
+    pub fn to_vec_ref(&self) -> &Vec<Message> {
+        &self.0
     }
 }
 
@@ -54,7 +71,7 @@ impl Message {
 
 impl Display for Message {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "[{}] {}", self.role, self.content)
+        write!(f, "{}", serde_json::to_string(self).unwrap())
     }
 }
 

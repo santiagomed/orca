@@ -9,7 +9,8 @@ use candle_core::Tensor;
 use candle_nn::VarBuilder;
 use candle_transformers::models::bert::{BertModel, Config, DTYPE};
 use hf_hub::{api::tokio::Api, Cache, Repo, RepoType};
-use std::sync::Arc;
+use rayon::prelude::*;
+use std::sync::{Arc, Mutex};
 use tokenizers::{PaddingParams, Tokenizer};
 use tokio::sync::RwLock;
 
@@ -173,9 +174,12 @@ impl Embedding for Bert {
         let tokenizer = tokenizer.with_padding(None).with_truncation(None).map_err(E::msg)?;
         let tokens = tokenizer.encode(prompt, true).map_err(E::msg)?.get_ids().to_vec();
         let token_ids = Tensor::new(&tokens[..], device)?.unsqueeze(0)?;
+        log::info!("token_ids shape: {:?}", token_ids.shape());
         let token_type_ids = token_ids.zeros_like()?;
+        log::info!("running inference {:?}", token_ids.shape());
         let start = std::time::Instant::now();
         let embedding = model.forward(&token_ids, &token_type_ids)?;
+        log::info!("embedding shape: {:?}", embedding.shape());
         log::info!("Embedding took {:?} to generate", start.elapsed());
         Ok(EmbeddingResponse::Bert(embedding))
     }
@@ -197,8 +201,9 @@ impl Embedding for Bert {
             None
         };
 
-        let model = self.model.as_ref().unwrap().clone();
-        let mut tokenizer = self.tokenizer.as_ref().unwrap().write().await;
+        let model: Arc<BertModel> = self.model.as_ref().unwrap().clone();
+        let mut tokenizer: tokio::sync::RwLockWriteGuard<'_, Tokenizer> =
+            self.tokenizer.as_ref().unwrap().write().await;
         let device = &model.device;
 
         if let Some(pp) = tokenizer.get_padding_mut() {
@@ -216,48 +221,46 @@ impl Embedding for Bert {
             .map_err(E::msg)?;
         let token_ids = tokens
             .iter()
-            .map(|tokens| {
+            .enumerate()
+            .map(|(i, tokens)| {
                 let tokens = tokens.get_ids().to_vec();
-                Ok(Tensor::new(tokens.as_slice(), device)?)
+                let tensor = Tensor::new(tokens.as_slice(), device)?.unsqueeze(0)?;
+                Ok((i, tensor))
             })
             .collect::<Result<Vec<_>>>()?;
 
-        let token_ids = Tensor::stack(&token_ids, 0)?;
-        let token_type_ids = token_ids.zeros_like()?;
-        log::info!("running inference on batch {:?}", token_ids.shape());
-        let embeddings = model.forward(&token_ids, &token_type_ids)?;
-        log::info!("generated embeddings {:?}", embeddings.shape());
+        let embeddings = vec![Tensor::ones((2, 3), candle_core::DType::F32, &device)?; token_ids.len()];
+        // Wrap the embeddings vector in an Arc<Mutex<_>> for thread-safe access
+        let embeddings_arc = Arc::new(Mutex::new(embeddings));
 
-        Ok(EmbeddingResponse::Bert(embeddings))
+        // Use rayon to compute embeddings in parallel
+        log::info!("Computing embeddings");
+        let start = std::time::Instant::now();
+        token_ids.par_iter().try_for_each_with(embeddings_arc.clone(), |embeddings_arc, (i, token_ids)| {
+            let token_type_ids = token_ids.zeros_like()?;
+            let embedding = model.forward(token_ids, &token_type_ids)?.squeeze(0)?;
+
+            // Lock the mutex and write the embedding to the correct index
+            let mut embeddings = embeddings_arc.lock().map_err(|e| anyhow!("Mutex error: {}", e))?;
+            embeddings[*i] = embedding;
+
+            Ok::<(), anyhow::Error>(())
+        })?;
+        log::info!("Done computing embeddings");
+        log::info!("Embeddings took {:?} to generate", start.elapsed());
+
+        // Retrieve the final ordered embeddings
+        let embeddings_arc = Arc::try_unwrap(embeddings_arc)
+            .map_err(|_| anyhow!("Arc unwrap failed"))?
+            .into_inner()
+            .map_err(|e| anyhow!("Mutex error: {}", e))?;
+
+        let stacked_embeddings = Tensor::stack(&embeddings_arc, 0)?;
+
+        Ok(EmbeddingResponse::Bert(stacked_embeddings))
     }
 }
-/*
-        let tokenizer = tokenizer.with_padding(None).with_truncation(None).map_err(E::msg)?;
 
-        let tasks: Vec<_> = prompts
-            .par_iter() // Using Rayon's parallel iterator
-            .filter_map(|p| {
-                let model = model.clone();
-                tokenizer
-                    .encode(p.to_string(), true)
-                    .ok()
-                    .and_then(|t| t.get_ids().to_vec().into())
-                    .and_then(|tokens| Tensor::new(&tokens[..], device).ok()?.unsqueeze(0).ok())
-                    .and_then(|token_ids| {
-                        let token_type_ids = token_ids.zeros_like().ok()?;
-                        let start = std::time::Instant::now();
-                        let tensor = Some(model.forward(&token_ids, &token_type_ids));
-                        log::info!("Embeddings took {:?} to generate", start.elapsed());
-                        tensor
-                    })
-            })
-            .collect();
-
-        let mut embeddings = Vec::new();
-        for task in tasks {
-            embeddings.push(task?);
-        }
-*/
 #[cfg(test)]
 mod test {
     use super::*;

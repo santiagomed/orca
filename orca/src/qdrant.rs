@@ -100,10 +100,10 @@ impl Qdrant {
     /// ```
     /// use orca::qdrant::Qdrant;
     ///
-    /// let qdrant = Qdrant::new("127.0.0.1", 6333);
+    /// let client = Qdrant::new("http://localhost:6334");
     /// ```
-    pub fn new(host: &str, port: u16) -> Self {
-        let config = QdrantClientConfig::from_url(&format!("http://{}:{}", host, port));
+    pub fn new(url: &str) -> Self {
+        let config = QdrantClientConfig::from_url(url);
         let client = QdrantClient::new(Some(config)).unwrap();
         Qdrant { client }
     }
@@ -119,7 +119,7 @@ impl Qdrant {
     /// # use orca::qdrant::Qdrant;
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let client = Qdrant::new("127.0.0.1", 6333);
+    /// let client = Qdrant::new("http://localhost:6334");
     /// let collection_name = "test_collection";
     /// let vector_size = 128;
     /// client.create_collection(collection_name, vector_size).await?;
@@ -153,7 +153,7 @@ impl Qdrant {
     /// # use orca::qdrant::Qdrant;
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let client = Qdrant::new("localhost", 6333);
+    /// # let client = Qdrant::new("http://localhost:6334");
     /// let collection_name = "test_collection";
     /// client.delete_collection(collection_name).await?;
     /// # Ok(())
@@ -181,11 +181,11 @@ impl Qdrant {
     /// # }
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let qdrant = Qdrant::new("localhost", 6333);
+    /// let client = Qdrant::new("http://localhost:6334");
     /// let collection_name = "my_collection";
     /// let vector = vec![0.1, 0.2, 0.3];
     /// let payload = MyPayload { name: "John".to_string(), age: 30 };
-    /// qdrant.insert(collection_name, vector, payload).await?;
+    /// client.insert(collection_name, vector, payload).await?;
     /// # Ok(())
     /// # }
     /// ```
@@ -220,7 +220,7 @@ impl Qdrant {
     /// #
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn Error>> {
-    /// # let client = Qdrant::new("localhost", 6333);
+    /// # let client = Qdrant::new("http://localhost:6334");
     /// let vectors = vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]];
     /// let payloads = vec!["payload1".to_string(), "payload2".to_string()];
     /// client.insert_many("collection_name", vectors, payloads).await?;
@@ -265,7 +265,7 @@ impl Qdrant {
     /// # use orca::qdrant::{Qdrant, Condition};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let client = Qdrant::new("localhost", 6333);
+    /// let client = Qdrant::new("http://localhost:6334");
     /// let conditions = vec![Condition::Matches(
     ///    "age".into(),
     ///     30.into(),
@@ -332,8 +332,7 @@ mod tests {
     use rand::Rng;
     use serde_json::json;
 
-    const TEST_HOST: &str = "localhost";
-    const TEST_PORT: u16 = 6334;
+    const URL: &str = "http://localhost:6334";
 
     fn generate_unique_collection_name() -> String {
         let rng = rand::thread_rng();
@@ -342,13 +341,13 @@ mod tests {
     }
 
     async fn teardown(collection_name: &str) {
-        let qdrant = Qdrant::new(TEST_HOST, TEST_PORT);
+        let qdrant = Qdrant::new(URL);
         let _ = qdrant.delete_collection(collection_name).await;
     }
 
     #[tokio::test]
     async fn test_create_collection() {
-        let qdrant = Qdrant::new(TEST_HOST, TEST_PORT);
+        let qdrant = Qdrant::new(URL);
         let unique_collection_name = generate_unique_collection_name();
 
         let result = qdrant.create_collection(&unique_collection_name, 128).await;
@@ -359,7 +358,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_insert_point() {
-        let qdrant = Qdrant::new(TEST_HOST, TEST_PORT);
+        let qdrant = Qdrant::new(URL);
         let unique_collection_name = generate_unique_collection_name();
 
         qdrant.create_collection(&unique_collection_name, 3).await.unwrap();
@@ -375,7 +374,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_search_points() {
-        let qdrant = Qdrant::new(TEST_HOST, TEST_PORT);
+        let qdrant = Qdrant::new(URL);
         let unique_collection_name = generate_unique_collection_name();
 
         qdrant.create_collection(&unique_collection_name, 3).await.unwrap();

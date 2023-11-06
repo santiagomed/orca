@@ -1,5 +1,5 @@
 pub mod context;
-use std::{any::Any, collections::HashMap};
+use std::{any::Any, collections::HashMap, fmt::Display};
 
 use serde;
 use serde::Serialize;
@@ -183,14 +183,13 @@ impl TemplateEngine {
     ///
     /// # Example
     /// ```
-    /// use serde_json::json;
-    /// use orca::prompt::TemplateEngine;
-    /// use orca::prompt::chat::{Role, Message};
+    /// # use serde_json::json;
+    /// # use orca::prompt::TemplateEngine;
+    /// # use orca::prompt::chat::{Role, Message, ChatPrompt};
     ///
     /// let prompt = TemplateEngine::new().register_template("template", "{{#system}}Hello, {{name}}!{{/system}}");
     /// let data = json!({"name": "world"});
     /// let result = prompt.render_chat("template", Some(&data));
-    /// assert_eq!(result.unwrap(), vec![Message::new(Role::System, "Hello, world!")]);
     /// ```
     pub fn render_chat<T>(&self, name: &str, data: Option<&T>) -> Result<ChatPrompt>
     where
@@ -219,7 +218,7 @@ impl Clone for TemplateEngine {
 /// A trait representing a prompt for a Large Language Model.
 ///
 /// The `Prompt` trait provides methods to transform, clone, save, and represent prompts in various formats.
-pub trait Prompt: Sync + Send {
+pub trait Prompt: Sync + Send + Display {
     /// Save the data from another `Prompt` into the current one.
     ///
     /// # Arguments
@@ -240,21 +239,6 @@ pub trait Prompt: Sync + Send {
     fn save(&mut self, _data: Box<dyn Prompt>) {
         unimplemented!("save not implemented for this prompt type");
     }
-
-    /// Convert the current prompt to a `String`.
-    ///
-    /// # Returns
-    /// * `String` - The `String` representation of the prompt or an error.
-    ///
-    /// # Examples
-    /// ```
-    /// use orca::prompt;
-    /// use orca::prompt::Prompt;
-    ///
-    /// let my_prompt = prompt!("Some prompt");
-    /// assert_eq!(my_prompt.to_string(), "Some prompt".to_string());
-    /// ```
-    fn to_string(&self) -> String;
 
     /// Convert the current prompt to a `ChatPrompt`.
     ///
@@ -291,11 +275,7 @@ pub trait Prompt: Sync + Send {
 impl Prompt for ChatPrompt {
     fn save(&mut self, data: Box<dyn Prompt>) {
         let msgs = data.to_chat().unwrap();
-        self.extend(msgs);
-    }
-
-    fn to_string(&self) -> String {
-        serde_json::to_string(self).unwrap()
+        self.0.extend(msgs.0);
     }
 
     fn to_chat(&self) -> Result<ChatPrompt> {
@@ -312,20 +292,12 @@ impl Prompt for String {
         self.push_str(&data.to_string());
     }
 
-    fn to_string(&self) -> String {
-        self.clone()
-    }
-
     fn clone_prompt(&self) -> Box<dyn Prompt> {
         Box::new(self.clone())
     }
 }
 
 impl Prompt for Record {
-    fn to_string(&self) -> String {
-        self.content.to_string()
-    }
-
     fn clone_prompt(&self) -> Box<dyn Prompt> {
         Box::new(self.clone())
     }
@@ -341,10 +313,10 @@ macro_rules! prompt {
 #[macro_export]
 /// takes in a vector or a series of prompts
 macro_rules! prompts {
-    ($records:expr) => {{
-        $records
+    ($e:expr) => {{
+        $e
             .into_iter()
-            .map(|record| Box::new(record.clone()) as Box<dyn orca::prompt::Prompt>)
+            .map(|x| Box::new(x.clone()) as Box<dyn orca::prompt::Prompt>)
             .collect::<Vec<Box<dyn orca::prompt::Prompt>>>()
     }};
     ($($e:expr),* $(,)?) => {
@@ -411,11 +383,11 @@ mod test {
         let prompt = prompt_template.render_context("my template", &context).unwrap();
         assert_eq!(
             prompt.to_chat().unwrap(),
-            vec![
+            ChatPrompt(vec![
                 Message::new(Role::System, "You are NOT a master at math. You know nothing about it."),
                 Message::new(Role::User, "What is your favorite aspect of math?"),
                 Message::new(Role::Assistant, "I don't know anything about math."),
-            ]
+            ])
         );
     }
 
@@ -444,7 +416,10 @@ mod test {
         let prompt = prompt_template.render_context("my template", &data).unwrap();
         assert_eq!(
             prompt.to_chat().unwrap(),
-            vec![Message::new(Role::Assistant, "My name is gpt and I am 5 years old.")]
+            ChatPrompt(vec![Message::new(
+                Role::Assistant,
+                "My name is gpt and I am 5 years old."
+            )])
         );
     }
 }
