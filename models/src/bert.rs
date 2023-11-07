@@ -1,18 +1,16 @@
-use super::console_log;
-use candle::{DType, Device, Tensor};
+// use super::console_log;
+use candle_core::{DType, Device, Tensor};
 use candle_nn::VarBuilder;
-use candle_transformers::models::bert::{BertModel, Config};
+use candle_transformers::models::bert::{BertModel, Config, DTYPE};
 use tokenizers::{PaddingParams, Tokenizer};
 
-pub struct Model {
+pub struct Bert {
     bert: BertModel,
     tokenizer: Tokenizer,
 }
 
-impl Model {
-    pub fn from_stream(weights: Vec<u8>, tokenizer: Vec<u8>, config: Vec<u8>) -> anyhow::Result<Model> {
-        console_error_panic_hook::set_once();
-        console_log!("loading model");
+impl Bert {
+    pub fn from_stream(weights: Vec<u8>, tokenizer: Vec<u8>, config: Vec<u8>) -> anyhow::Result<Self> {
         let device = &Device::Cpu;
         let vb = VarBuilder::from_buffered_safetensors(weights, DType::F64, device)?;
         let config: Config = serde_json::from_slice(&config)?;
@@ -22,8 +20,8 @@ impl Model {
         Ok(Self { bert, tokenizer })
     }
 
-    #[cfg(feature = "async")]
-    pub async fn from_api(model_id: Option<String>, revision: Option<String>) -> anyhow::Result<Model> {
+    // #[cfg(feature = "async")]
+    pub async fn from_api(model_id: Option<String>, revision: Option<String>) -> anyhow::Result<Self> {
         let device = &Device::Cpu;
         let default_model = "sentence-transformers/all-MiniLM-L6-v2".to_string();
         let default_revision = "refs/pr/21".to_string();
@@ -43,7 +41,7 @@ impl Model {
 
         let config = std::fs::read_to_string(config_filename)?;
         let config: Config = serde_json::from_str(&config)?;
-        let tokenizer = Tokenizer::from_file(tokenizer_filename).map_err(E::msg)?;
+        let tokenizer = Tokenizer::from_file(tokenizer_filename).map_err(anyhow::Error::msg)?;
 
         let vb = unsafe { VarBuilder::from_mmaped_safetensors(&[weights_filename], DTYPE, &device)? };
         let model = BertModel::load(vb, &config)?;
@@ -80,9 +78,7 @@ impl Model {
 
         let token_ids = Tensor::stack(&token_ids, 0)?;
         let token_type_ids = token_ids.zeros_like()?;
-        console_log!("running inference on batch {:?}", token_ids.shape());
         let embeddings = self.bert.forward(&token_ids, &token_type_ids)?;
-        console_log!("generated embeddings {:?}", embeddings.shape());
         // Apply some avg-pooling by taking the mean embedding value for all tokens (including padding)
         let (_n_sentence, n_tokens, _hidden_size) = embeddings.dims3()?;
         let embeddings = (embeddings.sum(1)? / (n_tokens as f64))?;
@@ -105,4 +101,34 @@ pub struct Embeddings {
 pub struct Params {
     sentences: Vec<String>,
     normalize_embeddings: bool,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_model() {
+        let mut model = Bert::from_stream(
+            include_bytes!("../../weights/bert_rust_model.ot").to_vec(),
+            include_bytes!("../../weights/bert_tokenizer.json").to_vec(),
+            include_bytes!("../../weights/bert_config.json").to_vec(),
+        )
+        .unwrap();
+        let sentences = vec!["This is a sentence".to_string(), "This is another sentence".to_string()];
+        let embeddings = model.get_embeddings(&sentences, true).unwrap();
+        assert_eq!(embeddings.data.len(), 2);
+        assert_eq!(embeddings.data[0].len(), 384);
+        assert_eq!(embeddings.data[1].len(), 384);
+    }
+
+    #[tokio::test]
+    async fn test_model_from_api() {
+        let mut model = Bert::from_api(None, None).await.unwrap();
+        let sentences = vec!["This is a sentence".to_string(), "This is another sentence".to_string()];
+        let embeddings = model.get_embeddings(&sentences, true).unwrap();
+        assert_eq!(embeddings.data.len(), 2);
+        assert_eq!(embeddings.data[0].len(), 384);
+        assert_eq!(embeddings.data[1].len(), 384);
+    }
 }
