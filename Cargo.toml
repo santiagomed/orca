@@ -3,5 +3,6 @@ resolver = "1"
 
 members = [
     "orca",
-    "examples/*"
+    "examples/*",
+    "models-api"
 ]
