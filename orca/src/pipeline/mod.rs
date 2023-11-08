@@ -46,7 +46,7 @@ pub trait Pipeline: Sync + Send {
     /// # }
     /// ```
     async fn load_context(&mut self, context: &Context) {
-        context.as_object().into_iter().for_each(|(key, value)| {
+        context.as_object().iter().for_each(|(key, value)| {
             self.context().insert(key.to_string(), value.clone());
         });
     }

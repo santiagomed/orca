@@ -141,6 +141,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore = "requires weights"]
     fn test_mistral() {
         let weights = std::path::Path::new("../weights/mistral_model-q4k.gguf");
         let tokenizer = std::path::Path::new("../weights/mistral_tokenizer.json");
@@ -153,6 +154,7 @@ mod tests {
     }
 
     #[cfg(feature = "async")]
+    #[ignore = "downloads weights"]
     #[tokio::test]
     async fn test_mistral_from_api() {
         let prompt = "The eiffel tower is";

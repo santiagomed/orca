@@ -18,7 +18,7 @@ impl Context {
     }
 
     /// Create a new context from a JSON string
-    pub fn from_str(context: &str) -> Result<Context> {
+    pub fn from_string(context: &str) -> Result<Context> {
         let hashmap: HashMap<String, JsonValue> = serde_json::from_str(context)?;
         Ok(Context(hashmap))
     }

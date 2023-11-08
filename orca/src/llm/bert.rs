@@ -229,7 +229,7 @@ impl Embedding for Bert {
             })
             .collect::<Result<Vec<_>>>()?;
 
-        let embeddings = vec![Tensor::ones((2, 3), candle_core::DType::F32, &device)?; token_ids.len()];
+        let embeddings = vec![Tensor::ones((2, 3), candle_core::DType::F32, device)?; token_ids.len()];
         // Wrap the embeddings vector in an Arc<Mutex<_>> for thread-safe access
         let embeddings_arc = Arc::new(Mutex::new(embeddings));
 

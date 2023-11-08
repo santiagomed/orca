@@ -112,7 +112,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_model() {
+    #[ignore = "requires weights"]
+    fn test_bert() {
         let weights = std::path::Path::new("../weights/bert_model.safetensors");
         let tokenizer = std::path::Path::new("../weights/bert_tokenizer.json");
         let config = std::path::Path::new("../weights/bert_config.json");
@@ -125,8 +126,9 @@ mod tests {
     }
 
     #[cfg(feature = "async")]
+    #[ignore = "downloads weights"]
     #[tokio::test]
-    async fn test_model_from_api() {
+    async fn test_bert_from_api() {
         let mut model = Bert::from_api(None, None).await.unwrap();
         let sentences = vec!["This is a sentence".to_string(), "This is another sentence".to_string()];
         let embeddings = model.get_embeddings(&sentences, true).unwrap();

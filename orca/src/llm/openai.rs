@@ -286,11 +286,9 @@ impl EmbeddingTrait for OpenAI {
 
             tokio::spawn(async move {
                 let result: Result<OpenAIEmbeddingResponse, String> = async {
-                    let res = client.execute(req).await.map_err(|e| format!("Request Failed: {}", e.to_string()))?;
-                    let response = res
-                        .json::<OpenAIEmbeddingResponse>()
-                        .await
-                        .map_err(|e| format!("Mapping Error: {}", e.to_string()))?;
+                    let res = client.execute(req).await.map_err(|e| format!("Request Failed: {}", e))?;
+                    let response =
+                        res.json::<OpenAIEmbeddingResponse>().await.map_err(|e| format!("Mapping Error: {}", e))?;
                     Ok(response)
                 }
                 .await;
