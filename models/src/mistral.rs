@@ -27,31 +27,59 @@ pub struct Mistral {
 
 pub struct Config {
     /// The temperature used to generate samples, use 0 for greedy sampling.
-    temperature: f64,
+    pub temperature: f64,
 
     /// Nucleus sampling probability cutoff.
-    top_p: Option<f64>,
+    pub top_p: Option<f64>,
 
     /// The seed to use when generating random samples.
-    seed: u64,
+    pub seed: u64,
 
     /// Penalty to be applied for repeating tokens, 1. means no penalty.
-    repeat_penalty: f32,
+    pub repeat_penalty: f32,
 
     /// The context size to consider for the repeat penalty.
-    repeat_last_n: usize,
+    pub repeat_last_n: usize,
 
-    flash_attn: bool,
+    /// The model id to use.
+    pub model_id: Option<String>,
+
+    /// The revision to use.
+    pub revision: Option<String>,
+
+    /// Whether to use flash attention.
+    pub flash_attn: bool,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            temperature: 1.0,
+            top_p: None,
+            seed: 42,
+            repeat_penalty: 1.0,
+            repeat_last_n: 1,
+            model_id: Some("lmz/candle-mistral".to_string()),
+            revision: Some("main".to_string()),
+            flash_attn: false,
+        }
+    }
 }
 
 impl Mistral {
-    fn tokenizer(tokenizer: Vec<u8>) -> anyhow::Result<tokenizers::Tokenizer> {
-        tokenizers::Tokenizer::from_bytes(tokenizer).map_err(|m| anyhow::anyhow!(m))
+    fn tokenizer<P>(tokenizer: P) -> anyhow::Result<tokenizers::Tokenizer>
+    where
+        P: AsRef<std::path::Path>,
+    {
+        tokenizers::Tokenizer::from_file(tokenizer).map_err(|m| anyhow::anyhow!(m))
     }
 
-    pub fn from_stream(weights: Vec<u8>, tokenizer: Vec<u8>, config: Config) -> anyhow::Result<Mistral> {
+    pub fn from_path<P>(weights: P, tokenizer: P, config: Config) -> anyhow::Result<Mistral>
+    where
+        P: AsRef<std::path::Path>,
+    {
         let cfg = mistral::Config::config_7b_v0_1(config.flash_attn);
-        let vb = candle_transformers::quantized_var_builder::VarBuilder::from_gguf_buffer(&weights)?;
+        let vb = candle_transformers::quantized_var_builder::VarBuilder::from_gguf(weights)?;
         let model = quantized_mistral::Model::new(&cfg, vb)?;
         let tokenizer = Mistral::tokenizer(tokenizer)?;
         Ok(Self {
@@ -65,28 +93,18 @@ impl Mistral {
         })
     }
 
-    async fn tokenizer_api() -> anyhow::Result<tokenizers::Tokenizer> {
+    pub async fn from_api(config: Config) -> anyhow::Result<Self> {
         let api = hf_hub::api::tokio::Api::new()?;
-        let repo = "mistralai/Mistral-7B-v0.1";
-        let api = api.model(repo.to_string());
-        let tokenizer_file = api.get("tokenizer.json").await?;
-        tokenizers::Tokenizer::from_file(tokenizer_file).map_err(|m| anyhow::anyhow!(m))
-    }
-
-    pub async fn from_api(config: Config, instruct: bool) -> anyhow::Result<Self> {
-        let (repo, filename) = if instruct {
-            (
-                "TheBloke/Mistral-7B-Instruct-v0.1-GGUF",
-                "mistral-7b-instruct-v0.1.Q4_K_S.gguf",
-            )
-        } else {
-            ("TheBloke/Mistral-7B-v0.1-GGUF", "mistral-7b-v0.1.Q4_K_S.gguf")
-        };
-        let api = hf_hub::api::tokio::Api::new()?;
-        let model_path = api.model(repo.to_string()).get(filename).await?;
+        let repo = api.repo(hf_hub::Repo::with_revision(
+            config.model_id.unwrap_or_else(|| "lmz/candle-mistral".to_string()),
+            hf_hub::RepoType::Model,
+            config.revision.unwrap_or_else(|| "main".to_string()),
+        ));
+        let tokenizer = repo.get("tokenizer.json").await?;
+        let model_path = repo.get("model-q4k.gguf").await?;
         let vb = candle_transformers::quantized_var_builder::VarBuilder::from_gguf(model_path)?;
         let model = quantized_mistral::Model::new(&mistral::Config::config_7b_v0_1(config.flash_attn), vb)?;
-        let tokenizer = Mistral::tokenizer_api().await?;
+        let tokenizer = tokenizers::Tokenizer::from_file(tokenizer).map_err(anyhow::Error::msg)?;
         Ok(Self {
             model,
             tokenizer,
@@ -98,7 +116,10 @@ impl Mistral {
         })
     }
 
-    pub fn generate(&self, prompt: &str, sample_len: usize) -> anyhow::Result<()> {
+    pub fn generate<W>(&self, prompt: &str, sample_len: usize, output: &mut W) -> anyhow::Result<()>
+    where
+        W: std::io::Write,
+    {
         let mut generator = TextGeneration::new(
             self.model.clone(),
             self.tokenizer.clone(),
@@ -109,8 +130,7 @@ impl Mistral {
             self.repeat_last_n,
             &candle_core::Device::Cpu,
         );
-        let mut output = std::io::stdout();
-        generator.run(prompt, sample_len, &mut output)?;
+        generator.run(prompt, sample_len, output)?;
         Ok(())
     }
 }
@@ -121,20 +141,22 @@ mod tests {
 
     #[test]
     fn test_mistral() {
-        let prompt = "[INST]The quick brown fox jumps over the lazy dog.[/INST]";
-        let mistral = Mistral::from_stream(
-            include_bytes!("../../weights/mistral-7b-instruct-v0.1.Q4_K_S.gguf").to_vec(),
-            include_bytes!("../../weights/mistral_tokenizer.json").to_vec(),
-            Config {
-                temperature: 0.7,
-                top_p: None,
-                seed: 42,
-                repeat_penalty: 1.0,
-                repeat_last_n: 1,
-                flash_attn: false,
-            },
-        )
-        .unwrap();
-        mistral.generate(prompt, 10).unwrap();
+        let weights = std::path::Path::new("../weights/mistral_model-q4k.gguf");
+        let tokenizer = std::path::Path::new("../weights/mistral_tokenizer.json");
+
+        let prompt = "The eiffel tower is";
+        let mistral = Mistral::from_path(weights, tokenizer, Config::default()).unwrap();
+        let mut output = Vec::new();
+        mistral.generate(prompt, 1, &mut output).unwrap();
+        assert!(output.len() > 0);
+    }
+
+    #[tokio::test]
+    async fn test_mistral_from_api() {
+        let prompt = "The eiffel tower is";
+        let mistral = Mistral::from_api(Config::default()).await.unwrap();
+        let mut output = Vec::new();
+        mistral.generate(prompt, 1, &mut output).unwrap();
+        assert!(output.len() > 0);
     }
 }

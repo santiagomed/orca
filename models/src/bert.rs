@@ -10,13 +10,15 @@ pub struct Bert {
 }
 
 impl Bert {
-    pub fn from_stream(weights: Vec<u8>, tokenizer: Vec<u8>, config: Vec<u8>) -> anyhow::Result<Self> {
+    pub fn from_files<P>(weights: P, tokenizer: P, config: P) -> anyhow::Result<Self>
+    where
+        P: AsRef<std::path::Path>,
+    {
         let device = &Device::Cpu;
-        println!("before varbuilder");
-        let vb = VarBuilder::from_buffered_safetensors(weights, DType::F64, device)?;
-        println!("after varbuilder");
-        let config: Config = serde_json::from_slice(&config)?;
-        let tokenizer = Tokenizer::from_bytes(&tokenizer).map_err(|m| anyhow::anyhow!(m))?;
+        let vb = unsafe { VarBuilder::from_mmaped_safetensors(&[weights], DType::F64, &device)? };
+        let tokenizer = Tokenizer::from_file(&tokenizer).map_err(|m| anyhow::anyhow!(m))?;
+        let config = std::fs::read_to_string(config)?;
+        let config: Config = serde_json::from_str(&config)?;
         let bert = BertModel::load(vb, &config)?;
 
         Ok(Self { bert, tokenizer })
@@ -45,7 +47,7 @@ impl Bert {
         let config: Config = serde_json::from_str(&config)?;
         let tokenizer = Tokenizer::from_file(tokenizer_filename).map_err(anyhow::Error::msg)?;
 
-        let vb = VarBuilder::from_buffered_safetensors(std::fs::read(weights_filename)?, DType::F64, device)?;
+        let vb = unsafe { VarBuilder::from_mmaped_safetensors(&[weights_filename], DType::F64, &device)? };
         let model = BertModel::load(vb, &config)?;
         Ok(Self { bert: model, tokenizer })
     }
@@ -111,16 +113,10 @@ mod tests {
 
     #[test]
     fn test_model() {
-        println!("before model");
-        let weights = std::path::PathBuf::from("weights/bert_rust_model.ot");
-        let tokenizer = std::path::PathBuf::from("weights/bert_tokenizer.json");
-        let config = std::path::PathBuf::from("weights/bert_config.json");
-        let mut model = Bert::from_stream(
-            std::fs::read(weights).unwrap(),
-            std::fs::read(tokenizer).unwrap(),
-            std::fs::read(config).unwrap(),
-        )
-        .unwrap();
+        let weights = std::path::Path::new("../weights/bert_model.safetensors");
+        let tokenizer = std::path::Path::new("../weights/bert_tokenizer.json");
+        let config = std::path::Path::new("../weights/bert_config.json");
+        let mut model = Bert::from_files(weights, tokenizer, config).unwrap();
         let sentences = vec!["This is a sentence".to_string(), "This is another sentence".to_string()];
         let embeddings = model.get_embeddings(&sentences, true).unwrap();
         assert_eq!(embeddings.data.len(), 2);
