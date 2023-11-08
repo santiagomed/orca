@@ -5,5 +5,6 @@
 *.env
 to_fix.md
 .vscode
+/weights
 *.gguf
 *.ggml
