@@ -129,7 +129,7 @@ impl Mistral {
             self.top_p,
             self.repeat_penalty,
             self.repeat_last_n,
-            &candle_core::Device::Cpu,
+            &candle::Device::Cpu,
         );
         generator.run(prompt, sample_len, output)?;
         Ok(())

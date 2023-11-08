@@ -1,5 +1,5 @@
 use super::token_stream::TokenOutputStream;
-use candle_core::{DType, Device, Tensor};
+use candle::{DType, Device, Tensor};
 use candle_transformers::{generation::LogitsProcessor, models::quantized_mistral::Model};
 use std::io::Write;
 

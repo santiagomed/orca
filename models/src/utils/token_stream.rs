@@ -27,7 +27,7 @@ impl TokenOutputStream {
     fn decode(&self, tokens: &[u32]) -> Result<String> {
         match self.tokenizer.decode(tokens, true) {
             Ok(str) => Ok(str),
-            Err(err) => candle_core::bail!("cannot decode: {err}"),
+            Err(err) => candle::bail!("cannot decode: {err}"),
         }
     }
 
