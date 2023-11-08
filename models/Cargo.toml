@@ -9,9 +9,9 @@ edition = "2021"
 candle-core = { git = "https://github.com/huggingface/candle" }
 candle-transformers = { git = "https://github.com/huggingface/candle" }
 candle-nn = { git = "https://github.com/huggingface/candle" }
-tokenizers = "0.14.1"
+tokenizers = {version = "0.14.0", features = ["http"]}
 hf-hub = {version = "0.3.0", features = ["tokio"]}
-serde_json = "1.0.108"
+serde_json = "^1.0"
 anyhow = "1.0.75"
-serde = "1.0.191"
+serde = { version = "^1.0.130", features = ["derive"] }
 tokio = "1.33.0"

@@ -1,7 +1,7 @@
 // use super::console_log;
 use candle_core::{DType, Device, Tensor};
 use candle_nn::VarBuilder;
-use candle_transformers::models::bert::{BertModel, Config, DTYPE};
+use candle_transformers::models::bert::{BertModel, Config};
 use tokenizers::{PaddingParams, Tokenizer};
 
 pub struct Bert {
@@ -12,7 +12,9 @@ pub struct Bert {
 impl Bert {
     pub fn from_stream(weights: Vec<u8>, tokenizer: Vec<u8>, config: Vec<u8>) -> anyhow::Result<Self> {
         let device = &Device::Cpu;
+        println!("before varbuilder");
         let vb = VarBuilder::from_buffered_safetensors(weights, DType::F64, device)?;
+        println!("after varbuilder");
         let config: Config = serde_json::from_slice(&config)?;
         let tokenizer = Tokenizer::from_bytes(&tokenizer).map_err(|m| anyhow::anyhow!(m))?;
         let bert = BertModel::load(vb, &config)?;
@@ -43,7 +45,7 @@ impl Bert {
         let config: Config = serde_json::from_str(&config)?;
         let tokenizer = Tokenizer::from_file(tokenizer_filename).map_err(anyhow::Error::msg)?;
 
-        let vb = unsafe { VarBuilder::from_mmaped_safetensors(&[weights_filename], DTYPE, &device)? };
+        let vb = VarBuilder::from_buffered_safetensors(std::fs::read(weights_filename)?, DType::F64, device)?;
         let model = BertModel::load(vb, &config)?;
         Ok(Self { bert: model, tokenizer })
     }
@@ -109,10 +111,14 @@ mod tests {
 
     #[test]
     fn test_model() {
+        println!("before model");
+        let weights = std::path::PathBuf::from("weights/bert_rust_model.ot");
+        let tokenizer = std::path::PathBuf::from("weights/bert_tokenizer.json");
+        let config = std::path::PathBuf::from("weights/bert_config.json");
         let mut model = Bert::from_stream(
-            include_bytes!("../../weights/bert_rust_model.ot").to_vec(),
-            include_bytes!("../../weights/bert_tokenizer.json").to_vec(),
-            include_bytes!("../../weights/bert_config.json").to_vec(),
+            std::fs::read(weights).unwrap(),
+            std::fs::read(tokenizer).unwrap(),
+            std::fs::read(config).unwrap(),
         )
         .unwrap();
         let sentences = vec!["This is a sentence".to_string(), "This is another sentence".to_string()];

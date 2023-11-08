@@ -19,6 +19,7 @@ impl TokenOutputStream {
         }
     }
 
+    #[allow(dead_code)]
     pub fn into_inner(self) -> tokenizers::Tokenizer {
         self.tokenizer
     }
@@ -66,6 +67,7 @@ impl TokenOutputStream {
         }
     }
 
+    #[allow(dead_code)]
     pub fn decode_all(&self) -> Result<String> {
         self.decode(&self.tokens)
     }
