@@ -10,8 +10,11 @@ candle-core = { git = "https://github.com/huggingface/candle" }
 candle-transformers = { git = "https://github.com/huggingface/candle" }
 candle-nn = { git = "https://github.com/huggingface/candle" }
 tokenizers = {version = "0.14.0", features = ["http"]}
-hf-hub = {version = "0.3.0", features = ["tokio"]}
+hf-hub = {version = "0.3.0", features = ["tokio"], optional = true}
 serde_json = "^1.0"
 anyhow = "1.0.75"
 serde = { version = "^1.0.130", features = ["derive"] }
-tokio = "1.33.0"
+tokio = {version = "1.33.0", optional = true}
+
+[features]
+async = ["dep:tokio", "dep:hf-hub"]

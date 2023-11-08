@@ -24,7 +24,7 @@ impl Bert {
         Ok(Self { bert, tokenizer })
     }
 
-    // #[cfg(feature = "async")]
+    #[cfg(feature = "async")]
     pub async fn from_api(model_id: Option<String>, revision: Option<String>) -> anyhow::Result<Self> {
         let device = &Device::Cpu;
         let default_model = "sentence-transformers/all-MiniLM-L6-v2".to_string();
@@ -124,6 +124,7 @@ mod tests {
         assert_eq!(embeddings.data[1].len(), 384);
     }
 
+    #[cfg(feature = "async")]
     #[tokio::test]
     async fn test_model_from_api() {
         let mut model = Bert::from_api(None, None).await.unwrap();

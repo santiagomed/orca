@@ -93,6 +93,7 @@ impl Mistral {
         })
     }
 
+    #[cfg(feature = "async")]
     pub async fn from_api(config: Config) -> anyhow::Result<Self> {
         let api = hf_hub::api::tokio::Api::new()?;
         let repo = api.repo(hf_hub::Repo::with_revision(
@@ -151,6 +152,7 @@ mod tests {
         assert!(output.len() > 0);
     }
 
+    #[cfg(feature = "async")]
     #[tokio::test]
     async fn test_mistral_from_api() {
         let prompt = "The eiffel tower is";
