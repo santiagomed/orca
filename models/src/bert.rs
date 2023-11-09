@@ -24,6 +24,16 @@ impl Bert {
         Ok(Self { bert, tokenizer })
     }
 
+    pub fn from_stream(weights: Vec<u8>, tokenizer: Vec<u8>, config: Vec<u8>) -> anyhow::Result<Self> {
+        let device = &Device::Cpu;
+        let vb = VarBuilder::from_buffered_safetensors(weights, DType::F64, device)?;
+        let tokenizer = Tokenizer::from_bytes(tokenizer).map_err(|m| anyhow::anyhow!(m))?;
+        let config: Config = serde_json::from_slice(&config)?;
+        let bert = BertModel::load(vb, &config)?;
+
+        Ok(Self { bert, tokenizer })
+    }
+
     #[cfg(feature = "async")]
     pub async fn from_api(model_id: Option<String>, revision: Option<String>) -> anyhow::Result<Self> {
         let device = &Device::Cpu;
