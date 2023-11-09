@@ -67,21 +67,30 @@ impl Default for Config {
 }
 
 impl Mistral {
-    fn tokenizer<P>(tokenizer: P) -> anyhow::Result<tokenizers::Tokenizer>
-    where
-        P: AsRef<std::path::Path>,
-    {
-        tokenizers::Tokenizer::from_file(tokenizer).map_err(|m| anyhow::anyhow!(m))
-    }
-
-    pub fn from_path<P>(weights: P, tokenizer: P, config: Config) -> anyhow::Result<Mistral>
+    pub fn from_path<P>(weights: P, tokenizer: P, config: Config) -> anyhow::Result<Self>
     where
         P: AsRef<std::path::Path>,
     {
         let cfg = mistral::Config::config_7b_v0_1(config.flash_attn);
         let vb = candle_transformers::quantized_var_builder::VarBuilder::from_gguf(weights)?;
         let model = quantized_mistral::Model::new(&cfg, vb)?;
-        let tokenizer = Mistral::tokenizer(tokenizer)?;
+        let tokenizer = tokenizers::Tokenizer::from_file(tokenizer).map_err(|m| anyhow::anyhow!(m))?;
+        Ok(Self {
+            model,
+            tokenizer,
+            temperature: config.temperature,
+            top_p: config.top_p,
+            seed: config.seed,
+            repeat_penalty: config.repeat_penalty,
+            repeat_last_n: config.repeat_last_n,
+        })
+    }
+
+    pub fn from_stream(weights: Vec<u8>, tokenizer: Vec<u8>, config: Config) -> anyhow::Result<Self> {
+        let cfg = mistral::Config::config_7b_v0_1(config.flash_attn);
+        let vb = candle_transformers::quantized_var_builder::VarBuilder::from_gguf_buffer(&weights)?;
+        let model = quantized_mistral::Model::new(&cfg, vb)?;
+        let tokenizer = tokenizers::Tokenizer::from_bytes(tokenizer).map_err(|m| anyhow::anyhow!(m))?;
         Ok(Self {
             model,
             tokenizer,

@@ -1,10 +1,19 @@
 use super::token_stream::TokenOutputStream;
 use candle::{DType, Device, Tensor};
-use candle_transformers::{generation::LogitsProcessor, models::quantized_mistral::Model};
+use candle_transformers::{
+    generation::LogitsProcessor,
+    models::{quantized_llama::ModelWeights, quantized_mistral::Model as MistralModel},
+};
 use std::io::Write;
 
+#[allow(unused)] // We might repurpose this to generate for multiple models.
+pub enum Model {
+    Llama(ModelWeights),
+    Mistral(MistralModel),
+}
+
 pub struct TextGeneration {
-    model: Model,
+    model: MistralModel,
     device: Device,
     tokenizer: TokenOutputStream,
     logits_processor: LogitsProcessor,
@@ -15,7 +24,7 @@ pub struct TextGeneration {
 impl TextGeneration {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        model: Model,
+        model: MistralModel,
         tokenizer: tokenizers::Tokenizer,
         seed: u64,
         temp: Option<f64>,
