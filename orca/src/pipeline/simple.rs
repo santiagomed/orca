@@ -2,7 +2,9 @@ use super::Pipeline;
 use super::PipelineResult;
 use crate::llm::LLM;
 use crate::memory::Memory;
+use crate::prompt::context::Context;
 use crate::prompt::TemplateEngine;
+use crate::record::Record;
 
 use anyhow::Result;
 use serde_json::Value as JsonValue;
@@ -14,7 +16,7 @@ use tokio::sync::Mutex;
 ///
 /// This simple pipeline just takes a prompt/template and generates a response using the LLM.
 /// It can make use of context, memory, and a prompt template.
-pub struct LLMPipeline {
+pub struct LLMPipeline<M> {
     /// The unique identifier for this LLMPipeline.
     pub name: String,
 
@@ -23,7 +25,7 @@ pub struct LLMPipeline {
     pub template_engine: TemplateEngine,
 
     /// A reference to the LLM that this pipeline will use to process the prompts.
-    llm: Arc<dyn LLM>,
+    llm: Arc<M>,
 
     /// Memory associated with the LLMPipeline. It can be used to persist
     /// state or data across different executions of the pipeline.
@@ -34,7 +36,7 @@ pub struct LLMPipeline {
     context: HashMap<String, JsonValue>,
 }
 
-impl LLMPipeline {
+impl<M: LLM + Clone + 'static> LLMPipeline<M> {
     /// Creates a new LLMPipeline given an LLM and a prompt template.
     ///
     /// # Examples
@@ -46,9 +48,9 @@ impl LLMPipeline {
     ///
     /// let client = OpenAI::new();
     /// let prompt = "Hello, LLM!";
-    /// let pipeline = LLMPipeline::new(&client).with_template("my prompt", prompt);
+    /// let pipeline = LLMPipeline::new(&client).load_template("my prompt", prompt);
     /// ```
-    pub fn new<M: LLM + Clone + 'static>(llm: &M) -> LLMPipeline {
+    pub fn new(llm: &M) -> LLMPipeline<M> {
         LLMPipeline {
             name: uuid::Uuid::new_v4().to_string(),
             llm: Arc::new(llm.clone()),
@@ -72,14 +74,14 @@ impl LLMPipeline {
     ///
     /// let client = OpenAI::new();
     /// let prompt = "Hello, LLM!";
-    /// let mut pipeline = LLMPipeline::new(&client).with_template("my prompt", prompt);
+    /// let mut pipeline = LLMPipeline::new(&client).load_template("my prompt", prompt);
     /// let new_prompt = "Hello, LLM! How are you?";
     /// ```
-    pub fn with_template(self, name: &str, prompt: &str) -> Self {
-        Self {
-            template_engine: self.template_engine.register_template(name, prompt),
+    pub fn load_template(self, name: &str, prompt: &str) -> Result<Self> {
+        Ok(Self {
+            template_engine: self.template_engine.register_template(name, prompt)?,
             ..self
-        }
+        })
     }
 
     /// Duplicate a template with a new name and return the new template name.
@@ -100,21 +102,24 @@ impl LLMPipeline {
     ///
     /// let client = OpenAI::new();
     /// let prompt = "Hello, LLM!";
-    /// let mut pipeline = LLMPipeline::new(&client).with_template("my prompt", prompt);
+    /// let mut pipeline = LLMPipeline::new(&client).load_template("my prompt", prompt).unwrap();
     /// let new_prompt = "Hello, LLM! How are you?";
     /// let new_template_name = pipeline.duplicate_template("my prompt").unwrap();
-    /// let mut pipeline = pipeline.with_template(new_template_name.as_str(), new_prompt);
+    /// let mut pipeline = pipeline.load_template(new_template_name.as_str(), new_prompt);
     /// ```
-    pub fn duplicate_template(&mut self, name: &str) -> Option<String> {
+    pub fn duplicate_template(&mut self, name: &str) -> Result<String> {
         let template_name = format!("{}-{}", name, uuid::Uuid::new_v4());
-        if let Some(template) = self.template_engine.get_template(name) {
-            let mut template_clone = self.template_engine.clone();
-            template_clone = template_clone.register_template(template_name.as_str(), &template);
-            self.template_engine = template_clone;
-        } else {
-            return None;
+        match self.template_engine.get_template(name) {
+            Some(template) => {
+                let mut template_clone = self.template_engine.clone();
+                template_clone = template_clone.register_template(template_name.as_str(), &template)?;
+                self.template_engine = template_clone;
+                Ok(template_name)
+            }
+            None => {
+                return Err(anyhow::anyhow!("Template with name {} does not exist", name));
+            }
         }
-        Some(template_name)
     }
 
     /// Change the memory used by the LLMPipeline.
@@ -131,18 +136,66 @@ impl LLMPipeline {
     ///
     /// let client = OpenAI::new();
     /// let prompt = "Hello, LLM!";
-    /// let mut pipeline = LLMPipeline::new(&client).with_template("my prompt", prompt);
+    /// let mut pipeline = LLMPipeline::new(&client).load_template("my prompt", prompt).unwrap();
     /// let memory = ChatBuffer::new();
-    /// let pipeline = pipeline.with_memory(memory);
+    /// let pipeline = pipeline.load_memory(memory);
     /// ```
-    pub fn with_memory<T: Memory + 'static>(mut self, memory: T) -> Self {
+    pub fn load_memory<T: Memory + 'static>(mut self, memory: T) -> Self {
         self.memory = Some(Arc::new(Mutex::new(memory)));
         self
+    }
+
+    /// Sets the context for the current pipeline execution using a given data structure.
+    ///
+    /// # Parameters
+    ///
+    /// - `context`: A reference to a serializable data structure.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use orca::pipeline::Pipeline;
+    /// use orca::llm::openai::OpenAI;
+    /// use orca::prompt::context::Context;
+    /// use orca::pipeline::simple::LLMPipeline;
+    /// use std::collections::HashMap;
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// let client = OpenAI::new();
+    /// let mut data = HashMap::new();
+    /// data.insert("name", "LLM");
+    /// let mut pipeline = LLMPipeline::new(&client).load_template("my prompt", "Hello, {{name}}!").unwrap().load_context(&Context::new(data).unwrap()).unwrap();
+    /// # }
+    /// ```
+    pub fn load_context(mut self, context: &Context) -> Result<Self> {
+        for (key, value) in context.as_object().iter() {
+            if !self.context.contains_key(key) {
+                self.context.insert(key.to_string(), value.clone());
+            } else {
+                return Err(anyhow::anyhow!("Context already contains a key with name {}", key));
+            }
+        }
+        Ok(self)
+    }
+
+    /// Loads a given record into the context of the LLM pipeline.
+    ///
+    /// # Parameters
+    /// - `name`: The key/name for the record content in the context.
+    /// - `record`: The actual record to load.
+    pub fn load_record(mut self, name: &str, record: Record) -> Result<Self> {
+        if !self.context.contains_key(name) {
+            self.context.insert(name.to_string(), JsonValue::String(record.content.to_string()));
+        } else {
+            return Err(anyhow::anyhow!("Context already contains a key with name {}", name));
+        }
+        Ok(self)
     }
 }
 
 #[async_trait::async_trait]
-impl Pipeline for LLMPipeline {
+impl<M: LLM + Clone + 'static> Pipeline for LLMPipeline<M> {
     async fn execute(&self, target: &str) -> Result<PipelineResult> {
         let prompt = self.template_engine.render_context(target, &self.context)?;
 
@@ -158,16 +211,12 @@ impl Pipeline for LLMPipeline {
         Ok(PipelineResult::new(self.name.clone()).with_llm_response(response))
     }
 
-    fn context(&mut self) -> &mut HashMap<String, JsonValue> {
-        &mut self.context
-    }
-
     fn template_engine(&mut self) -> &mut TemplateEngine {
         &mut self.template_engine
     }
 }
 
-impl Clone for LLMPipeline {
+impl<M: LLM + Clone + 'static> Clone for LLMPipeline<M> {
     fn clone(&self) -> Self {
         LLMPipeline {
             name: self.name.clone(),
@@ -218,8 +267,9 @@ mod test {
             {{/user}}
             {{/chat}}
             "#;
-        let mut pipeline = LLMPipeline::new(&client).with_template("capitals", prompt);
-        pipeline
+        let pipeline = LLMPipeline::new(&client)
+            .load_template("capitals", prompt)
+            .unwrap()
             .load_context(
                 &Context::new(DataOne {
                     country1: "France".to_string(),
@@ -227,14 +277,14 @@ mod test {
                 })
                 .unwrap(),
             )
-            .await;
+            .unwrap();
         let res = pipeline.execute("capitals").await.unwrap().content();
 
         assert!(res.contains("Berlin") || res.contains("berlin"));
     }
 
     #[tokio::test]
-    async fn test_generate_with_record() {
+    async fn test_generate_load_record() {
         let client = OpenAI::new().with_model("gpt-3.5-turbo-16k");
         let record = record::html::HTML::from_url("https://www.orwellfoundation.com/the-orwell-foundation/orwell/essays-and-other-works/shooting-an-elephant/")
             .await
@@ -251,21 +301,26 @@ mod test {
             {{/chat}}
             "#;
 
-        let mut pipeline = LLMPipeline::new(&client).with_template("summary", prompt);
-
-        pipeline.load_record("story", record);
+        let pipeline = LLMPipeline::new(&client)
+            .load_template("summary", prompt)
+            .unwrap()
+            .load_record("story", record)
+            .unwrap();
         let res = pipeline.execute("summary").await.unwrap().content();
         assert!(res.contains("elephant") || res.contains("burma"));
     }
 
     #[tokio::test]
-    async fn test_generate_with_memory() {
+    async fn test_generate_load_memory() {
         let client = OpenAI::new();
 
         let prompt = "{{#chat}}{{#user}}My name is Orca{{/user}}{{/chat}}";
-        let pipeline = LLMPipeline::new(&client).with_template("name", prompt).with_memory(memory::ChatBuffer::new());
+        let pipeline = LLMPipeline::new(&client)
+            .load_template("name", prompt)
+            .unwrap()
+            .load_memory(memory::ChatBuffer::new());
         pipeline.execute("name").await.unwrap();
-        let pipeline = pipeline.with_template("name", "{{#chat}}{{#user}}What is my name?{{/user}}{{/chat}}");
+        let pipeline = pipeline.load_template("name", "{{#chat}}{{#user}}What is my name?{{/user}}{{/chat}}").unwrap();
         let res = pipeline.execute("name").await.unwrap().content();
         assert!(res.to_lowercase().contains("orca"));
     }

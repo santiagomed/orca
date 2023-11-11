@@ -1,4 +1,4 @@
-use crate::utils::text_generation::TextGeneration;
+use crate::utils::text_generation::{Model, TextGeneration};
 use candle_transformers::models::mistral;
 use candle_transformers::models::quantized_mistral;
 
@@ -131,7 +131,7 @@ impl Mistral {
         W: std::io::Write,
     {
         let mut generator = TextGeneration::new(
-            self.model.clone(),
+            Model::Mistral(self.model.clone()),
             self.tokenizer.clone(),
             self.seed,
             Some(self.temperature),

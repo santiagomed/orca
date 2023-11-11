@@ -1,12 +1,12 @@
 //! Wip for quantized models.
-#![allow(dead_code)]
-#![allow(unused_variables)]
-#![allow(unused_imports)]
+// #![allow(dead_code)]
+// #![allow(unused_variables)]
+// #![allow(unused_imports)]
 
 use candle::quantized::{ggml_file, gguf_file};
 use candle_transformers::models::quantized_llama::ModelWeights;
 
-use crate::utils::text_generation::TextGeneration;
+use crate::utils::text_generation::{Model, TextGeneration};
 
 pub struct Config {
     /// The temperature used to generate samples, use 0 for greedy sampling.
@@ -91,5 +91,23 @@ impl Quantized {
             repeat_penalty: config.repeat_penalty,
             repeat_last_n: config.repeat_last_n,
         })
+    }
+
+    pub fn generate<W>(&self, prompt: &str, sample_len: usize, output: &mut W) -> anyhow::Result<()>
+    where
+        W: std::io::Write,
+    {
+        let mut generator = TextGeneration::new(
+            Model::Quantized(self.model.clone()),
+            self.tokenizer.clone(),
+            self.seed,
+            Some(self.temperature),
+            self.top_p,
+            self.repeat_penalty,
+            self.repeat_last_n,
+            &candle::Device::Cpu,
+        );
+        generator.run(prompt, sample_len, output)?;
+        Ok(())
     }
 }

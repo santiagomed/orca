@@ -26,13 +26,10 @@ async fn main() -> anyhow::Result<()> {
             {{/user}}
             {{/chat}}
             "#;
-    let mut pipeline = LLMPipeline::new(&client).with_template("capitals", prompt);
-    pipeline
-        .load_context(&Context::new(Data {
-            country1: "France".to_string(),
-            country2: "Germany".to_string(),
-        })?)
-        .await;
+    let pipeline = LLMPipeline::new(&client).load_template("capitals", prompt)?.load_context(&Context::new(Data {
+        country1: "France".to_string(),
+        country2: "Germany".to_string(),
+    })?)?;
     let res = pipeline.execute("capitals").await?.content();
 
     assert!(res.contains("Berlin") || res.contains("berlin"));

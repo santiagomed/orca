@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 pub use qdrant_client::prelude::Value as QdrantValue;
 use qdrant_client::prelude::*;
 use qdrant_client::qdrant::point_id::PointIdOptions;
@@ -100,12 +100,12 @@ impl Qdrant {
     /// ```
     /// use orca::qdrant::Qdrant;
     ///
-    /// let client = Qdrant::new("http://localhost:6334");
+    /// let client = Qdrant::new("http://localhost:6334").unwrap();
     /// ```
-    pub fn new(url: &str) -> Self {
+    pub fn new(url: &str) -> anyhow::Result<Self> {
         let config = QdrantClientConfig::from_url(url);
-        let client = QdrantClient::new(Some(config)).unwrap();
-        Qdrant { client }
+        let client = QdrantClient::new(Some(config))?;
+        Ok(Qdrant { client })
     }
 
     /// Creates a new collection with the given name and vector size.
@@ -119,7 +119,7 @@ impl Qdrant {
     /// # use orca::qdrant::Qdrant;
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let client = Qdrant::new("http://localhost:6334");
+    /// let client = Qdrant::new("http://localhost:6334").unwrap();
     /// let collection_name = "test_collection";
     /// let vector_size = 128;
     /// client.create_collection(collection_name, vector_size).await?;
@@ -153,7 +153,7 @@ impl Qdrant {
     /// # use orca::qdrant::Qdrant;
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let client = Qdrant::new("http://localhost:6334");
+    /// # let client = Qdrant::new("http://localhost:6334").unwrap();
     /// let collection_name = "test_collection";
     /// client.delete_collection(collection_name).await?;
     /// # Ok(())
@@ -181,7 +181,7 @@ impl Qdrant {
     /// # }
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let client = Qdrant::new("http://localhost:6334");
+    /// let client = Qdrant::new("http://localhost:6334").unwrap();
     /// let collection_name = "my_collection";
     /// let vector = vec![0.1, 0.2, 0.3];
     /// let payload = MyPayload { name: "John".to_string(), age: 30 };
@@ -220,7 +220,7 @@ impl Qdrant {
     /// #
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn Error>> {
-    /// # let client = Qdrant::new("http://localhost:6334");
+    /// # let client = Qdrant::new("http://localhost:6334").unwrap();
     /// let vectors = vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]];
     /// let payloads = vec!["payload1".to_string(), "payload2".to_string()];
     /// client.insert_many("collection_name", vectors, payloads).await?;
@@ -236,15 +236,19 @@ impl Qdrant {
     where
         T: ToPayload,
     {
-        let points = vectors
+        let points_result: anyhow::Result<Vec<PointStruct>> = vectors
             .into_iter()
             .zip(payloads.into_iter())
             .enumerate()
             .map(|(id, (vector, payload))| {
-                let payload = payload.to_payload().unwrap(); // Ensure payload is correctly converted
-                PointStruct::new(id as u64, vector, payload)
+                let payload =
+                    payload.to_payload().with_context(|| format!("Failed to convert payload at index {}", id))?;
+                Ok(PointStruct::new(id as u64, vector, payload))
             })
             .collect();
+
+        let points = points_result?;
+
         self.client.upsert_points_blocking(collection_name, points, None).await?;
         Ok(())
     }
@@ -265,7 +269,7 @@ impl Qdrant {
     /// # use orca::qdrant::{Qdrant, Condition};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let client = Qdrant::new("http://localhost:6334");
+    /// let client = Qdrant::new("http://localhost:6334").unwrap();
     /// let conditions = vec![Condition::Matches(
     ///    "age".into(),
     ///     30.into(),
@@ -341,13 +345,13 @@ mod tests {
     }
 
     async fn teardown(collection_name: &str) {
-        let qdrant = Qdrant::new(URL);
+        let qdrant = Qdrant::new(URL).unwrap();
         let _ = qdrant.delete_collection(collection_name).await;
     }
 
     #[tokio::test]
     async fn test_create_collection() {
-        let qdrant = Qdrant::new(URL);
+        let qdrant = Qdrant::new(URL).unwrap();
         let unique_collection_name = generate_unique_collection_name();
 
         let result = qdrant.create_collection(&unique_collection_name, 128).await;
@@ -358,7 +362,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_insert_point() {
-        let qdrant = Qdrant::new(URL);
+        let qdrant = Qdrant::new(URL).unwrap();
         let unique_collection_name = generate_unique_collection_name();
 
         qdrant.create_collection(&unique_collection_name, 3).await.unwrap();
@@ -374,7 +378,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_search_points() {
-        let qdrant = Qdrant::new(URL);
+        let qdrant = Qdrant::new(URL).unwrap();
         let unique_collection_name = generate_unique_collection_name();
 
         qdrant.create_collection(&unique_collection_name, 3).await.unwrap();

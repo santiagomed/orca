@@ -50,7 +50,10 @@ pub struct OpenAIEmbeddingResponse {
 impl OpenAIEmbeddingResponse {
     /// Convert the embedding response to a vector of f32 values
     pub fn to_vec(&self) -> Vec<f32> {
-        self.data.first().unwrap().embedding.clone()
+        match self.data.first() {
+            Some(embedding) => embedding.embedding.clone(),
+            None => vec![],
+        }
     }
 }
 
@@ -263,6 +266,30 @@ impl LLM for OpenAI {
     }
 }
 
+const MAX_RETRIES: u32 = 5;
+const INITIAL_BACKOFF: tokio::time::Duration = tokio::time::Duration::from_millis(100);
+const MAX_BACKOFF: tokio::time::Duration = tokio::time::Duration::from_secs(10);
+
+async fn send_with_exponential_backoff<T>(sender: &tokio::sync::mpsc::Sender<T>, message: T) -> Result<(), String>
+where
+    T: Clone + Send + 'static,
+{
+    let mut attempts = 0;
+    let mut backoff = INITIAL_BACKOFF;
+
+    loop {
+        match sender.send(message.clone()).await {
+            Ok(_) => return Ok(()),
+            Err(_) if attempts < MAX_RETRIES => {
+                attempts += 1;
+                tokio::time::sleep(backoff).await;
+                backoff = std::cmp::min(backoff * 2, MAX_BACKOFF);
+            }
+            Err(e) => return Err(format!("Failed to send message: {}", e)),
+        }
+    }
+}
+
 #[async_trait::async_trait]
 impl EmbeddingTrait for OpenAI {
     async fn generate_embedding(&self, prompt: Box<dyn Prompt>) -> Result<EmbeddingResponse> {
@@ -285,16 +312,23 @@ impl EmbeddingTrait for OpenAI {
             let req = self.generate_embedding_request(&prompt.to_string())?;
 
             tokio::spawn(async move {
-                let result: Result<OpenAIEmbeddingResponse, String> = async {
-                    let res = client.execute(req).await.map_err(|e| format!("Request Failed: {}", e))?;
-                    let response =
-                        res.json::<OpenAIEmbeddingResponse>().await.map_err(|e| format!("Mapping Error: {}", e))?;
+                let result = async {
+                    let res = client.execute(req).await.map_err(|e| format!("Failed to execute request: {}", e))?;
+                    let response = match res.json::<OpenAIEmbeddingResponse>().await {
+                        Ok(response) => response,
+                        Err(e) => {
+                            return Err(format!("Failed to parse response: {}", e));
+                        }
+                    };
                     Ok(response)
                 }
                 .await;
 
                 // Send back the result (success or error) via the channel.
-                sender.send((i, result)).await.expect("Failed to send over channel");
+                if let Err(e) = send_with_exponential_backoff(&sender, (i, result)).await {
+                    // Log the error or take appropriate action
+                    log::error!("Error sending message: {}", e);
+                }
             });
         }
 
@@ -306,7 +340,7 @@ impl EmbeddingTrait for OpenAI {
                     embeddings[i] = response;
                 }
                 Err(e) => {
-                    return Err(anyhow::anyhow!("Failed to generate embeddings: {}", e));
+                    return Err(anyhow::anyhow!("Failed to generate embedding index {}: {}", i, e));
                 }
             }
         }

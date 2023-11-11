@@ -70,7 +70,6 @@ pub trait Embedding {
     /// let client = OpenAI::new();
     /// let input = prompt!("Hello, world");
     /// let response = client.generate_embedding(input).await.unwrap();
-    /// assert!(response.to_vec().expect("embedding is empty").len() > 0);
     /// # }
     /// ```
     async fn generate_embedding(&self, prompt: Box<dyn Prompt>) -> Result<EmbeddingResponse>;

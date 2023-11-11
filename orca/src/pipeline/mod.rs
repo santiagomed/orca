@@ -3,15 +3,9 @@ pub mod mapreduce;
 pub mod simple;
 // #[cfg(feature = "unstable")]
 pub mod sequential;
-use crate::{
-    llm::LLMResponse,
-    prompt::{context::Context, TemplateEngine},
-    record::Record,
-};
+use crate::{llm::LLMResponse, prompt::TemplateEngine};
 
 use anyhow::Result;
-use serde_json::Value as JsonValue;
-use std::collections::HashMap;
 
 #[async_trait::async_trait]
 pub trait Pipeline: Sync + Send {
@@ -20,53 +14,6 @@ pub trait Pipeline: Sync + Send {
     /// # Returns
     /// - A `Result` containing a `PipelineResult` if successful or an error otherwise.
     async fn execute(&self, target: &str) -> Result<PipelineResult>;
-
-    /// Sets the context for the current pipeline execution using a given data structure.
-    ///
-    /// # Parameters
-    ///
-    /// - `context`: A reference to a serializable data structure.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use orca::pipeline::Pipeline;
-    /// use orca::llm::openai::OpenAI;
-    /// use orca::prompt::context::Context;
-    /// use orca::pipeline::simple::LLMPipeline;
-    /// use std::collections::HashMap;
-    ///
-    /// # #[tokio::main]
-    /// # async fn main() {
-    /// let client = OpenAI::new();
-    /// let mut pipeline = LLMPipeline::new(&client).with_template("my prompt", "Hello, {{name}}!");
-    /// let mut data = HashMap::new();
-    /// data.insert("name", "LLM");
-    /// pipeline.load_context(&Context::new(data).unwrap()).await;
-    /// # }
-    /// ```
-    async fn load_context(&mut self, context: &Context) {
-        context.as_object().iter().for_each(|(key, value)| {
-            self.context().insert(key.to_string(), value.clone());
-        });
-    }
-
-    /// Loads a given record into the context of the LLM pipeline.
-    ///
-    /// # Parameters
-    /// - `name`: The key/name for the record content in the context.
-    /// - `record`: The actual record to load.
-    fn load_record(&mut self, name: &str, record: Record) {
-        if !self.context().contains_key(name) {
-            self.context().insert(name.to_string(), JsonValue::String(record.content.to_string()));
-        }
-    }
-
-    /// Retrieves the current context of the pipeline.
-    ///
-    /// # Returns
-    /// - A mutable reference to a hashmap containing the current context.
-    fn context(&mut self) -> &mut HashMap<String, JsonValue>;
 
     /// Retrieves the template engine for the current pipeline.
     ///

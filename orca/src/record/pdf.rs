@@ -37,12 +37,12 @@ impl Pdf {
     ///
     /// let record = Pdf::from_buffer(bytes, false);
     /// ```
-    pub fn from_buffer(buffer: Vec<u8>, split: bool) -> Pdf {
+    pub fn from_buffer(buffer: Vec<u8>, split: bool) -> Result<Pdf> {
         // convert buffer into file object
-        Pdf {
-            file: FileOptions::cached().load(buffer).unwrap(),
+        Ok(Pdf {
+            file: FileOptions::cached().load(buffer)?,
             split,
-        }
+        })
     }
 
     /// Create a new PDF record from a file
@@ -52,12 +52,12 @@ impl Pdf {
     ///
     /// let record = Pdf::from_file("./tests/records/sample-resume.pdf", false);
     /// ```
-    pub fn from_file(path: &str, split: bool) -> Pdf {
+    pub fn from_file(path: &str, split: bool) -> Result<Pdf> {
         // convert buffer into file object
-        Pdf {
-            file: FileOptions::cached().open(path).unwrap(),
+        Ok(Pdf {
+            file: FileOptions::cached().open(path)?,
             split,
-        }
+        })
     }
 }
 
@@ -143,13 +143,13 @@ mod test {
         let mut bytes: Vec<u8> = Vec::new();
         general_purpose::STANDARD.decode_vec(c, &mut bytes).unwrap();
 
-        let record = Pdf::from_buffer(bytes, false);
+        let record = Pdf::from_buffer(bytes, false).unwrap();
         assert!(!record.split);
     }
 
     #[test]
     fn test_from_file() {
-        let record = Pdf::from_file("./tests/records/sample-resume.pdf", false);
+        let record = Pdf::from_file("./tests/records/sample-resume.pdf", false).unwrap();
         assert!(!record.split);
     }
 
@@ -162,7 +162,7 @@ mod test {
         let mut bytes: Vec<u8> = Vec::new();
         general_purpose::STANDARD.decode_vec(c, &mut bytes).unwrap();
 
-        let record = Pdf::from_buffer(bytes, false).spin().unwrap();
+        let record = Pdf::from_buffer(bytes, false).unwrap().spin().unwrap();
         let expected_content = include_str!("../../tests/expected/sample-resume.out");
         assert_eq!(record.content.to_string(), expected_content);
     }
@@ -170,7 +170,7 @@ mod test {
     #[test]
     fn test_spin_from_file() {
         std::env::set_var("STANDARD_FONTS", "../assets/pdf_fonts");
-        let record = Pdf::from_file("./tests/records/sample-resume.pdf", false).spin().unwrap();
+        let record = Pdf::from_file("./tests/records/sample-resume.pdf", false).unwrap().spin().unwrap();
         let expected_content = include_str!("../../tests/expected/sample-resume.out");
         assert_eq!(record.content.to_string(), expected_content);
     }

@@ -37,7 +37,7 @@ impl Display for Role {
 
 impl Display for ChatPrompt {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{}", serde_json::to_string(&self.0).unwrap())
+        write!(f, "{}", serde_json::to_string(&self.0).unwrap_or_default())
     }
 }
 
@@ -71,7 +71,7 @@ impl Message {
 
 impl Display for Message {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{}", serde_json::to_string(self).unwrap())
+        write!(f, "{}", serde_json::to_string(self).unwrap_or_default())
     }
 }
 

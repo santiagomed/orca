@@ -30,7 +30,7 @@ async fn main() {
     // init logger
     env_logger::init();
 
-    let pdf_records = Pdf::from_file(&args.file, false).spin().unwrap().split(399);
+    let pdf_records = Pdf::from_file(&args.file, false).unwrap().spin().unwrap().split(399);
     let bert = Bert::new().build_model_and_tokenizer().await.unwrap();
 
     let collection = std::path::Path::new(&args.file)
@@ -39,7 +39,7 @@ async fn main() {
         .unwrap_or("default_collection")
         .to_string();
 
-    let qdrant = Qdrant::new("http://localhost:6334");
+    let qdrant = Qdrant::new("http://localhost:6334").unwrap();
     if qdrant.create_collection(&collection, 384).await.is_ok() {
         let embeddings = bert.generate_embeddings(prompts!(&pdf_records)).await.unwrap();
         qdrant.insert_many(&collection, embeddings.to_vec2().unwrap(), pdf_records).await.unwrap();
@@ -86,8 +86,11 @@ async fn main() {
         .unwrap()
         .build_model()
         .unwrap();
-    let mut pipe = LLMPipeline::new(&mistral).with_template("query", prompt_for_model);
-    pipe.load_context(&Context::new(context).unwrap()).await;
+    let pipe = LLMPipeline::new(&mistral)
+        .load_template("query", prompt_for_model)
+        .unwrap()
+        .load_context(&Context::new(context).unwrap())
+        .unwrap();
 
     let response = pipe.execute("query").await.unwrap();
 

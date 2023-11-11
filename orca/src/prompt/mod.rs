@@ -58,10 +58,10 @@ impl TemplateEngine {
         }
     }
 
-    pub fn register_template(mut self, name: &str, template: &str) -> Self {
+    pub fn register_template(mut self, name: &str, template: &str) -> Result<Self> {
         self.templates.insert(name.to_string(), template.to_string());
-        self.reg.register_template_string(name, template).unwrap();
-        self
+        self.reg.register_template_string(name, template)?;
+        Ok(self)
     }
 
     pub fn get_template(&self, name: &str) -> Option<String> {
@@ -81,14 +81,11 @@ impl TemplateEngine {
     /// ```
     /// use orca::prompt::TemplateEngine;
     ///
-    /// let mut prompt = TemplateEngine::new().register_template("template", "Welcome!");
+    /// let mut prompt = TemplateEngine::new().register_template("template", "Welcome!").unwrap();
     /// prompt.add_to_template("template", "Hello, world!");
     /// assert_eq!(prompt.templates["template"], "Welcome!Hello, world!");
     /// ```
     pub fn add_to_template(&mut self, name: &str, new_template: &str) {
-        // TODO: Remove this temporary hack to add a new prompt to template
-        //       where we remove the chat tags from the template and add them
-        //       back after appending the new template.
         let mut chat = false;
         if let Some(template) = self.templates.get_mut(name) {
             if template.contains("{{#chat}}") && template.contains("{{/chat}}") {
@@ -116,7 +113,7 @@ impl TemplateEngine {
     /// use serde_json::json;
     /// use orca::prompt::TemplateEngine;
     ///
-    /// let prompt = TemplateEngine::new().register_template("template", "{{#if true}}Hello, world!{{/if}}");
+    /// let prompt = TemplateEngine::new().register_template("template", "{{#if true}}Hello, world!{{/if}}").unwrap();
     /// let result = prompt.render("template").unwrap();
     ///
     /// assert_eq!(result.to_string(), "Hello, world!".to_string());
@@ -142,7 +139,7 @@ impl TemplateEngine {
     /// use serde_json::json;
     /// use orca::prompt::TemplateEngine;
     ///
-    /// let prompt = TemplateEngine::new().register_template("template", "Hello, {{name}}!");
+    /// let prompt = TemplateEngine::new().register_template("template", "Hello, {{name}}!").unwrap();
     /// let data = json!({"name": "world"});
     /// let result = prompt.render_context("template", &data).unwrap();
     ///
@@ -187,7 +184,7 @@ impl TemplateEngine {
     /// # use orca::prompt::TemplateEngine;
     /// # use orca::prompt::chat::{Role, Message, ChatPrompt};
     ///
-    /// let prompt = TemplateEngine::new().register_template("template", "{{#system}}Hello, {{name}}!{{/system}}");
+    /// let prompt = TemplateEngine::new().register_template("template", "{{#system}}Hello, {{name}}!{{/system}}").unwrap();
     /// let data = json!({"name": "world"});
     /// let result = prompt.render_chat("template", Some(&data));
     /// ```
@@ -336,7 +333,7 @@ macro_rules! template {
         {
             let mut engine = TemplateEngine::new();
             $(
-                engine = engine.register_template($name, $template);
+                engine = engine.register_template($name, $template).unwrap();
             )*
             engine
         }
