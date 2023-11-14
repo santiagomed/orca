@@ -10,6 +10,8 @@ use candle_core::{Device, Result as CandleResult, Tensor};
 
 use crate::prompt::Prompt;
 
+use self::openai::JsonModeResponse;
+
 /// Generate with context trait is used to execute an LLM using a context and a prompt template.
 /// The context is a previously created context using the Context struct. The prompt template
 /// is a previously created prompt template using the template! macro.
@@ -125,6 +127,9 @@ pub enum LLMResponse {
     /// OpenAI response
     OpenAI(openai::Response),
 
+    /// OpenAI json mode response
+    OpenAIJson(openai::JsonModeResponse),
+
     /// Quantized model response
     Quantized(String),
 
@@ -137,6 +142,13 @@ impl From<Response> for LLMResponse {
     /// Convert an OpenAI response to an LLMResponse
     fn from(response: openai::Response) -> Self {
         LLMResponse::OpenAI(response)
+    }
+}
+
+impl From<JsonModeResponse> for LLMResponse {
+    fn from(json_response: JsonModeResponse) -> Self {
+        // Convert JsonModeResponse to LLMResponse variant
+        LLMResponse::OpenAIJson(json_response)
     }
 }
 
@@ -198,6 +210,7 @@ impl LLMResponse {
     pub fn to_role(&self) -> String {
         match self {
             LLMResponse::OpenAI(response) => response.to_string(),
+            LLMResponse::OpenAIJson(response) => response.to_string(),
             LLMResponse::Quantized(_) => "ai".to_string(),
             LLMResponse::Empty => panic!("empty response does not have a role"),
         }
@@ -209,6 +222,9 @@ impl Display for LLMResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             LLMResponse::OpenAI(response) => {
+                write!(f, "{}", response)
+            }
+            LLMResponse::OpenAIJson(response) => {
                 write!(f, "{}", response)
             }
             LLMResponse::Quantized(response) => {

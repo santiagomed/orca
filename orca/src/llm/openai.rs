@@ -5,6 +5,7 @@ use crate::{
     prompt::{chat::Message, Prompt},
 };
 use anyhow::Result;
+use pdf::content::Op;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
@@ -21,6 +22,8 @@ pub struct Payload {
     stop: Option<Vec<String>>,
     messages: Vec<Message>,
     stream: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    response_format: Option<ResponseFormat>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -37,6 +40,17 @@ pub struct Response {
     model: String,
     usage: Usage,
     choices: Vec<Choice>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct JsonModeResponse {
+    id: String,
+    choices: Vec<Choice>,
+    created: i64,
+    model: String,
+    object: String,
+    system_fingerprint: String,
+    usage: Usage,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
@@ -90,11 +104,27 @@ impl Display for Response {
     }
 }
 
+impl Display for JsonModeResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = String::new();
+        for choice in &self.choices {
+            s.push_str(&choice.message.content);
+        }
+        write!(f, "{}", s)
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct Usage {
     prompt_tokens: i32,
     completion_tokens: Option<i32>,
     total_tokens: i32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ResponseFormat {
+    #[serde(rename = "type")]
+    pub type_: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -151,6 +181,10 @@ pub struct OpenAI {
     ///
     /// The total length of input tokens and generated tokens is limited by the model's context length. [Example Python code](https://github.com/openai/openai-cookbook/blob/main/examples/How_to_count_tokens_with_tiktoken.ipynb) for counting tokens.
     max_tokens: u16,
+
+    /// The format of the returned data. With the new update, the response can be set to a JSON object.
+    /// https://platform.openai.com/docs/guides/text-generation/json-mode
+    response_format: Option<ResponseFormat>,
 }
 
 impl Default for OpenAI {
@@ -158,13 +192,14 @@ impl Default for OpenAI {
         Self {
             client: Client::new(),
             url: OPENAI_COMPLETIONS_URL.to_string(),
-            api_key: std::env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY not set"),
+            api_key: "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".to_string(),
             model: "gpt-3.5-turbo".to_string(),
             emedding_model: "text-embedding-ada-002".to_string(),
             temperature: 1.0,
             top_p: 1.0,
             stream: false,
             max_tokens: 1024u16,
+            response_format: None,
         }
     }
 }
@@ -215,6 +250,11 @@ impl OpenAI {
         self
     }
 
+    pub fn with_response_format(mut self, response_format: Option<ResponseFormat>) -> Self {
+        self.response_format = response_format;
+        self
+    }
+
     /// Generate a request for the OpenAI API and set the parameters
     pub fn generate_request(&self, messages: &[Message]) -> Result<reqwest::Request> {
         let payload = Payload {
@@ -225,13 +265,18 @@ impl OpenAI {
             stop: None,
             messages: messages.to_vec(),
             stream: self.stream,
+            response_format: self.response_format.clone(),
         };
+
+        println!("Payload {:#?}", payload);
         let req = self
             .client
             .post(&self.url)
             .header("Authorization", format!("Bearer {}", self.api_key))
             .json(&payload)
             .build()?;
+
+        println!("Payload {:#?}", req);
         Ok(req)
     }
 
@@ -260,7 +305,16 @@ impl LLM for OpenAI {
     async fn generate(&self, prompt: Box<dyn Prompt>) -> Result<LLMResponse> {
         let messages = prompt.to_chat()?;
         let req = self.generate_request(messages.to_vec_ref())?;
+        println!("<<<<< {:#?}", req);
         let res = self.client.execute(req).await?;
+
+        println!("<<<<< {:#?}", res);
+        if let Some(response_format) = &self.response_format {
+            if response_format.type_ == "json" {
+                let res = res.json::<JsonModeResponse>().await?;
+                return Ok(res.into());
+            }
+        }
         let res = res.json::<Response>().await?;
         Ok(res.into())
     }
@@ -370,6 +424,35 @@ mod test {
             {{#user}}
             What is the capital of {{country1}}?
             {{/user}}
+            {{#assistant}} 
+            Paris
+            {{/assistant}}
+            {{#user}}
+            What is the capital of {{country2}}?
+            {{/user}}
+            {{/chat}}
+            "#
+        );
+        let prompt = prompt.render_context("my template", &context).unwrap();
+        let response = client.generate(prompt).await.unwrap();
+        assert!(response.to_string().to_lowercase().contains("berlin"));
+    }
+
+    #[tokio::test]
+    async fn test_generate_json_mode() {
+        let client = OpenAI::new().with_model("gpt-3.5-turbo-1106").with_response_format(Some(ResponseFormat {
+            type_: "json".to_string(),
+        }));
+        let mut context = HashMap::new();
+        context.insert("country1", "France");
+        context.insert("country2", "Germany");
+        let prompt = template!(
+            "my template",
+            r#"
+            {{#chat}}
+            {{#user}}
+            What is the capital of {{country1}}?
+            {{/user}}
             {{#assistant}}
             Paris
             {{/assistant}}
@@ -382,6 +465,8 @@ mod test {
         let prompt = prompt.render_context("my template", &context).unwrap();
         let response = client.generate(prompt).await.unwrap();
         assert!(response.to_string().to_lowercase().contains("berlin"));
+        //  Assert response is a JSON object
+        assert!(response.to_string().starts_with("{"));
     }
 
     #[tokio::test]
