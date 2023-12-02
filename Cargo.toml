@@ -2,7 +2,7 @@
 resolver = "1"
 
 members = [
-    "orca",
+    "orca-core",
     "examples/*",
-    "models"
+    "orca-models"
 ]
