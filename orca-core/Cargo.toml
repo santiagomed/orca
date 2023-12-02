@@ -1,5 +1,5 @@
 [package]
-name = "orca"
+name = "orca-core"
 description = "Orca is an LLM orchestration framework built in Rust"
 homepage = "https://orca.scrippt.tech"
 documentation = "https://docs.rs/orca"
