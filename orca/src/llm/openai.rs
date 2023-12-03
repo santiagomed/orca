@@ -5,7 +5,6 @@ use crate::{
     prompt::{chat::Message, Prompt},
 };
 use anyhow::Result;
-use pdf::content::Op;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
@@ -14,16 +13,13 @@ use super::{EmbeddingResponse, LLMResponse};
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Payload {
     model: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    prompt: Option<String>,
     max_tokens: i32,
     temperature: f32,
     #[serde(skip_serializing_if = "Option::is_none")]
     stop: Option<Vec<String>>,
     messages: Vec<Message>,
     stream: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    response_format: Option<ResponseFormat>,
+    response_format: ResponseFormat,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -40,17 +36,6 @@ pub struct Response {
     model: String,
     usage: Usage,
     choices: Vec<Choice>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct JsonModeResponse {
-    id: String,
-    choices: Vec<Choice>,
-    created: i64,
-    model: String,
-    object: String,
-    system_fingerprint: String,
-    usage: Usage,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
@@ -104,16 +89,6 @@ impl Display for Response {
     }
 }
 
-impl Display for JsonModeResponse {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut s = String::new();
-        for choice in &self.choices {
-            s.push_str(&choice.message.content);
-        }
-        write!(f, "{}", s)
-    }
-}
-
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct Usage {
     prompt_tokens: i32,
@@ -121,10 +96,11 @@ pub struct Usage {
     total_tokens: i32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ResponseFormat {
-    #[serde(rename = "type")]
-    pub type_: String,
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum ResponseFormat {
+    Text,
+    JsonObject,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -184,7 +160,7 @@ pub struct OpenAI {
 
     /// The format of the returned data. With the new update, the response can be set to a JSON object.
     /// https://platform.openai.com/docs/guides/text-generation/json-mode
-    response_format: Option<ResponseFormat>,
+    response_format: ResponseFormat,
 }
 
 impl Default for OpenAI {
@@ -193,13 +169,13 @@ impl Default for OpenAI {
             client: Client::new(),
             url: OPENAI_COMPLETIONS_URL.to_string(),
             api_key: std::env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY environment variable not set"),
-            model: "gpt-3.5-turbo".to_string(),
+            model: "gpt-3.5-turbo-1106".to_string(),
             emedding_model: "text-embedding-ada-002".to_string(),
             temperature: 1.0,
             top_p: 1.0,
             stream: false,
             max_tokens: 1024u16,
-            response_format: None,
+            response_format: ResponseFormat::Text,
         }
     }
 }
@@ -250,7 +226,7 @@ impl OpenAI {
         self
     }
 
-    pub fn with_response_format(mut self, response_format: Option<ResponseFormat>) -> Self {
+    pub fn with_response_format(mut self, response_format: ResponseFormat) -> Self {
         self.response_format = response_format;
         self
     }
@@ -259,7 +235,6 @@ impl OpenAI {
     pub fn generate_request(&self, messages: &[Message]) -> Result<reqwest::Request> {
         let payload = Payload {
             model: self.model.clone(),
-            prompt: None,
             max_tokens: self.max_tokens as i32,
             temperature: self.temperature,
             stop: None,
@@ -305,16 +280,8 @@ impl LLM for OpenAI {
     async fn generate(&self, prompt: Box<dyn Prompt>) -> Result<LLMResponse> {
         let messages = prompt.to_chat()?;
         let req = self.generate_request(messages.to_vec_ref())?;
-        println!("<<<<< {:#?}", req);
         let res = self.client.execute(req).await?;
 
-        println!("<<<<< {:#?}", res);
-        if let Some(response_format) = &self.response_format {
-            if response_format.type_ == "json" {
-                let res = res.json::<JsonModeResponse>().await?;
-                return Ok(res.into());
-            }
-        }
         let res = res.json::<Response>().await?;
         Ok(res.into())
     }
@@ -440,9 +407,7 @@ mod test {
 
     #[tokio::test]
     async fn test_generate_json_mode() {
-        let client = OpenAI::new().with_model("gpt-3.5-turbo-1106").with_response_format(Some(ResponseFormat {
-            type_: "json".to_string(),
-        }));
+        let client = OpenAI::new().with_model("gpt-3.5-turbo-1106").with_response_format(ResponseFormat::JsonObject);
         let mut context = HashMap::new();
         context.insert("country1", "France");
         context.insert("country2", "Germany");
