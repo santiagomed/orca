@@ -13,6 +13,8 @@ use super::{EmbeddingResponse, LLMResponse};
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Payload {
     model: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    prompt: Option<String>,
     max_tokens: i32,
     temperature: f32,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -168,7 +170,7 @@ impl Default for OpenAI {
         Self {
             client: Client::new(),
             url: OPENAI_COMPLETIONS_URL.to_string(),
-            api_key: std::env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY environment variable not set"),
+            api_key: std::env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY not set"),
             model: "gpt-3.5-turbo-1106".to_string(),
             emedding_model: "text-embedding-ada-002".to_string(),
             temperature: 1.0,
@@ -235,6 +237,7 @@ impl OpenAI {
     pub fn generate_request(&self, messages: &[Message]) -> Result<reqwest::Request> {
         let payload = Payload {
             model: self.model.clone(),
+            prompt: None,
             max_tokens: self.max_tokens as i32,
             temperature: self.temperature,
             stop: None,
@@ -242,16 +245,12 @@ impl OpenAI {
             stream: self.stream,
             response_format: self.response_format.clone(),
         };
-
-        println!("Payload {:#?}", payload);
         let req = self
             .client
             .post(&self.url)
             .header("Authorization", format!("Bearer {}", self.api_key))
             .json(&payload)
             .build()?;
-
-        println!("Payload {:#?}", req);
         Ok(req)
     }
 
@@ -281,7 +280,6 @@ impl LLM for OpenAI {
         let messages = prompt.to_chat()?;
         let req = self.generate_request(messages.to_vec_ref())?;
         let res = self.client.execute(req).await?;
-
         let res = res.json::<Response>().await?;
         Ok(res.into())
     }
@@ -391,7 +389,7 @@ mod test {
             {{#user}}
             What is the capital of {{country1}}?
             {{/user}}
-            {{#assistant}} 
+            {{#assistant}}
             Paris
             {{/assistant}}
             {{#user}}
