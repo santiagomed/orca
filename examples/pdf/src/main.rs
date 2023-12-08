@@ -1,10 +1,11 @@
+use anyhow::{Context, Result};
 use clap::Parser;
 use orca::{
     llm::{bert::Bert, quantized::Quantized, Embedding},
     pipeline::simple::LLMPipeline,
     pipeline::Pipeline,
     prompt,
-    prompt::context::Context,
+    prompt::context::Context as OrcaContext,
     prompts,
     qdrant::Qdrant,
     record::{pdf::Pdf, Spin},
@@ -24,29 +25,37 @@ struct Args {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     let args = Args::parse();
 
     // init logger
     env_logger::init();
 
-    let pdf_records = Pdf::from_file(&args.file, false).unwrap().spin().unwrap().split(399);
-    let bert = Bert::new().build_model_and_tokenizer().await.unwrap();
+    let pdf_records = Pdf::from_file(&args.file, false)
+        .context("Failed to read PDF file")?
+        .spin()
+        .context("Failed to process PDF spin")?
+        .split(399);
+
+    let bert = Bert::new().build_model_and_tokenizer().await?;
 
     let collection = std::path::Path::new(&args.file)
         .file_stem()
         .and_then(|name| name.to_str())
-        .unwrap_or("default_collection")
+        .ok_or_else(|| anyhow::anyhow!("Failed to extract file stem"))?
         .to_string();
 
-    let qdrant = Qdrant::new("http://localhost:6334").unwrap();
-    if qdrant.create_collection(&collection, 384).await.is_ok() {
-        let embeddings = bert.generate_embeddings(prompts!(&pdf_records)).await.unwrap();
-        qdrant.insert_many(&collection, embeddings.to_vec2().unwrap(), pdf_records).await.unwrap();
-    }
+    // Initialize Qdrant
+    let qdrant = Qdrant::new("http://localhost:6334")?;
+    qdrant.create_collection(&collection, 384).await?;
 
-    let query_embedding = bert.generate_embedding(prompt!(args.prompt)).await.unwrap();
-    let result = qdrant.search(&collection, query_embedding.to_vec().unwrap().clone(), 5, None).await.unwrap();
+    // Generate embeddings and insert into Qdrant
+    let embeddings = bert.generate_embeddings(prompts!(&pdf_records)).await?;
+    qdrant.insert_many(&collection, embeddings.to_vec2()?, pdf_records).await?;
+
+    // Use prompt to query Qdrant
+    let query_embedding = bert.generate_embedding(prompt!(args.prompt)).await?;
+    let result = qdrant.search(&collection, query_embedding.to_vec()?.clone(), 5, None).await?;
 
     let prompt_for_model = r#"
     {{#chat}}
@@ -72,7 +81,6 @@ async fn main() {
             .iter()
             .filter_map(|found_point| {
                 found_point.payload.as_ref().map(|payload| {
-                    // Assuming you want to convert the whole payload to a JSON string
                     serde_json::to_string(payload).unwrap_or_else(|_| "{}".to_string())
                 })
             })
@@ -82,17 +90,16 @@ async fn main() {
     let mistral = Quantized::new()
         .with_model(orca::llm::quantized::Model::Mistral7bInstruct)
         .with_sample_len(7500)
-        .load_model_from_path("../../models/mistral-7b-instruct-v0.1.Q4_K_S.gguf")
-        .unwrap()
-        .build_model()
-        .unwrap();
-    let pipe = LLMPipeline::new(&mistral)
-        .load_template("query", prompt_for_model)
-        .unwrap()
-        .load_context(&Context::new(context).unwrap())
-        .unwrap();
+        .load_model_from_path("../../models/mistral-7b-instruct-v0.1.Q4_K_S.gguf")?
+        .build_model()?;
 
-    let response = pipe.execute("query").await.unwrap();
+    let pipe = LLMPipeline::new(&mistral)
+        .load_template("query", prompt_for_model)?
+        .load_context(&OrcaContext::new(context)?)?;
+
+    let response = pipe.execute("query").await?;
 
     println!("Response: {}", response.content());
+
+    Ok(())
 }
