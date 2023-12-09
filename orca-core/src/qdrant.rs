@@ -98,7 +98,7 @@ impl Qdrant {
     ///
     /// # Example
     /// ```
-    /// use orca::qdrant::Qdrant;
+    /// use orca_core::qdrant::Qdrant;
     ///
     /// let client = Qdrant::new("http://localhost:6334").unwrap();
     /// ```
@@ -116,7 +116,7 @@ impl Qdrant {
     ///
     /// # Example
     /// ```no_run
-    /// # use orca::qdrant::Qdrant;
+    /// # use orca_core::qdrant::Qdrant;
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let client = Qdrant::new("http://localhost:6334").unwrap();
@@ -150,7 +150,7 @@ impl Qdrant {
     ///
     /// # Example
     /// ```no_run
-    /// # use orca::qdrant::Qdrant;
+    /// # use orca_core::qdrant::Qdrant;
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # let client = Qdrant::new("http://localhost:6334").unwrap();
@@ -172,7 +172,7 @@ impl Qdrant {
     ///
     /// # Examples
     /// ```no_run
-    /// # use orca::qdrant::Qdrant;
+    /// # use orca_core::qdrant::Qdrant;
     /// # use serde::{Serialize, Deserialize};
     /// # #[derive(Serialize, Deserialize)]
     /// # struct MyPayload {
@@ -215,7 +215,7 @@ impl Qdrant {
     /// # Examples
     ///
     /// ```no_run
-    /// # use orca::qdrant::Qdrant;
+    /// # use orca_core::qdrant::Qdrant;
     /// # use std::error::Error;
     /// #
     /// # #[tokio::main]
@@ -266,7 +266,7 @@ impl Qdrant {
     ///
     /// # Example
     /// ```no_run
-    /// # use orca::qdrant::{Qdrant, Condition};
+    /// # use orca_core::qdrant::{Qdrant, Condition};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let client = Qdrant::new("http://localhost:6334").unwrap();

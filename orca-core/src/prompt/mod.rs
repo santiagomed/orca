@@ -40,7 +40,7 @@ impl TemplateEngine {
     ///
     /// # Example
     /// ```
-    /// use orca::prompt::TemplateEngine;
+    /// use orca_core::prompt::TemplateEngine;
     /// let prompt = TemplateEngine::new();
     /// ```
     pub fn new() -> TemplateEngine {
@@ -79,7 +79,7 @@ impl TemplateEngine {
     ///
     /// # Example
     /// ```
-    /// use orca::prompt::TemplateEngine;
+    /// use orca_core::prompt::TemplateEngine;
     ///
     /// let mut prompt = TemplateEngine::new().register_template("template", "Welcome!").unwrap();
     /// prompt.add_to_template("template", "Hello, world!");
@@ -111,7 +111,7 @@ impl TemplateEngine {
     /// # Example
     /// ```
     /// use serde_json::json;
-    /// use orca::prompt::TemplateEngine;
+    /// use orca_core::prompt::TemplateEngine;
     ///
     /// let prompt = TemplateEngine::new().register_template("template", "{{#if true}}Hello, world!{{/if}}").unwrap();
     /// let result = prompt.render("template").unwrap();
@@ -137,7 +137,7 @@ impl TemplateEngine {
     /// # Example
     /// ```
     /// use serde_json::json;
-    /// use orca::prompt::TemplateEngine;
+    /// use orca_core::prompt::TemplateEngine;
     ///
     /// let prompt = TemplateEngine::new().register_template("template", "Hello, {{name}}!").unwrap();
     /// let data = json!({"name": "world"});
@@ -181,8 +181,8 @@ impl TemplateEngine {
     /// # Example
     /// ```
     /// # use serde_json::json;
-    /// # use orca::prompt::TemplateEngine;
-    /// # use orca::prompt::chat::{Role, Message, ChatPrompt};
+    /// # use orca_core::prompt::TemplateEngine;
+    /// # use orca_core::prompt::chat::{Role, Message, ChatPrompt};
     ///
     /// let prompt = TemplateEngine::new().register_template("template", "{{#system}}Hello, {{name}}!{{/system}}").unwrap();
     /// let data = json!({"name": "world"});
@@ -226,8 +226,8 @@ pub trait Prompt: Sync + Send + Display {
     ///
     /// # Examples
     /// ```
-    /// use orca::prompt;
-    /// use orca::prompt::Prompt;
+    /// use orca_core::prompt;
+    /// use orca_core::prompt::Prompt;
     ///
     /// let mut my_prompt = prompt!("Some prompt");
     /// let another_prompt = prompt!("Some other prompt");
@@ -253,8 +253,8 @@ pub trait Prompt: Sync + Send + Display {
     ///
     /// # Examples
     /// ```
-    /// use orca::prompt;
-    /// use orca::prompt::Prompt;
+    /// use orca_core::prompt;
+    /// use orca_core::prompt::Prompt;
     ///
     /// let my_prompt = prompt!("Some prompt");
     /// let cloned_prompt = my_prompt.clone_prompt();
@@ -313,8 +313,8 @@ macro_rules! prompts {
     ($e:expr) => {{
         $e
             .into_iter()
-            .map(|x| Box::new(x.clone()) as Box<dyn orca::prompt::Prompt>)
-            .collect::<Vec<Box<dyn orca::prompt::Prompt>>>()
+            .map(|x| Box::new(x.clone()) as Box<dyn crate::prompt::Prompt>)
+            .collect::<Vec<Box<dyn crate::prompt::Prompt>>>()
     }};
     ($($e:expr),* $(,)?) => {
         {

@@ -86,8 +86,8 @@ impl Record {
     ///
     /// # Example
     /// ```
-    /// # use orca::record::Record;
-    /// # use orca::record::Content;
+    /// # use orca_core::record::Record;
+    /// # use orca_core::record::Content;
     /// let record = Record::new(Content::String("Hello World".into()));
     /// let records = record.split(5);
     /// assert_eq!(records.len(), 2);
@@ -131,9 +131,9 @@ impl Record {
     ///
     /// # Example
     /// ```no_run
-    /// # use orca::record::Record;
-    /// # use orca::record::Content;
-    /// # use orca::record::Tokenizer;
+    /// # use orca_core::record::Record;
+    /// # use orca_core::record::Content;
+    /// # use orca_core::record::Tokenizer;
     /// # use std::path::Path;
     /// let record = Record::new(Content::String("Hello World".into()));
     /// let records = record.split_with_tokenizer(2, Tokenizer::Huggingface("path_to_tokenizer".into())).unwrap();

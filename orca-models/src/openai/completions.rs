@@ -137,13 +137,6 @@ impl OpenAI {
         self
     }
 
-    /// Set emedding model to use
-    /// e.g. "text-embedding-ada-002"
-    pub fn with_emedding_model(mut self, emedding_model: &str) -> Self {
-        self.emedding_model = emedding_model.to_string();
-        self
-    }
-
     /// What sampling temperature to use, between 0 and 2. Higher values like 0.8 will make the output more random,
     /// while lower values like 0.2 will make it more focused and deterministic.
     pub fn with_temperature(mut self, temperature: f32) -> Self {

@@ -25,7 +25,7 @@ impl Pdf {
     /// Create a new Pdf record from a buffer
     /// When calling this function, specify the PDF generic type as a slice of bytes
     /// ```
-    /// use orca::record::pdf::Pdf;
+    /// use orca_core::record::pdf::Pdf;
     /// use base64::{engine::general_purpose, Engine};
     /// use std::io::Read;
     ///
@@ -48,7 +48,7 @@ impl Pdf {
     /// Create a new PDF record from a file
     /// When calling this function, specify the PDF generic type as a vector of bytes
     /// ```
-    /// use orca::record::pdf::Pdf;
+    /// use orca_core::record::pdf::Pdf;
     ///
     /// let record = Pdf::from_file("./tests/records/sample-resume.pdf", false);
     /// ```

@@ -125,8 +125,8 @@ impl OpenAI {
 
     /// Set emedding model to use
     /// e.g. "text-embedding-ada-002"
-    pub fn with_model(mut self, emedding_model: &str) -> Self {
-        self.emedding_model = emedding_model.to_string();
+    pub fn with_model(mut self, model: &str) -> Self {
+        self.model = model.to_string();
         self
     }
 
@@ -160,7 +160,7 @@ impl OpenAI {
 
     pub fn generate_request(&self, prompt: &str) -> Result<reqwest::Request> {
         let payload = Payload {
-            model: self.emedding_model.clone(),
+            model: self.model.clone(),
             input: prompt.to_string(),
         };
 
