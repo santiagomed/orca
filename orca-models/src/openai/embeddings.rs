@@ -175,7 +175,7 @@ impl OpenAI {
         Ok(req)
     }
 
-    async fn generate_embedding(&self, prompt: String) -> Result<Vec<Response>> {
+    async fn generate_embedding(&self, prompt: String) -> Result<Response> {
         let req = self.generate_request(&prompt)?;
         let res = self.client.execute(req).await?;
         let res = res.json::<Response>().await?;

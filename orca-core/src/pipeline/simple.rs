@@ -116,9 +116,7 @@ impl<M: LLM + Clone + 'static> LLMPipeline<M> {
                 self.template_engine = template_clone;
                 Ok(template_name)
             }
-            None => {
-                return Err(anyhow::anyhow!("Template with name {} does not exist", name));
-            }
+            None => Err(anyhow::anyhow!("Template with name {} does not exist", name)),
         }
     }
 

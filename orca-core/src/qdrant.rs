@@ -108,6 +108,24 @@ impl Qdrant {
         Ok(Qdrant { client })
     }
 
+    /// Creates a new `Qdrant` instance given an existing `QdrantClient`.
+    /// This is useful if you want to use a custom `QdrantClient` instance.
+    ///
+    /// # Arguments
+    /// * `client` - An existing `QdrantClient` instance.
+    ///
+    /// # Example
+    /// ```
+    /// use orca_core::qdrant::Qdrant;
+    /// use qdrant_client::prelude::QdrantClient;
+    ///
+    /// let client = QdrantClient::new(None).unwrap();
+    /// let qdrant = Qdrant::from_client(client);
+    /// ```
+    pub fn from_client(client: QdrantClient) -> Self {
+        Qdrant { client }
+    }
+
     /// Creates a new collection with the given name and vector size.
     ///
     /// # Arguments
@@ -195,7 +213,7 @@ impl Qdrant {
     {
         let payload: Payload = payload.to_payload()?;
         let points = vec![PointStruct::new(0, vector, payload)];
-        self.client.upsert_points_blocking(collection_name, points, None).await?;
+        self.client.upsert_points_blocking(collection_name, None, points, None).await?;
         Ok(())
     }
 
@@ -249,7 +267,7 @@ impl Qdrant {
 
         let points = points_result?;
 
-        self.client.upsert_points_blocking(collection_name, points, None).await?;
+        self.client.upsert_points_blocking(collection_name, None, points, None).await?;
         Ok(())
     }
 

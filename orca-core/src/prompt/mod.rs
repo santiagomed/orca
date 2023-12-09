@@ -313,14 +313,14 @@ macro_rules! prompts {
     ($e:expr) => {{
         $e
             .into_iter()
-            .map(|x| Box::new(x.clone()) as Box<dyn crate::prompt::Prompt>)
-            .collect::<Vec<Box<dyn crate::prompt::Prompt>>>()
+            .map(|x| Box::new(x.clone()) as Box<dyn $crate::prompt::Prompt>)
+            .collect::<Vec<Box<dyn $crate::prompt::Prompt>>>()
     }};
     ($($e:expr),* $(,)?) => {
         {
             let mut prompts = Vec::new();
             $(
-                prompts.push(Box::new($e.to_string()) as Box<dyn Prompt>);
+                prompts.push(Box::new($e.to_string()) as Box<dyn $crate::prompt::Prompt>);
             )*
             prompts
         }
