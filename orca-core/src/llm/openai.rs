@@ -21,13 +21,19 @@ pub struct Payload {
     stop: Option<Vec<String>>,
     messages: Vec<Message>,
     stream: bool,
-    response_format: ResponseFormat,
+    response_format: ResponseFormatWrapper,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct EmbeddingPayload {
     input: String,
     model: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ResponseFormatWrapper {
+    #[serde(rename = "type")]
+    pub format: ResponseFormat,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -103,6 +109,12 @@ pub struct Usage {
 pub enum ResponseFormat {
     Text,
     JsonObject,
+}
+
+impl From<ResponseFormat> for ResponseFormatWrapper {
+    fn from(format: ResponseFormat) -> Self {
+        ResponseFormatWrapper { format }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -243,7 +255,7 @@ impl OpenAI {
             stop: None,
             messages: messages.to_vec(),
             stream: self.stream,
-            response_format: self.response_format.clone(),
+            response_format: self.response_format.clone().into(),
         };
         let req = self
             .client
@@ -420,7 +432,7 @@ mod test {
             Paris
             {{/assistant}}
             {{#user}}
-            What is the capital of {{country2}}?
+            What is the capital of {{country2}} in a JSON format?
             {{/user}}
             {{/chat}}
             "#
