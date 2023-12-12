@@ -59,19 +59,25 @@ async fn main() -> Result<()> {
 
     let prompt_for_model = r#"
     {{#chat}}
+
         {{#system}}
         You are a highly advanced assistant. You receive a prompt from a user and relevant excerpts extracted from a PDF. You then answer truthfully to the best of your ability. If you do not know the answer, your response is I don't know.
         {{/system}}
+
         {{#user}}
         {{user_prompt}}
         {{/user}}
+
         {{#system}}
         Based on the retrieved information from the PDF, here are the relevant excerpts:
+        
         {{#each payloads}}
         {{this}}
         {{/each}}
+
         Please provide a comprehensive answer to the user's question, integrating insights from these excerpts and your general knowledge.
         {{/system}}
+
     {{/chat}}
     "#;
 
@@ -88,9 +94,9 @@ async fn main() -> Result<()> {
     });
 
     let mistral = Quantized::new()
-        .with_model(orca::llm::quantized::Model::Mistral7bInstruct)
+        .with_model(orca::llm::quantized::Model::L7bChat)
         .with_sample_len(7500)
-        .load_model_from_path("../../models/mistral-7b-instruct-v0.1.Q4_K_S.gguf")?
+        .load_model_from_path("../../weights/llama-2-7b-chat.ggmlv3.q2_K.bin")?
         .build_model()?;
 
     let pipe = LLMPipeline::new(&mistral)
