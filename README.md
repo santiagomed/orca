@@ -26,7 +26,7 @@ Orca is currently in development. It is hard to say what the future of Orca look
 To set up Orca, you will need to install Rust. You can do this by following the instructions [here](https://www.rust-lang.org/tools/install). Once you have Rust installed, you can add Orca to your Cargo.toml file as a dependency:
 ```toml
 [dependencies]
-orca = { git = "https://github.com/scrippt-tech/orca" }
+orca = { git = "https://github.com/scrippt-tech/orca", package = "orca-core" }
 ```
 
 # Features
@@ -75,13 +75,12 @@ async fn main() -> anyhow::Result<()> {
             {{/user}}
             {{/chat}}
             "#;
-    let mut pipeline = LLMPipeline::new(&client).with_template("capitals", prompt);
-    pipeline
+    let pipeline = LLMPipeline::new(&client)
+        .load_template("capitals", prompt)?
         .load_context(&Context::new(Data {
             country1: "France".to_string(),
             country2: "Germany".to_string(),
-        })?)
-        .await;
+        })?)?;
     let res = pipeline.execute("capitals").await?.content();
 
     assert!(res.contains("Berlin") || res.contains("berlin"));

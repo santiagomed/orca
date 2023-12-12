@@ -98,7 +98,7 @@ impl Qdrant {
     ///
     /// # Example
     /// ```
-    /// use orca::qdrant::Qdrant;
+    /// use orca_core::qdrant::Qdrant;
     ///
     /// let client = Qdrant::new("http://localhost:6334").unwrap();
     /// ```
@@ -106,6 +106,24 @@ impl Qdrant {
         let config = QdrantClientConfig::from_url(url);
         let client = QdrantClient::new(Some(config))?;
         Ok(Qdrant { client })
+    }
+
+    /// Creates a new `Qdrant` instance given an existing `QdrantClient`.
+    /// This is useful if you want to use a custom `QdrantClient` instance.
+    ///
+    /// # Arguments
+    /// * `client` - An existing `QdrantClient` instance.
+    ///
+    /// # Example
+    /// ```
+    /// use orca_core::qdrant::Qdrant;
+    /// use qdrant_client::prelude::QdrantClient;
+    ///
+    /// let client = QdrantClient::new(None).unwrap();
+    /// let qdrant = Qdrant::from_client(client);
+    /// ```
+    pub fn from_client(client: QdrantClient) -> Self {
+        Qdrant { client }
     }
 
     /// Creates a new collection with the given name and vector size.
@@ -116,7 +134,7 @@ impl Qdrant {
     ///
     /// # Example
     /// ```no_run
-    /// # use orca::qdrant::Qdrant;
+    /// # use orca_core::qdrant::Qdrant;
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let client = Qdrant::new("http://localhost:6334").unwrap();
@@ -150,7 +168,7 @@ impl Qdrant {
     ///
     /// # Example
     /// ```no_run
-    /// # use orca::qdrant::Qdrant;
+    /// # use orca_core::qdrant::Qdrant;
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # let client = Qdrant::new("http://localhost:6334").unwrap();
@@ -172,7 +190,7 @@ impl Qdrant {
     ///
     /// # Examples
     /// ```no_run
-    /// # use orca::qdrant::Qdrant;
+    /// # use orca_core::qdrant::Qdrant;
     /// # use serde::{Serialize, Deserialize};
     /// # #[derive(Serialize, Deserialize)]
     /// # struct MyPayload {
@@ -195,7 +213,7 @@ impl Qdrant {
     {
         let payload: Payload = payload.to_payload()?;
         let points = vec![PointStruct::new(0, vector, payload)];
-        self.client.upsert_points_blocking(collection_name, points, None).await?;
+        self.client.upsert_points_blocking(collection_name, None, points, None).await?;
         Ok(())
     }
 
@@ -215,7 +233,7 @@ impl Qdrant {
     /// # Examples
     ///
     /// ```no_run
-    /// # use orca::qdrant::Qdrant;
+    /// # use orca_core::qdrant::Qdrant;
     /// # use std::error::Error;
     /// #
     /// # #[tokio::main]
@@ -249,7 +267,7 @@ impl Qdrant {
 
         let points = points_result?;
 
-        self.client.upsert_points_blocking(collection_name, points, None).await?;
+        self.client.upsert_points_blocking(collection_name, None, points, None).await?;
         Ok(())
     }
 
@@ -266,7 +284,7 @@ impl Qdrant {
     ///
     /// # Example
     /// ```no_run
-    /// # use orca::qdrant::{Qdrant, Condition};
+    /// # use orca_core::qdrant::{Qdrant, Condition};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let client = Qdrant::new("http://localhost:6334").unwrap();

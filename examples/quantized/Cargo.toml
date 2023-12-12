@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 tokio = "1.33.0"
-orca = { path = "../../orca" }
+orca = { path = "../../orca-core", package = "orca-core"}
 anyhow = "1.0.75"
 log = "0.4.20"
 env_logger = "0.10.0"

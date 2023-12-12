@@ -41,10 +41,10 @@ impl<M: LLM + Clone + 'static> LLMPipeline<M> {
     ///
     /// # Examples
     /// ```rust
-    /// use orca::llm::openai::OpenAI;
-    /// use orca::llm::LLM;
-    /// use orca::prompt::TemplateEngine;
-    /// use orca::pipeline::simple::LLMPipeline;
+    /// use orca_core::llm::openai::OpenAI;
+    /// use orca_core::llm::LLM;
+    /// use orca_core::prompt::TemplateEngine;
+    /// use orca_core::pipeline::simple::LLMPipeline;
     ///
     /// let client = OpenAI::new();
     /// let prompt = "Hello, LLM!";
@@ -66,11 +66,11 @@ impl<M: LLM + Clone + 'static> LLMPipeline<M> {
     ///
     /// # Examples
     /// ```rust
-    /// use orca::llm::openai::OpenAI;
-    /// use orca::llm::LLM;
-    /// use orca::prompt::TemplateEngine;
-    /// use orca::pipeline::simple::LLMPipeline;
-    /// use orca::template;
+    /// use orca_core::llm::openai::OpenAI;
+    /// use orca_core::llm::LLM;
+    /// use orca_core::prompt::TemplateEngine;
+    /// use orca_core::pipeline::simple::LLMPipeline;
+    /// use orca_core::template;
     ///
     /// let client = OpenAI::new();
     /// let prompt = "Hello, LLM!";
@@ -94,11 +94,11 @@ impl<M: LLM + Clone + 'static> LLMPipeline<M> {
     ///
     /// # Example
     /// ```rust
-    /// use orca::llm::openai::OpenAI;
-    /// use orca::llm::LLM;
-    /// use orca::prompt::TemplateEngine;
-    /// use orca::pipeline::simple::LLMPipeline;
-    /// use orca::template;
+    /// use orca_core::llm::openai::OpenAI;
+    /// use orca_core::llm::LLM;
+    /// use orca_core::prompt::TemplateEngine;
+    /// use orca_core::pipeline::simple::LLMPipeline;
+    /// use orca_core::template;
     ///
     /// let client = OpenAI::new();
     /// let prompt = "Hello, LLM!";
@@ -116,9 +116,7 @@ impl<M: LLM + Clone + 'static> LLMPipeline<M> {
                 self.template_engine = template_clone;
                 Ok(template_name)
             }
-            None => {
-                return Err(anyhow::anyhow!("Template with name {} does not exist", name));
-            }
+            None => Err(anyhow::anyhow!("Template with name {} does not exist", name)),
         }
     }
 
@@ -128,11 +126,11 @@ impl<M: LLM + Clone + 'static> LLMPipeline<M> {
     ///
     /// # Examples
     /// ```rust
-    /// use orca::llm::openai::OpenAI;
-    /// use orca::llm::LLM;
-    /// use orca::prompt::TemplateEngine;
-    /// use orca::pipeline::simple::LLMPipeline;
-    /// use orca::memory::ChatBuffer;
+    /// use orca_core::llm::openai::OpenAI;
+    /// use orca_core::llm::LLM;
+    /// use orca_core::prompt::TemplateEngine;
+    /// use orca_core::pipeline::simple::LLMPipeline;
+    /// use orca_core::memory::ChatBuffer;
     ///
     /// let client = OpenAI::new();
     /// let prompt = "Hello, LLM!";
@@ -154,10 +152,10 @@ impl<M: LLM + Clone + 'static> LLMPipeline<M> {
     /// # Examples
     ///
     /// ```
-    /// use orca::pipeline::Pipeline;
-    /// use orca::llm::openai::OpenAI;
-    /// use orca::prompt::context::Context;
-    /// use orca::pipeline::simple::LLMPipeline;
+    /// use orca_core::pipeline::Pipeline;
+    /// use orca_core::llm::openai::OpenAI;
+    /// use orca_core::prompt::context::Context;
+    /// use orca_core::pipeline::simple::LLMPipeline;
     /// use std::collections::HashMap;
     ///
     /// # #[tokio::main]

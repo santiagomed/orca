@@ -22,11 +22,11 @@ pub trait LLM: Sync + Send {
     /// # Examples
     /// This example uses the OpenAI chat models.
     /// ```
-    /// use orca::llm::LLM;
-    /// use orca::prompt::Prompt;
-    /// use orca::template;
-    /// use orca::llm::openai::OpenAI;
-    /// use orca::prompt::TemplateEngine;
+    /// use orca_core::llm::LLM;
+    /// use orca_core::prompt::Prompt;
+    /// use orca_core::template;
+    /// use orca_core::llm::openai::OpenAI;
+    /// use orca_core::prompt::TemplateEngine;
     ///
     /// #[tokio::main]
     /// async fn main() {
@@ -62,9 +62,9 @@ pub trait Embedding {
     /// # Examples
     /// This example uses the OpenAI chat models.
     /// ```
-    /// # use orca::prompt;
-    /// # use orca::llm::Embedding;
-    /// # use orca::llm::openai::OpenAI;
+    /// # use orca_core::prompt;
+    /// # use orca_core::llm::Embedding;
+    /// # use orca_core::llm::openai::OpenAI;
     /// # #[tokio::main]
     /// # async fn main() {
     /// let client = OpenAI::new();
@@ -84,10 +84,10 @@ pub trait Embedding {
     /// # Example
     /// This example uses the Bert model.
     /// ```
-    /// # use orca::prompts;
-    /// # use orca::llm::Embedding;
-    /// # use orca::llm::bert::Bert;
-    /// # use orca::prompt::Prompt;
+    /// # use orca_core::prompts;
+    /// # use orca_core::llm::Embedding;
+    /// # use orca_core::llm::bert::Bert;
+    /// # use orca_core::prompt::Prompt;
     /// # #[tokio::main]
     /// # async fn main() {
     /// let bert = Bert::new().build_model_and_tokenizer().await.unwrap();
@@ -255,7 +255,7 @@ impl Default for EmbeddingResponse {
 ///
 /// # Examples
 /// ```
-/// use orca::llm::device;
+/// use orca_core::llm::device;
 ///
 /// // Use a CPU device
 /// let cpu_device = device(true).unwrap();

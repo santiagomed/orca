@@ -1,5 +1,5 @@
 [package]
-name = "orca"
+name = "orca-core"
 description = "Orca is an LLM orchestration framework built in Rust"
 homepage = "https://orca.scrippt.tech"
 documentation = "https://docs.rs/orca"
@@ -23,7 +23,7 @@ pdf_text = { git = "https://github.com/pdf-rs/pdf_text" }
 itertools = "^0.11.0"
 pdf = { git = "https://github.com/pdf-rs/pdf" }
 uuid = { version = "^1.1.2", features = ["v4"] }
-qdrant-client = "1.5.0"
+qdrant-client = "1.7.0"
 anyhow = "1.0.75"
 serial_test = "2.0.0"
 rand = "0.8.5"
