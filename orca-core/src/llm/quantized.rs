@@ -122,8 +122,14 @@ impl Quantized {
         self.sample_len = sample_len;
         self
     }
+
     pub fn with_model(mut self, model: Model) -> Self {
         self.which = model;
+        self
+    }
+
+    pub fn with_seed(mut self, seed: u64) -> Self {
+        self.seed = seed;
         self
     }
 
@@ -314,7 +320,7 @@ impl LLM for Quantized {
             Quantized::format_chat_prompt(prompt.to_chat()?)
         };
 
-        log::info!("prompt:\n{}", &prompt);
+        log::debug!("prompt:\n{}", &prompt);
         let mut result = String::new();
         let tokens = tokenizer.encode(prompt, true).map_err(anyhow::Error::msg)?;
         if log::log_enabled!(log::Level::Debug) {

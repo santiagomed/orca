@@ -201,6 +201,7 @@ impl<M: LLM + Clone + 'static> Pipeline for LLMPipeline<M> {
             let mut locked_memory = memory.lock().await; // Lock the memory
             let mem = locked_memory.memory();
             mem.save(prompt);
+            log::debug!("Memory: {}", mem);
             self.llm.generate(mem.clone_prompt()).await?
         } else {
             self.llm.generate(prompt.clone_prompt()).await?

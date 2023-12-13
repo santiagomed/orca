@@ -235,6 +235,7 @@ pub trait Prompt: Sync + Send + Display {
     /// ```
     fn save(&mut self, _data: Box<dyn Prompt>) {
         unimplemented!("save not implemented for this prompt type");
+        // Err(anyhow::anyhow!("save not implemented for this prompt type"))
     }
 
     /// Convert the current prompt to a `ChatPrompt`.
@@ -242,7 +243,7 @@ pub trait Prompt: Sync + Send + Display {
     /// # Returns
     /// * `Result<ChatPrompt>` - The `ChatPrompt` representation of the prompt or an error.
     fn to_chat(&self) -> Result<ChatPrompt> {
-        unimplemented!("Unable to convert prompt to ChatPrompt");
+        Err(anyhow::anyhow!("Unable to convert prompt to ChatPrompt"))
     }
 
     /// Clone the current prompt into a Boxed trait object.

@@ -84,6 +84,10 @@ impl ChatBuffer {
             memory: ChatPrompt(Vec::new()),
         }
     }
+
+    pub fn from_chat(chat: &ChatPrompt) -> Self {
+        Self { memory: chat.clone() }
+    }
 }
 
 impl Memory for ChatBuffer {
