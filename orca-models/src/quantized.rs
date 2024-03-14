@@ -3,8 +3,8 @@
 // #![allow(unused_variables)]
 // #![allow(unused_imports)]
 
-use candle::Device;
 use candle::quantized::{ggml_file, gguf_file};
+use candle::Device;
 use candle_transformers::models::quantized_llama::ModelWeights;
 
 use crate::utils::text_generation::{Model, TextGeneration};
@@ -65,7 +65,7 @@ impl Quantized {
     pub fn from_gguf_stream(model: Vec<u8>, tokenizer: Vec<u8>, config: Config) -> anyhow::Result<Self> {
         let mut model_reader = std::io::Cursor::new(model);
         let model_content = gguf_file::Content::read(&mut model_reader)?;
-        let model = ModelWeights::from_gguf(model_content, &mut model_reader, &Device::Cpu)?;
+        let model = ModelWeights::from_gguf(model_content, &mut model_reader)?;
         let tokenizer = tokenizers::Tokenizer::from_bytes(tokenizer).map_err(|m| anyhow::anyhow!(m))?;
         Ok(Self {
             model,
@@ -80,7 +80,7 @@ impl Quantized {
 
     pub fn from_ggml_stream(model: Vec<u8>, tokenizer: Vec<u8>, config: Config) -> anyhow::Result<Self> {
         let mut model_reader = std::io::Cursor::new(model);
-        let model_content = ggml_file::Content::read(&mut model_reader, &Device::Cpu)?;
+        let model_content = ggml_file::Content::read(&mut model_reader)?;
         let model = ModelWeights::from_ggml(model_content, 1)?;
         let tokenizer = tokenizers::Tokenizer::from_bytes(tokenizer).map_err(|m| anyhow::anyhow!(m))?;
         Ok(Self {

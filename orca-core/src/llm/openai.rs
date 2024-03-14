@@ -46,6 +46,21 @@ pub struct Response {
     choices: Vec<Choice>,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct QuotaError {
+    message: String,
+    #[serde(rename = "type")]
+    _type: String,
+    param: String,
+    code: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum OpenAIResponse {
+    Response(Response),
+    QuotaError(QuotaError),
+}
+
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct OpenAIEmbeddingResponse {
     object: String,
@@ -292,8 +307,10 @@ impl LLM for OpenAI {
         let messages = prompt.to_chat()?;
         let req = self.generate_request(messages.to_vec_ref())?;
         let res = self.client.execute(req).await?;
-        let res = res.json::<Response>().await?;
-        Ok(res.into())
+        match res.json::<OpenAIResponse>().await? {
+            OpenAIResponse::Response(response) => Ok(response.into()),
+            OpenAIResponse::QuotaError(e) => Err(anyhow::anyhow!("Quota error: {}", e.message)),
+        }
     }
 }
 

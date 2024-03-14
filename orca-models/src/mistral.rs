@@ -1,4 +1,3 @@
-use candle::Device;
 use crate::utils::text_generation::{Model, TextGeneration};
 use candle_transformers::models::mistral;
 use candle_transformers::models::quantized_mistral;
@@ -73,7 +72,7 @@ impl Mistral {
         P: AsRef<std::path::Path>,
     {
         let cfg = mistral::Config::config_7b_v0_1(config.flash_attn);
-        let vb = candle_transformers::quantized_var_builder::VarBuilder::from_gguf(weights, &Device::Cpu)?;
+        let vb = candle_transformers::quantized_var_builder::VarBuilder::from_gguf(weights)?;
         let model = quantized_mistral::Model::new(&cfg, vb)?;
         let tokenizer = tokenizers::Tokenizer::from_file(tokenizer).map_err(|m| anyhow::anyhow!(m))?;
         Ok(Self {
@@ -89,7 +88,7 @@ impl Mistral {
 
     pub fn from_stream(weights: Vec<u8>, tokenizer: Vec<u8>, config: Config) -> anyhow::Result<Self> {
         let cfg = mistral::Config::config_7b_v0_1(config.flash_attn);
-        let vb = candle_transformers::quantized_var_builder::VarBuilder::from_gguf_buffer(&weights, &Device::Cpu)?;
+        let vb = candle_transformers::quantized_var_builder::VarBuilder::from_gguf_buffer(&weights)?;
         let model = quantized_mistral::Model::new(&cfg, vb)?;
         let tokenizer = tokenizers::Tokenizer::from_bytes(tokenizer).map_err(|m| anyhow::anyhow!(m))?;
         Ok(Self {
