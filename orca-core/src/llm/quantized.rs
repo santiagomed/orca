@@ -198,7 +198,7 @@ impl Quantized {
                 let mut total_size_in_bytes = 0;
                 for (_, tensor) in model.tensor_infos.iter() {
                     let elem_count = tensor.shape.elem_count();
-                    total_size_in_bytes += elem_count * tensor.ggml_dtype.type_size() / tensor.ggml_dtype.blck_size();
+                    total_size_in_bytes += elem_count * tensor.ggml_dtype.type_size() / tensor.ggml_dtype.block_size();
                 }
                 log::info!(
                     "loaded {:?} tensors ({}) in {:.2}s",
@@ -206,14 +206,14 @@ impl Quantized {
                     &format_size(total_size_in_bytes),
                     start.elapsed().as_secs_f32(),
                 );
-                Some(ModelWeights::from_gguf(model, &mut file)?)
+                Some(ModelWeights::from_gguf(model, &mut file, &Device::Cpu)?)
             }
             Some("ggml" | "bin") | Some(_) | None => {
-                let model = ggml_file::Content::read(&mut file)?;
+                let model = ggml_file::Content::read(&mut file, &Device::Cpu)?;
                 let mut total_size_in_bytes = 0;
                 for (_, tensor) in model.tensors.iter() {
                     let elem_count = tensor.shape().elem_count();
-                    total_size_in_bytes += elem_count * tensor.dtype().type_size() / tensor.dtype().blck_size();
+                    total_size_in_bytes += elem_count * tensor.dtype().type_size() / tensor.dtype().block_size();
                 }
                 log::info!(
                     "loaded {:?} tensors ({}) in {:.2}s",
