@@ -1,11 +1,13 @@
+use std::env;
 use std::fmt::Display;
 
 use crate::{
     llm::{Embedding as EmbeddingTrait, LLM},
     prompt::{chat::Message, Prompt},
 };
-use anyhow::Result;
-use reqwest::Client;
+use anyhow::{anyhow, bail, Result};
+use log::{debug, info, error};
+use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
 
 use super::{EmbeddingResponse, LLMResponse};
@@ -44,6 +46,7 @@ pub struct Response {
     model: String,
     usage: Usage,
     choices: Vec<Choice>,
+    system_fingerprint: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -117,6 +120,12 @@ pub struct Usage {
     prompt_tokens: i32,
     completion_tokens: Option<i32>,
     total_tokens: i32,
+    completion_tokens_details: CompletionTokensDetails,
+}
+
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+pub struct CompletionTokensDetails {
+    reasoning_tokens: i32,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
@@ -136,6 +145,7 @@ impl From<ResponseFormat> for ResponseFormatWrapper {
 pub struct Choice {
     index: i32,
     message: Message,
+    logprobs: Option<String>,
     finish_reason: String,
 }
 
@@ -194,10 +204,19 @@ pub struct OpenAI {
 
 impl Default for OpenAI {
     fn default() -> Self {
+        let api_key = match env::var("OPENAI_API_KEY") {
+            Ok(api_key) => api_key,
+            Err(e) => {
+                let msg = format!("OPENAI_API_KEY: {e}");
+                error!("{msg}");
+                panic!("{msg}")
+            }
+        };
+
         Self {
             client: Client::new(),
             url: OPENAI_COMPLETIONS_URL.to_string(),
-            api_key: std::env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY not set"),
+            api_key,
             model: "gpt-3.5-turbo-1106".to_string(),
             emedding_model: "text-embedding-ada-002".to_string(),
             temperature: 1.0,
@@ -213,6 +232,13 @@ impl OpenAI {
     /// Create a new OpenAI client
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Set Openai Api Key
+    /// e.g. `sk-zv62KQG06YS4HSE13VJVTa01J86PDSWMS2V775BHGEBY48GD`
+    pub fn with_api_key(mut self, api_key: &str) -> Self {
+        self.api_key = api_key.to_string();
+        self
     }
 
     /// Set model to use
@@ -307,9 +333,37 @@ impl LLM for OpenAI {
         let messages = prompt.to_chat()?;
         let req = self.generate_request(messages.to_vec_ref())?;
         let res = self.client.execute(req).await?;
-        match res.json::<OpenAIResponse>().await? {
-            OpenAIResponse::Response(response) => Ok(response.into()),
-            OpenAIResponse::QuotaError(e) => Err(anyhow::anyhow!("Quota error: {}", e.message)),
+
+        let status = res.status();
+
+        if status.is_success() {
+            let bytes = res.bytes().await?;
+            match serde_json::from_slice::<Response>(&bytes) {
+                Ok(response) => Ok(response.into()),
+                Err(e) => {
+                    let msg = format!("Erro unknown: {}, for this response: {}",
+                                      e,
+                                      std::str::from_utf8(&bytes).unwrap_or("<invalid utf-8>"));
+                    error!("{}", msg);
+                    bail!("error: {}, req payload: {}", e, msg);
+                }
+            }
+        } else if status == StatusCode::TOO_MANY_REQUESTS {
+            let bytes = res.bytes().await?;
+            match serde_json::from_slice::<QuotaError>(&bytes) {
+                Ok(quota_error) => bail!("Quota error: {}", quota_error.message),
+                Err(e) => {
+                    let msg = format!("Erro unknown: {}, for this response: {}",
+                                      e,
+                                      std::str::from_utf8(&bytes).unwrap_or("<invalid utf-8>"));
+                    error!("{}", msg);
+                    bail!("error: {}, req payload: {}", e, msg);
+                }
+            }
+        } else {
+            let msg = format!("api response with status code: {}, payloads: {}", status, res.text().await?);
+            error!("{}", msg);
+            bail!(msg)
         }
     }
 }
@@ -342,10 +396,29 @@ where
 impl EmbeddingTrait for OpenAI {
     async fn generate_embedding(&self, prompt: Box<dyn Prompt>) -> Result<EmbeddingResponse> {
         let req = self.generate_embedding_request(&prompt.to_string())?;
-        let res = self.client.execute(req).await?;
-        let res = res.json::<OpenAIEmbeddingResponse>().await?;
+        debug!("req: {:?}", req);
 
-        Ok(res.into())
+        let res = self.client.execute(req).await?;
+        debug!("res: {:?}", res);
+
+        let status_code = res.status();
+        debug!("status_code: {:?}", status_code);
+
+        if !status_code.is_success() {
+            let msg = format!(r#"{{ "status_code": "{}", "payload": {} }}"#, status_code, res.text().await?);
+            error!("{}", msg);
+            bail!(msg);
+        }
+
+        match res.json::<OpenAIEmbeddingResponse>().await {
+            Ok(res) => {
+                Ok(res.into())
+            }
+            Err(e) => {
+                error!(r#"{{ "error": "{}", "stack_trace": ["{}"] }}"#, "Error parsing response from openai", e);
+                bail!(e)
+            }
+        }
     }
 
     async fn generate_embeddings(&self, prompts: Vec<Box<dyn Prompt>>) -> Result<EmbeddingResponse> {
@@ -370,7 +443,7 @@ impl EmbeddingTrait for OpenAI {
                     };
                     Ok(response)
                 }
-                .await;
+                    .await;
 
                 // Send back the result (success or error) via the channel.
                 if let Err(e) = send_with_exponential_backoff(&sender, (i, result)).await {
@@ -388,7 +461,7 @@ impl EmbeddingTrait for OpenAI {
                     embeddings[i] = response;
                 }
                 Err(e) => {
-                    return Err(anyhow::anyhow!("Failed to generate embedding index {}: {}", i, e));
+                    return Err(anyhow!("Failed to generate embedding index {}: {}", i, e));
                 }
             }
         }
@@ -404,6 +477,42 @@ mod test {
     use crate::template;
     use crate::{prompt, prompts};
     use std::collections::HashMap;
+    use dotenv::dotenv;
+
+
+    #[test]
+    fn test_parse_response() {
+        let response = r#"{
+          "id": "chatcmpl-A9aBeoxUbUFGGDu79XwBd3AXmyEwq",
+          "object": "chat.completion",
+          "created": 1726847418,
+          "model": "gpt-3.5-turbo-1106",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "Hola, Miuler. Soy un modelo de lenguaje AI, ¡encantado de conocerte!",
+                "refusal": null
+              },
+              "logprobs": null,
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 21,
+            "completion_tokens": 22,
+            "total_tokens": 43,
+            "completion_tokens_details": {
+              "reasoning_tokens": 0
+            }
+          },
+          "system_fingerprint": "fp_e81b59fe66"
+        }"#;
+
+        let response = serde_json::from_str::<Response>(response);
+        assert!(response.is_ok());
+    }
 
     #[tokio::test]
     async fn test_generate() {
@@ -463,6 +572,8 @@ mod test {
 
     #[tokio::test]
     async fn test_embedding() {
+        dotenv().ok();
+        env_logger::init();
         let client = OpenAI::new();
         let content = prompt!("This is a test");
         let res = client.generate_embedding(content).await.unwrap();
@@ -472,8 +583,44 @@ mod test {
     #[tokio::test]
     async fn test_embeddings() {
         let client = OpenAI::new();
-        let content = prompts!("This is a test", "This is another test", "This is a third test");
+        let content: Vec<Box<dyn Prompt>> = prompts!("This is a test", "This is another test", "This is a third test");
         let res = client.generate_embeddings(content).await.unwrap();
         assert!(res.to_vec2().unwrap().len() > 0);
+    }
+
+    #[test]
+    fn test_serde() {
+        tracing_subscriber::fmt().pretty().init();
+
+        use serde::{Serialize, Deserialize};
+
+        #[derive(Serialize, Deserialize, Debug)]
+        #[serde(tag = "type")] // Añadiendo una etiqueta para discriminar entre las variantes
+        enum OpenAIResponse {
+            #[serde(rename = "response")]
+            Response(Response),
+            #[serde(rename = "quota_error")]
+            QuotaError(QuotaError),
+        }
+
+        #[derive(Serialize, Deserialize, Debug)]
+        struct Response {
+            field1: String,
+            field2: String,
+        }
+
+        #[derive(Serialize, Deserialize, Debug)]
+        struct QuotaError {
+            field1: String,
+            field2: String,
+        }
+
+        let json_response = r#"{ "type": "response", "field1": "value1", "field2": "value2" }"#;
+        let openai_response: OpenAIResponse = serde_json::from_str(json_response).unwrap();
+        info!("openai_response: {:?}", openai_response);
+
+        let json_quota_error = r#"{ "type": "quota_error", "field1": "value1", "field2": "value2" }"#;
+        let openai_quota_error: OpenAIResponse = serde_json::from_str(json_quota_error).unwrap();
+        info!("openai_quota_error: {:?}", openai_quota_error);
     }
 }

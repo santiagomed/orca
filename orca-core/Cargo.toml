@@ -12,33 +12,35 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-handlebars = "^4.4.0"
-serde = { version = "^1.0.130", features = ["derive"] }
-serde_json = "^1.0"
-async-trait = "^0.1.62"
-tokio = {version = "^1.32.0", features = ["full"]}
-reqwest = { version = "^0.11.14", features = ["json"] }
-scraper = "^0.17.1"
-pdf_text = { git = "https://github.com/pdf-rs/pdf_text" }
-itertools = "^0.11.0"
+handlebars = "^6.1.0"
+serde = { version = "^1.0.210", features = ["derive"] }
+serde_json = "^1.0.128"
+async-trait = "^0.1.82"
+tokio = {version = "^1.40.0", features = ["full"]}
+reqwest = { version = "^0.12.7", features = ["json"] }
+scraper = "0.20.0"
 pdf = { git = "https://github.com/pdf-rs/pdf" }
+pdf_text = { git = "https://github.com/pdf-rs/pdf_text" }
+itertools = "0.13.0"
 uuid = { version = "^1.1.2", features = ["v4"] }
 qdrant-client = "1.7.0"
 anyhow = "1.0.75"
-serial_test = "2.0.0"
+serial_test = "3.1.1"
 rand = "0.8.5"
-text-splitter = {version = "0.4.4", features = ["tokenizers", "tiktoken-rs"]}
-tokenizers = {version = "0.14.0", features = ["http"]}
-hf-hub = {version = "0.3.0", features = ["tokio"]}
-candle-core = { git = "https://github.com/huggingface/candle" }
-candle-transformers = { git = "https://github.com/huggingface/candle" }
-candle-nn = { git = "https://github.com/huggingface/candle" }
-tracing-chrome = "0.7.1"
-tracing-subscriber = "0.3.17"
-log = "0.4.20"
+text-splitter = {version = "0.11.0", features = ["tokenizers", "tiktoken-rs"]}
+tokenizers = {version = "0.20.0", features = ["http"]}
+hf-hub = {version = "0.3.2", features = ["tokio"]}
+candle-core = "0.7.0" # { git = "https://github.com/huggingface/candle" }
+candle-transformers = "0.7.0" # { git = "https://github.com/huggingface/candle" }
+candle-nn = "0.7.0" # { git = "https://github.com/huggingface/candle" }
+tracing-chrome = "0.7.2"
+tracing-subscriber = "0.3.18"
+log = "0.4.22"
 rayon = "1.8.0"
 env_logger = "0.10.0"
 
 [dev-dependencies]
-base64 = "0.21.4"
+base64 = "0.22.1"
+env_logger = "0.11.5"
+dotenv = "0.15.0"
 

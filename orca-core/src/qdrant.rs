@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::{Context, Result};
-pub use qdrant_client::prelude::Value as QdrantValue;
+pub use qdrant_client::qdrant::Value as QdrantValue;
 use qdrant_client::prelude::*;
 use qdrant_client::qdrant::point_id::PointIdOptions;
 use qdrant_client::qdrant::value::Kind;
@@ -24,12 +24,12 @@ where
         if let serde_json::Value::Object(map) = value {
             let converted_map: HashMap<String, QdrantValue> =
                 map.into_iter().map(|(k, v)| (k, QdrantValue::from(v))).collect();
-            Ok(Payload::new_from_hashmap(converted_map))
+            Ok(Payload::from(converted_map))
         } else {
             // If the value is not an object, wrap it in a map with a generic key.
             let mut map = HashMap::new();
             map.insert("value".to_string(), QdrantValue::from(value));
-            Ok(Payload::new_from_hashmap(map))
+            Ok(Payload::from(map))
         }
     }
 }
@@ -50,7 +50,7 @@ pub enum Condition {
 }
 
 /// Converts a `Value` to a `MatchValue` for use in a `Condition`.
-fn convert_to_match_value(value: qdrant_client::prelude::Value) -> qdrant_client::qdrant::r#match::MatchValue {
+fn convert_to_match_value(value: qdrant_client::qdrant::Value) -> qdrant_client::qdrant::r#match::MatchValue {
     match value.kind {
         Some(Kind::BoolValue(b)) => b.into(),
         Some(Kind::IntegerValue(i)) => i.into(),
