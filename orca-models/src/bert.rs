@@ -92,7 +92,7 @@ impl Bert {
 
         let token_ids = Tensor::stack(&token_ids, 0)?;
         let token_type_ids = token_ids.zeros_like()?;
-        let embeddings = self.bert.forward(&token_ids, &token_type_ids)?;
+        let embeddings = self.bert.forward(&token_ids, &token_type_ids, None)?;
         // Apply some avg-pooling by taking the mean embedding value for all tokens (including padding)
         let (_n_sentence, n_tokens, _hidden_size) = embeddings.dims3()?;
         let embeddings = (embeddings.sum(1)? / (n_tokens as f64))?;

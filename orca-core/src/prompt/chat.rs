@@ -58,6 +58,8 @@ pub struct Message {
 
     /// The message text
     pub content: String,
+
+    pub refusal: Option<String>,
 }
 
 impl Message {
@@ -65,6 +67,7 @@ impl Message {
         Message {
             role,
             content: content.to_string(),
+            refusal: None,
         }
     }
 }
@@ -83,7 +86,7 @@ pub struct ChatHelper;
 impl HelperDef for RoleHelper {
     fn call<'reg: 'rc, 'rc>(
         &self,
-        h: &Helper<'reg, 'rc>,
+        h: &Helper<'rc>,
         _r: &'reg Registry<'reg>,
         ctx: &'rc Context,
         rc: &mut RenderContext<'reg, 'rc>,
@@ -105,7 +108,7 @@ impl HelperDef for RoleHelper {
 impl HelperDef for ChatHelper {
     fn call<'reg: 'rc, 'rc>(
         &self,
-        h: &Helper<'reg, 'rc>,
+        h: &Helper<'rc>,
         _r: &'reg Registry<'reg>,
         ctx: &'rc Context,
         rc: &mut RenderContext<'reg, 'rc>,
