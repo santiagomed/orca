@@ -178,7 +178,8 @@ impl Embedding for Bert {
         let token_type_ids = token_ids.zeros_like()?;
         log::info!("running inference {:?}", token_ids.shape());
         let start = std::time::Instant::now();
-        let embedding = model.forward(&token_ids, &token_type_ids)?;
+        // TODO: Validate the use of `attention_mask`
+        let embedding = model.forward(&token_ids, &token_type_ids, None)?;
         log::info!("embedding shape: {:?}", embedding.shape());
         log::info!("Embedding took {:?} to generate", start.elapsed());
         Ok(EmbeddingResponse::Bert(embedding))
@@ -238,7 +239,8 @@ impl Embedding for Bert {
         let start = std::time::Instant::now();
         token_ids.par_iter().try_for_each_with(embeddings_arc.clone(), |embeddings_arc, (i, token_ids)| {
             let token_type_ids = token_ids.zeros_like()?;
-            let embedding = model.forward(token_ids, &token_type_ids)?.squeeze(0)?;
+            // TODO: Validate the use of `attention_mask`
+            let embedding = model.forward(token_ids, &token_type_ids, None)?.squeeze(0)?;
 
             // Lock the mutex and write the embedding to the correct index
             let mut embeddings = embeddings_arc.lock().map_err(|e| anyhow!("Mutex error: {}", e))?;
